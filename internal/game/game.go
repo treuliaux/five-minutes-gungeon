@@ -32,79 +32,87 @@ func NewGame() *Game {
 	}
 }
 
-func (g *Game) Tick(delta time.Duration) error {
+func (g *Game) Tick(delta time.Duration) ([]Event, error) {
+	var events []Event
+
 	if g.Status != Playing {
-		return fmt.Errorf("game is not in playing state")
+		return events, fmt.Errorf("game is not in playing state")
 	}
 	g.inGameTimer += delta
 	if g.inGameTimer >= 5*time.Minute {
 		g.Status = Defeat
 
-		return nil
+		return append(events, GameLostEvent{}), nil
 	}
 	if (g.inGameTimer-g.lastPlayedCardTimer <= time.Second/2 && !g.isFightingBoss()) || !g.isPlayfieldBeaten() {
-		return nil
+		return events, nil
 	}
+	events = append(events, DoorDefeatedEvent{DungeonCard: g.currentDungeonCard})
 	if g.isFightingBoss() {
 		g.Status = Victory
 
-		return nil
+		return append(events, GameWonEvent{}), nil
 	}
-	g.clearField()
-	if err := g.openDoor(); err != nil {
-		return err
+	events = append(events, g.clearField()...)
+	openDoorEvents, err := g.openDoor()
+	if err != nil {
+		return append(events, openDoorEvents...), err
 	}
 
-	return nil
+	return append(events, openDoorEvents...), nil
 }
 
-func (g *Game) isFightingBoss() bool {
-	return g.currentDungeonCard == g.dungeon.boss
-}
-
-func (g *Game) Apply(cmd Command) {
+func (g *Game) Apply(cmd Command) ([]Event, error) {
 	var err error
+	var events []Event
+
 	switch cmd := cmd.(type) {
 	case AddPlayerCmd:
-		err = g.addPlayer(cmd)
+		events, err = g.addPlayer(cmd)
 	case StartCmd:
-		err = g.start()
+		events, err = g.start()
 	case PlayCardCmd:
-		err = g.playCard(cmd.Player, cmd.Card)
+		events, err = g.playCard(cmd.Player, cmd.Card)
 	case DiscardCardCmd:
-		err = g.discardCard(cmd.Player, cmd.Card)
+		events, err = g.discardCard(cmd.Player, cmd.Card)
 	case FreezeCmd:
-		//err = g.freeze(cmd.Player)
+		//events, err = g.freeze(cmd.Player)
 	}
 	if cmd.Reply() != nil {
 		cmd.Reply() <- err
 	}
+
+	return events, err
 }
 
-func (g *Game) addPlayer(cmd AddPlayerCmd) error {
+func (g *Game) addPlayer(cmd AddPlayerCmd) ([]Event, error) {
+	var events []Event
 	if g.Status != Waiting {
-		return fmt.Errorf("game is not in waiting state")
+		return events, fmt.Errorf("game is not in waiting state")
 	}
 	if slices.ContainsFunc(g.players, func(player *Player) bool {
 		return player.hero.class == cmd.Class
 	}) {
-		return fmt.Errorf("player with class %d already exists", cmd.Class)
+		return events, fmt.Errorf("player with class %d already exists", cmd.Class)
 	}
 	player, err := NewPlayer(cmd.Name, cmd.Class)
 	if err != nil {
-		return err
+		return events, err
 	}
 	g.players = append(g.players, player)
 
-	return nil
+	return append(events, PlayerAddedEvent{Player: player}), nil
 }
 
-func (g *Game) start() error {
+func (g *Game) start() ([]Event, error) {
+	var events []Event
+	var err error
+
 	if g.Status != Waiting {
-		return fmt.Errorf("game has already started")
+		return events, fmt.Errorf("game has already started")
 	}
 	if len(g.players) < 2 || len(g.players) > 6 {
-		return fmt.Errorf("game has incorrect number of players: %d", len(g.players))
+		return events, fmt.Errorf("game has incorrect number of players: %d", len(g.players))
 	}
 	g.determineHandSize()
 	for _, player := range g.players {
@@ -116,31 +124,54 @@ func (g *Game) start() error {
 	g.inGameTimer = 0
 	g.lastPlayedCardTimer = 0
 
-	if err := g.openDoor(); err != nil {
-		return err
+	events, err = g.openDoor()
+	if err != nil {
+		return events, err
 	}
 
-	return nil
+	return append([]Event{GameStartedEvent{}}, events...), nil
 }
 
-func (g *Game) playCard(p *Player, card PlayerCard) error {
+func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
+	var events []Event
 	if !p.HasCardInHand(card) {
-		return fmt.Errorf("player does not have card in hand")
+		return events, fmt.Errorf("player does not have card in hand")
 	}
 	p.RemoveCardFromHand(card)
 	g.playedCards = append(g.playedCards, card)
 	g.lastPlayedCardTimer = g.inGameTimer
 
-	return nil
+	return append(events, CardPlayedEvent{ByPlayer: p, Card: card}), nil
 }
 
-func (g *Game) discardCard(p *Player, card PlayerCard) error {
+func (g *Game) discardCard(p *Player, card PlayerCard) ([]Event, error) {
+	var events []Event
 	if !p.HasCardInHand(card) {
-		return fmt.Errorf("player does not have card in hand")
+		return events, fmt.Errorf("player does not have card in hand")
 	}
 	p.DiscardCard(card)
 
-	return nil
+	return append(events, CardDiscardedEvent{ByPlayer: p, Card: card}), nil
+}
+
+func (g *Game) openDoor() ([]Event, error) {
+	var events []Event
+	if g.currentDungeonCard != nil {
+		return events, fmt.Errorf("door is already open")
+	}
+	card := g.dungeon.OpenDoor()
+	g.currentDungeonCard = card
+
+	return append(events, DoorOpenedEvent{DungeonCard: card}), nil
+}
+
+func (g *Game) clearField() []Event {
+	var events []Event
+	g.currentDungeonCard = nil
+	g.playedCards = make([]PlayerCard, 0)
+	g.lastPlayedCardTimer = g.inGameTimer
+
+	return append(events, FieldClearedEvent{})
 }
 
 func (g *Game) determineHandSize() {
@@ -158,16 +189,6 @@ func (g *Game) generateDungeon() {
 	g.dungeon = NewDungeon()
 }
 
-func (g *Game) openDoor() error {
-	if g.currentDungeonCard != nil {
-		return fmt.Errorf("door is already open")
-	}
-	card := g.dungeon.OpenDoor()
-	g.currentDungeonCard = card
-
-	return nil
-}
-
 func (g *Game) isPlayfieldBeaten() bool {
 	if g.currentDungeonCard == nil {
 		return true
@@ -178,8 +199,6 @@ func (g *Game) isPlayfieldBeaten() bool {
 	return false
 }
 
-func (g *Game) clearField() {
-	g.currentDungeonCard = nil
-	g.playedCards = make([]PlayerCard, 0)
-	g.lastPlayedCardTimer = g.inGameTimer
+func (g *Game) isFightingBoss() bool {
+	return g.currentDungeonCard == g.dungeon.boss
 }

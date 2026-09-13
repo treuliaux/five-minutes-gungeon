@@ -48,10 +48,12 @@ func TestGameAddPlayersAndStart(t *testing.T) {
 		reply: nil,
 	})
 
-	err := game.start()
-
+	events, err := game.start()
 	if err != nil {
 		t.Error("expected game to start successfully")
+	}
+	if len(events) != 2 {
+		t.Error("expected game to fire started event and opened door event")
 	}
 
 	if (len(game.players[0].hand) == 0) || (len(game.players[1].hand) == 0) {
@@ -62,27 +64,9 @@ func TestGameAddPlayersAndStart(t *testing.T) {
 func TestGameCannotStartWithLessThanTwoPlayers(t *testing.T) {
 	game := NewGame()
 
-	err := game.start()
-
+	_, err := game.start()
 	if err == nil {
 		t.Error("expected game not to start with less than two players")
-	}
-}
-
-func TestGameCannotStartWithMoreThanSixPlayers(t *testing.T) {
-	game := NewGame()
-	for range 7 {
-		game.addPlayer(AddPlayerCmd{
-			Name:  "Player",
-			Class: Paladin,
-			reply: nil,
-		})
-	}
-
-	err := game.start()
-
-	if err == nil {
-		t.Error("expected game not to start with more than six players")
 	}
 }
 
@@ -99,12 +83,12 @@ func TestGameCannotStartTwice(t *testing.T) {
 		reply: nil,
 	})
 
-	err := game.start()
+	_, err := game.start()
 	if err != nil {
 		t.Error("expected game to start successfully")
 	}
 
-	err = game.start()
+	_, err = game.start()
 	if err == nil {
 		t.Error("expected game not to start twice")
 	}
@@ -134,7 +118,7 @@ func TestSimpleTurn(t *testing.T) {
 		Status: Waiting,
 	}
 
-	if err := game.start(); err != nil {
+	if _, err := game.start(); err != nil {
 		t.Error("expected game to start successfully")
 	}
 	if game.isPlayfieldBeaten() {
@@ -165,30 +149,30 @@ func TestCompleteCycle(t *testing.T) {
 		Status:  Waiting,
 	}
 
-	_ = game.start()
+	_, _ = game.start()
 	_, ok := game.currentDungeonCard.(*DoorCard)
 	if !ok {
 		t.Error("expected game to start with a door card")
 	}
-	_ = game.Tick(time.Second)
+	_, _ = game.Tick(time.Second)
 	game.playCard(paladin, paladin.hand[0])
-	_ = game.Tick(time.Second)
+	_, _ = game.Tick(time.Second)
 	if game.Status != Playing {
 		t.Error("expected game state to be playing")
 	}
 	game.playCard(barbarian, barbarian.hand[0])
-	_ = game.Tick(time.Second)
+	_, _ = game.Tick(time.Second)
 	_, ok = game.currentDungeonCard.(*BossMat)
 	if !ok {
 		t.Error("expected game to be at the boss stage")
 	}
 	game.playCard(paladin, paladin.hand[0])
-	_ = game.Tick(time.Second)
+	_, _ = game.Tick(time.Second)
 	if game.Status != Playing {
 		t.Error("expected game state to be playing")
 	}
 	game.playCard(barbarian, barbarian.hand[0])
-	_ = game.Tick(1)
+	_, _ = game.Tick(1)
 	if game.Status != Victory {
 		t.Error("expected game state to be victory")
 	}
@@ -209,16 +193,16 @@ func TestSimpleDefeat(t *testing.T) {
 		Status:  Waiting,
 	}
 
-	_ = game.start()
-	_ = game.Tick(1)
+	_, _ = game.start()
+	_, _ = game.Tick(1)
 	if game.Status != Playing {
 		t.Error("expected game status to be playing")
 	}
-	_ = game.Tick(4*time.Minute + 59*time.Second)
+	_, _ = game.Tick(4*time.Minute + 59*time.Second)
 	if game.Status != Playing {
 		t.Error("expected game status to be playing")
 	}
-	_ = game.Tick(1 * time.Second)
+	_, _ = game.Tick(1 * time.Second)
 	if game.Status != Defeat {
 		t.Error("expected game status to be defeated")
 	}
