@@ -34,16 +34,16 @@ func (d *Deck) Shuffle() {
 	})
 }
 
-func (d *Deck) PutAtop(cards ...*PlayerCard) {
+func (d *Deck) PutAtop(cards ...PlayerCard) {
 	for _, card := range cards {
-		d.cards = append(d.cards, *card)
+		d.cards = append(d.cards, card)
 	}
 }
 
-func FreshYellowDeck() *Deck {
+func NewYellowDeck() *Deck {
 	var cards []PlayerCard
-	card := ResourceCard{Resources: []ResourceType{Shield}}
-	cards = append(cards, card)
+	cards = append(cards, &ResourceCard{resources: []ResourceType{Shield}})
+	cards = append(cards, &ResourceCard{resources: []ResourceType{Shield, Scroll}})
 	d := &Deck{
 		Color: Yellow,
 		cards: cards,
@@ -52,10 +52,10 @@ func FreshYellowDeck() *Deck {
 	return d
 }
 
-func FreshRedDeck() *Deck {
+func NewRedDeck() *Deck {
 	var cards []PlayerCard
-	card := ResourceCard{Resources: []ResourceType{Sword}}
-	cards = append(cards, card)
+	cards = append(cards, &ResourceCard{resources: []ResourceType{Sword}})
+	cards = append(cards, &ResourceCard{resources: []ResourceType{Sword, Scroll}})
 	d := &Deck{
 		Color: Red,
 		cards: cards,

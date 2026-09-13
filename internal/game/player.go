@@ -2,32 +2,51 @@ package game
 
 import (
 	"slices"
-
-	"github.com/gookit/goutil/dump"
 )
 
 type Player struct {
-	Name    string
-	Hero    *Hero
-	Deck    *Deck
-	Discard []PlayerCard
-	Hand    []PlayerCard
+	name    string
+	hero    *Hero
+	deck    *Deck
+	discard []PlayerCard
+	hand    []PlayerCard
 }
 
-func NewPlayer(name string, hero *Hero) *Player {
+func NewPlayer(name string, class HeroClass) (*Player, error) {
+	hero, err := NewHeroFromHeroClass(class)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Player{
-		Name:    name,
-		Hero:    hero,
-		Deck:    hero.GetNewDeck(),
-		Discard: []PlayerCard{},
-		Hand:    []PlayerCard{},
+		name:    name,
+		hero:    hero,
+		deck:    hero.NewDeck(),
+		discard: []PlayerCard{},
+		hand:    []PlayerCard{},
+	}, nil
+}
+
+func (p *Player) RemoveCardFromHand(card PlayerCard) {
+	for i, c := range p.hand {
+		if c == card {
+			p.hand = append(p.hand[:i], p.hand[i+1:]...)
+			return
+		}
 	}
 }
 
-func (p *Player) RemoveCard(card PlayerCard) {
-	for i, c := range p.Hand {
+func (p *Player) DiscardMultipleCards(cards []PlayerCard) {
+	for _, card := range cards {
+		p.DiscardCard(card)
+	}
+}
+
+func (p *Player) DiscardCard(card PlayerCard) {
+	for i, c := range p.hand {
 		if c == card {
-			p.Hand = append(p.Hand[:i], p.Hand[i+1:]...)
+			p.hand = append(p.hand[:i], p.hand[i+1:]...)
+			p.discard = append(p.discard, card)
 			return
 		}
 	}
@@ -35,25 +54,21 @@ func (p *Player) RemoveCard(card PlayerCard) {
 
 func (p *Player) DrawCards(i int) {
 	for range i {
-		draw := p.Deck.Draw()
+		draw := p.deck.Draw()
 		if draw == nil {
 			return
 		}
-		p.Hand = append(p.Hand, draw)
+		p.hand = append(p.hand, draw)
 	}
 }
 
-func (p *Player) HasCard(card PlayerCard) bool {
-	for _, c := range p.Hand {
-		dump.V(card)
-		dump.V(c)
-	}
-	return slices.Contains(p.Hand, card)
+func (p *Player) HasCardInHand(card PlayerCard) bool {
+	return slices.Contains(p.hand, card)
 }
 
 func (p *Player) Heal() {
-	for _, card := range p.Discard {
-		p.Deck.PutAtop(&card)
+	for _, card := range p.discard {
+		p.deck.PutAtop(card)
 	}
-	p.Discard = make([]PlayerCard, 0)
+	p.discard = make([]PlayerCard, 0)
 }
