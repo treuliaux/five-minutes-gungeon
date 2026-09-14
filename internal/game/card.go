@@ -8,6 +8,7 @@ const (
 	Shield
 	Jump
 	Scroll
+	WildCard
 )
 
 // Deck types
@@ -33,7 +34,7 @@ func (r *ActionCard) isPlayerCard() {}
 
 type DungeonCard interface {
 	isDungeonCard()
-	IsBeaten(playedCards []PlayerCard) bool
+	require() []ResourceType
 }
 
 type ChallengeCard interface {
@@ -62,8 +63,8 @@ type DoorCard struct {
 }
 
 func (r *DoorCard) isDungeonCard() {}
-func (r *DoorCard) IsBeaten(playedCards []PlayerCard) bool {
-	return checkResourcesFulfilled(playedCards, r.resources)
+func (r *DoorCard) require() []ResourceType {
+	return r.resources
 }
 
 type EventCard struct {
@@ -74,8 +75,8 @@ type EventCard struct {
 
 func (r *EventCard) isDungeonCard()   {}
 func (r *EventCard) isChallengeCard() {}
-func (r *EventCard) IsBeaten(_ []PlayerCard) bool {
-	return true
+func (r *EventCard) require() []ResourceType {
+	return []ResourceType{}
 }
 
 type MiniBossCard struct {
@@ -86,8 +87,8 @@ type MiniBossCard struct {
 
 func (r *MiniBossCard) isDungeonCard()   {}
 func (r *MiniBossCard) isChallengeCard() {}
-func (r *MiniBossCard) IsBeaten(playedCards []PlayerCard) bool {
-	return checkResourcesFulfilled(playedCards, r.resources)
+func (r *MiniBossCard) require() []ResourceType {
+	return r.resources
 }
 
 type BossMat struct {
@@ -96,27 +97,6 @@ type BossMat struct {
 }
 
 func (r *BossMat) isDungeonCard() {}
-func (r *BossMat) IsBeaten(playedCards []PlayerCard) bool {
-	return checkResourcesFulfilled(playedCards, r.resources)
-}
-
-func checkResourcesFulfilled(playedCards []PlayerCard, required []ResourceType) bool {
-	totalPlayed := make(map[ResourceType]int, 5)
-	for _, playedCard := range playedCards {
-		if rc, ok := playedCard.(*ResourceCard); ok {
-			for _, r := range rc.resources {
-				totalPlayed[r]++
-			}
-		}
-	}
-	totalRequired := make(map[ResourceType]int, 5)
-	for _, r := range required {
-		totalRequired[r]++
-	}
-	for res, count := range totalRequired {
-		if totalPlayed[res] < count {
-			return false
-		}
-	}
-	return true
+func (r *BossMat) require() []ResourceType {
+	return r.resources
 }

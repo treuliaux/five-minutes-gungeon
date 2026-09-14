@@ -50,7 +50,7 @@ func (cmd DiscardCardCmd) Reply() chan error {
 type UseHeroAbilityCmd struct {
 	Player       *Player
 	DiscardCards []PlayerCard
-	Params       AbilityParams
+	Ability      Ability
 	reply        chan error
 }
 

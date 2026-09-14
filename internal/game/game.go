@@ -15,16 +15,27 @@ const (
 	Playing
 )
 
+const cardPlayDebounceDuration = time.Second / 2
+
 type Game struct {
 	players             []*Player
 	handSize            int
 	dungeon             *Dungeon
-	currentDungeonCard  DungeonCard
-	playedCards         []PlayerCard
+	playField           Playfield
+	isFightingBoss      bool
 	lastPlayedCardTimer time.Duration
 	inGameTimer         time.Duration
 	isTimeFrozen        bool
 	Status              Status
+}
+
+type GameEngine interface {
+	hasActiveDoor(target DungeonCard) bool
+	defeatDoor(target DungeonCard) ([]Event, error)
+	stopTime(player *Player) []Event
+	drawCards(player *Player, count int) ([]Event, error)
+	listOtherPlayers(omit *Player) []*Player
+	healPlayer(player *Player, amount int) ([]Event, error)
 }
 
 func NewGame() *Game {
@@ -36,6 +47,9 @@ func NewGame() *Game {
 func (g *Game) Tick(delta time.Duration) ([]Event, error) {
 	var events []Event
 
+	if g.Status == Victory || g.Status == Defeat {
+		return events, nil
+	}
 	if g.Status != Playing {
 		return events, fmt.Errorf("game is not in playing state")
 	}
@@ -48,16 +62,20 @@ func (g *Game) Tick(delta time.Duration) ([]Event, error) {
 
 		return append(events, GameLostEvent{}), nil
 	}
-	if (g.inGameTimer-g.lastPlayedCardTimer <= time.Second/2 && !g.isFightingBoss()) || !g.isPlayfieldBeaten() {
+	if (g.actionDebounce() && !g.isFightingBoss) || !g.playField.isPlayfieldBeaten() {
 		return events, nil
 	}
-	events = append(events, DoorDefeatedEvent{DungeonCard: g.currentDungeonCard})
-	if g.isFightingBoss() {
+
+	defeatAllDoorsEvents, err := g.playField.defeatAllDoors()
+	events = append(events, defeatAllDoorsEvents...)
+	if err != nil {
+		return events, err
+	}
+	if g.isFightingBoss {
 		g.Status = Victory
 
 		return append(events, GameWonEvent{}), nil
 	}
-	events = append(events, g.clearField()...)
 	openDoorEvents, err := g.openDoor()
 	if err != nil {
 		return append(events, openDoorEvents...), err
@@ -72,7 +90,7 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 
 	switch cmd := cmd.(type) {
 	case AddPlayerCmd:
-		events, err = g.addPlayer(cmd)
+		events, err = g.addPlayer(cmd.Name, cmd.Class)
 	case StartCmd:
 		events, err = g.start()
 	case PlayCardCmd:
@@ -80,7 +98,7 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 	case DiscardCardCmd:
 		events, err = g.discardCard(cmd.Player, cmd.Card)
 	case UseHeroAbilityCmd:
-		events, err = g.useHeroAbility(cmd)
+		events, err = g.useHeroAbility(cmd.Player, cmd.DiscardCards, cmd.Ability)
 	}
 	if cmd.Reply() != nil {
 		cmd.Reply() <- err
@@ -89,17 +107,17 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 	return events, err
 }
 
-func (g *Game) addPlayer(cmd AddPlayerCmd) ([]Event, error) {
+func (g *Game) addPlayer(name string, class HeroClass) ([]Event, error) {
 	var events []Event
 	if g.Status != Waiting {
 		return events, fmt.Errorf("game is not in waiting state")
 	}
 	if slices.ContainsFunc(g.players, func(player *Player) bool {
-		return player.hero.class == cmd.Class
+		return player.hero.class == class
 	}) {
-		return events, fmt.Errorf("player with class %d already exists", cmd.Class)
+		return events, fmt.Errorf("player with class %d already exists", class)
 	}
-	player, err := NewPlayer(cmd.Name, cmd.Class)
+	player, err := NewPlayer(name, class)
 	if err != nil {
 		return events, err
 	}
@@ -119,8 +137,13 @@ func (g *Game) start() ([]Event, error) {
 		return events, fmt.Errorf("game has incorrect number of players: %d", len(g.players))
 	}
 	g.determineHandSize()
+	var cardDrawnEvents []Event
 	for _, player := range g.players {
-		player.DrawCards(g.handSize)
+		cardDrawnEvents, err = player.drawCards(g.handSize)
+		cardDrawnEvents = append(cardDrawnEvents, cardDrawnEvents...)
+		if err != nil {
+			return events, err
+		}
 	}
 
 	g.generateDungeon()
@@ -138,118 +161,139 @@ func (g *Game) start() ([]Event, error) {
 
 func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 	var events []Event
-	if !p.HasCardInHand(card) {
+	var err error
+	if !p.hasCardInHand(card) {
 		return events, fmt.Errorf("player does not have card in hand")
 	}
-	p.RemoveCardFromHand(card)
-	g.playedCards = append(g.playedCards, card)
+	p.removeCardFromHand(card)
+	events, err = g.playField.addPlayerCard(p, card)
+	if err != nil {
+		return nil, err
+	}
 	g.lastPlayedCardTimer = g.inGameTimer
-	g.isTimeFrozen = false
+	if g.isTimeFrozen {
+		g.isTimeFrozen = false
+		events = append(events, TimeUnfrozenEvent{ByPlayer: p})
+	}
 
-	return append(events, CardPlayedEvent{ByPlayer: p, Card: card}, TimeUnfrozenEvent{ByPlayer: p}), nil
+	nbToDraw := g.handSize - len(p.hand)
+	var cardDrawnEvents []Event
+	if nbToDraw > 0 {
+		cardDrawnEvents, err = g.drawCards(p, nbToDraw)
+	}
+	events = append(events, cardDrawnEvents...)
+	if err != nil {
+		return events, err
+	}
+
+	return events, nil
+}
+
+func (g *Game) drawCards(player *Player, count int) ([]Event, error) {
+	return player.drawCards(count)
 }
 
 func (g *Game) discardCard(p *Player, card PlayerCard) ([]Event, error) {
 	var events []Event
-	if !p.HasCardInHand(card) {
+	if !p.hasCardInHand(card) {
 		return events, fmt.Errorf("player does not have card in hand")
 	}
-	p.DiscardCard(card)
+	p.discardCard(card)
 
 	return append(events, CardDiscardedEvent{ByPlayer: p, Card: card}), nil
 }
 
 func (g *Game) openDoor() ([]Event, error) {
-	var events []Event
-	if g.currentDungeonCard != nil {
-		return events, fmt.Errorf("door is already open")
-	}
 	card := g.dungeon.OpenDoor()
-	g.currentDungeonCard = card
+	events, err := g.playField.addDungeonCard(card)
+	if err != nil {
+		return []Event{}, err
+	}
+	if _, ok := card.(*BossMat); ok {
+		g.isFightingBoss = true
+	}
 
-	return append(events, DoorOpenedEvent{DungeonCard: card}), nil
+	return events, nil
 }
 
-func (g *Game) useHeroAbility(cmd UseHeroAbilityCmd) ([]Event, error) {
+func (g *Game) useHeroAbility(player *Player, discardCards []PlayerCard, ability Ability) ([]Event, error) {
 	var events []Event
 	var err error
-	player := cmd.Player
 
-	if len(cmd.DiscardCards) != 3 {
+	if len(discardCards) != 3 {
 		return events, fmt.Errorf("player must discard 3 cards")
 	}
 	ok := true
-	for _, card := range cmd.DiscardCards {
-		ok = player.HasCardInHand(card)
+	for _, card := range discardCards {
+		ok = player.hasCardInHand(card)
 		if !ok {
 			return events, fmt.Errorf("player does not have card in hand")
 		}
 	}
 	ctx := AbilityContext{
-		game:   g,
+		engine: g,
 		player: player,
 	}
-	switch params := cmd.Params.(type) {
-	case TrickShotParams:
-		events, err = applyTrickShot(ctx, params)
-	case AnimalCompanionParams:
-		events, err = applyAnimalCompanion(ctx, params)
-	case InspireParams:
-		events, err = applyInspire(ctx, params)
-	case SmiteParams:
-		events, err = applySmite(ctx, params)
-	case StopTimeParams:
-		events, err = applyStopTime(ctx, params)
-	case TeleportParams:
-		events, err = applyTeleport(ctx, params)
-	case SlayParams:
-		events, err = applySlay(ctx, params)
-	case IntimidateParams:
-		events, err = applyIntimidate(ctx, params)
-	case VaultParams:
-		events, err = applyVault(ctx, params)
-	case PickpocketParams:
-		events, err = applyPickpocket(ctx, params)
-	case ForestSpiritsParams:
-		events, err = applyForestSpirits(ctx, params)
-	case SpiritAnimalParams:
-		events, err = applySpiritAnimal(ctx, params)
-	}
+	events, err = ability.execute(ctx)
 	if err != nil {
 		return events, err
 	}
+
+	var discardedCardEvents []Event
+	for _, card := range discardCards {
+		discardCardEvents, err := g.discardCard(player, card)
+		discardedCardEvents = append(discardedCardEvents, discardCardEvents...)
+		if err != nil {
+			return append(events, discardCardEvents...), err
+		}
+	}
+	events = append(discardedCardEvents, events...)
 
 	return append([]Event{HeroAbilityUsedEvent{ByPlayer: player}}, events...), nil
 }
 
 func (g *Game) clearField() []Event {
 	var events []Event
-	g.currentDungeonCard = nil
-	g.playedCards = make([]PlayerCard, 0)
+	fieldEvents, err := g.playField.clearField()
+	if err != nil {
+		return nil
+	}
 	g.lastPlayedCardTimer = g.inGameTimer
 
-	return append(events, FieldClearedEvent{})
+	return append(events, fieldEvents...)
 }
 
 func (g *Game) defeatDoor(target DungeonCard) ([]Event, error) {
 	var events []Event
-	if target != g.currentDungeonCard {
-		return events, fmt.Errorf("target is not the current dungeon card")
+
+	defeatDoorEvents, err := g.playField.defeatDoor(target)
+	events = append(events, defeatDoorEvents...)
+	if err != nil {
+		return append(events, defeatDoorEvents...), err
 	}
 
-	g.currentDungeonCard = nil
-	events = append(events, DoorDefeatedEvent{DungeonCard: target})
-	if g.currentDungeonCard != nil {
+	if g.isFightingBoss {
+		g.Status = Victory
+
+		return append(events, GameWonEvent{}), nil
+	}
+
+	if g.playField.hasDoorsOpened() {
 		return events, nil
 	}
 
 	events = append(events, g.clearField()...)
+
 	openDoorEvents, err := g.openDoor()
 	if err != nil {
 		return append(events, openDoorEvents...), err
 	}
 
 	return append(events, openDoorEvents...), nil
+}
+
+func (g *Game) hasActiveDoor(target DungeonCard) bool {
+	return g.playField.hasActiveDoor(target)
 }
 
 func (g *Game) stopTime(player *Player) []Event {
@@ -270,19 +314,30 @@ func (g *Game) determineHandSize() {
 }
 
 func (g *Game) generateDungeon() {
-	g.dungeon = NewDungeon()
+	if g.dungeon == nil {
+		g.dungeon = NewDungeon()
+	}
 }
 
-func (g *Game) isPlayfieldBeaten() bool {
-	if g.currentDungeonCard == nil {
-		return true
-	}
-	if g.currentDungeonCard.IsBeaten(g.playedCards) {
-		return true
-	}
-	return false
+func (g *Game) actionDebounce() bool {
+	return g.inGameTimer-g.lastPlayedCardTimer <= cardPlayDebounceDuration
 }
 
-func (g *Game) isFightingBoss() bool {
-	return g.currentDungeonCard == g.dungeon.boss
+func (g *Game) listOtherPlayers(omit *Player) []*Player {
+	var players []*Player
+	for _, player := range g.players {
+		if player != omit {
+			players = append(players, player)
+		}
+	}
+
+	return players
+}
+
+func (g *Game) healPlayer(p *Player, amount int) ([]Event, error) {
+	amount = p.heal(amount)
+	return []Event{PlayerHealedEvent{
+		Player: p,
+		amount: amount,
+	}}, nil
 }

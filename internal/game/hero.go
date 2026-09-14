@@ -2,8 +2,6 @@ package game
 
 import "fmt"
 
-type HeroAbility func()
-
 type HeroClass int
 
 const (
@@ -22,10 +20,9 @@ const (
 )
 
 type Hero struct {
-	color   DeckColor
-	class   HeroClass
-	name    string
-	ability HeroAbility
+	color DeckColor
+	class HeroClass
+	name  string
 }
 
 func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
@@ -162,13 +159,13 @@ func (p *Hero) NewDeck() *Deck {
 	case Red:
 		return NewRedDeck()
 	case Blue:
-		return nil
+		return NewBlueDeck()
 	case Black:
-		return nil
+		return NewBlackDeck()
 	case Green:
-		return nil
+		return NewGreenDeck()
 	case Purple:
-		return nil
+		return NewPurpleDeck()
 	}
 	return nil
 }
