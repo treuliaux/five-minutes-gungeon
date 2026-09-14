@@ -47,12 +47,14 @@ func (cmd DiscardCardCmd) Reply() chan error {
 	return cmd.reply
 }
 
-type FreezeCmd struct {
-	Player *Player
-	reply  chan error
+type UseHeroAbilityCmd struct {
+	Player       *Player
+	DiscardCards []PlayerCard
+	Params       AbilityParams
+	reply        chan error
 }
 
-func (cmd FreezeCmd) isCommand() {}
-func (cmd FreezeCmd) Reply() chan error {
+func (cmd UseHeroAbilityCmd) isCommand() {}
+func (cmd UseHeroAbilityCmd) Reply() chan error {
 	return cmd.reply
 }

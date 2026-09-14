@@ -56,8 +56,20 @@ type TimeFrozenEvent struct {
 
 func (evt TimeFrozenEvent) isEvent() {}
 
+type TimeUnfrozenEvent struct {
+	ByPlayer *Player
+}
+
+func (evt TimeUnfrozenEvent) isEvent() {}
+
 type DoorOpenedEvent struct {
 	DungeonCard DungeonCard
 }
 
 func (evt DoorOpenedEvent) isEvent() {}
+
+type HeroAbilityUsedEvent struct {
+	ByPlayer *Player
+}
+
+func (evt HeroAbilityUsedEvent) isEvent() {}

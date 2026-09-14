@@ -105,6 +105,13 @@ func (r *Runner) DiscardCard(ctx context.Context, p *Player, c PlayerCard) error
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }
 
+func (r *Runner) UseHeroAbility(ctx context.Context, p *Player, discards []PlayerCard, params AbilityParams) error {
+	reply := make(chan error, 1)
+	cmd := UseHeroAbilityCmd{Player: p, DiscardCards: discards, Params: params, reply: reply}
+
+	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+}
+
 func (r *Runner) broadcast(event Event) {
 	r.subLock.RLock()
 	for _, sub := range r.subscribers {

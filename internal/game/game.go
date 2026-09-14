@@ -23,6 +23,7 @@ type Game struct {
 	playedCards         []PlayerCard
 	lastPlayedCardTimer time.Duration
 	inGameTimer         time.Duration
+	isTimeFrozen        bool
 	Status              Status
 }
 
@@ -37,6 +38,9 @@ func (g *Game) Tick(delta time.Duration) ([]Event, error) {
 
 	if g.Status != Playing {
 		return events, fmt.Errorf("game is not in playing state")
+	}
+	if g.isTimeFrozen {
+		delta = 0
 	}
 	g.inGameTimer += delta
 	if g.inGameTimer >= 5*time.Minute {
@@ -75,8 +79,8 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 		events, err = g.playCard(cmd.Player, cmd.Card)
 	case DiscardCardCmd:
 		events, err = g.discardCard(cmd.Player, cmd.Card)
-	case FreezeCmd:
-		//events, err = g.freeze(cmd.Player)
+	case UseHeroAbilityCmd:
+		events, err = g.useHeroAbility(cmd)
 	}
 	if cmd.Reply() != nil {
 		cmd.Reply() <- err
@@ -140,8 +144,9 @@ func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 	p.RemoveCardFromHand(card)
 	g.playedCards = append(g.playedCards, card)
 	g.lastPlayedCardTimer = g.inGameTimer
+	g.isTimeFrozen = false
 
-	return append(events, CardPlayedEvent{ByPlayer: p, Card: card}), nil
+	return append(events, CardPlayedEvent{ByPlayer: p, Card: card}, TimeUnfrozenEvent{ByPlayer: p}), nil
 }
 
 func (g *Game) discardCard(p *Player, card PlayerCard) ([]Event, error) {
@@ -165,6 +170,58 @@ func (g *Game) openDoor() ([]Event, error) {
 	return append(events, DoorOpenedEvent{DungeonCard: card}), nil
 }
 
+func (g *Game) useHeroAbility(cmd UseHeroAbilityCmd) ([]Event, error) {
+	var events []Event
+	var err error
+	player := cmd.Player
+
+	if len(cmd.DiscardCards) != 3 {
+		return events, fmt.Errorf("player must discard 3 cards")
+	}
+	ok := true
+	for _, card := range cmd.DiscardCards {
+		ok = player.HasCardInHand(card)
+		if !ok {
+			return events, fmt.Errorf("player does not have card in hand")
+		}
+	}
+	ctx := AbilityContext{
+		game:   g,
+		player: player,
+	}
+	switch params := cmd.Params.(type) {
+	case TrickShotParams:
+		events, err = applyTrickShot(ctx, params)
+	case AnimalCompanionParams:
+		events, err = applyAnimalCompanion(ctx, params)
+	case InspireParams:
+		events, err = applyInspire(ctx, params)
+	case SmiteParams:
+		events, err = applySmite(ctx, params)
+	case StopTimeParams:
+		events, err = applyStopTime(ctx, params)
+	case TeleportParams:
+		events, err = applyTeleport(ctx, params)
+	case SlayParams:
+		events, err = applySlay(ctx, params)
+	case IntimidateParams:
+		events, err = applyIntimidate(ctx, params)
+	case VaultParams:
+		events, err = applyVault(ctx, params)
+	case PickpocketParams:
+		events, err = applyPickpocket(ctx, params)
+	case ForestSpiritsParams:
+		events, err = applyForestSpirits(ctx, params)
+	case SpiritAnimalParams:
+		events, err = applySpiritAnimal(ctx, params)
+	}
+	if err != nil {
+		return events, err
+	}
+
+	return append([]Event{HeroAbilityUsedEvent{ByPlayer: player}}, events...), nil
+}
+
 func (g *Game) clearField() []Event {
 	var events []Event
 	g.currentDungeonCard = nil
@@ -172,6 +229,33 @@ func (g *Game) clearField() []Event {
 	g.lastPlayedCardTimer = g.inGameTimer
 
 	return append(events, FieldClearedEvent{})
+}
+
+func (g *Game) defeatDoor(target DungeonCard) ([]Event, error) {
+	var events []Event
+	if target != g.currentDungeonCard {
+		return events, fmt.Errorf("target is not the current dungeon card")
+	}
+
+	g.currentDungeonCard = nil
+	events = append(events, DoorDefeatedEvent{DungeonCard: target})
+	if g.currentDungeonCard != nil {
+		return events, nil
+	}
+
+	events = append(events, g.clearField()...)
+	openDoorEvents, err := g.openDoor()
+	if err != nil {
+		return append(events, openDoorEvents...), err
+	}
+
+	return append(events, openDoorEvents...), nil
+}
+
+func (g *Game) stopTime(player *Player) []Event {
+	g.isTimeFrozen = true
+
+	return []Event{TimeFrozenEvent{ByPlayer: player}}
 }
 
 func (g *Game) determineHandSize() {

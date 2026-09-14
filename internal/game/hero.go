@@ -61,109 +61,97 @@ func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
 
 func newSorceress() *Hero {
 	return &Hero{
-		color:   Blue,
-		class:   Sorceress,
-		name:    "Sorceress",
-		ability: func() {},
+		color: Blue,
+		class: Sorceress,
+		name:  "Sorceress",
 	}
 }
 
 func newWizard() *Hero {
 	return &Hero{
-		color:   Blue,
-		class:   Wizard,
-		name:    "Wizard",
-		ability: func() {},
+		color: Blue,
+		class: Wizard,
+		name:  "Wizard",
 	}
 }
 
 func newHuntress() *Hero {
 	return &Hero{
-		color:   Green,
-		class:   Huntress,
-		name:    "Huntress",
-		ability: func() {},
+		color: Green,
+		class: Huntress,
+		name:  "Huntress",
 	}
 }
 
 func newRanger() *Hero {
 	return &Hero{
-		color:   Green,
-		class:   Ranger,
-		name:    "Ranger",
-		ability: func() {},
+		color: Green,
+		class: Ranger,
+		name:  "Ranger",
 	}
 }
 
 func newNinja() *Hero {
 	return &Hero{
-		color:   Purple,
-		class:   Ninja,
-		name:    "Ninja",
-		ability: func() {},
+		color: Purple,
+		class: Ninja,
+		name:  "Ninja",
 	}
 }
 
 func newThief() *Hero {
 	return &Hero{
-		color:   Purple,
-		class:   Thief,
-		name:    "Thief",
-		ability: func() {},
+		color: Purple,
+		class: Thief,
+		name:  "Thief",
 	}
 }
 
 func newPaladin() *Hero {
 	return &Hero{
-		color:   Yellow,
-		class:   Paladin,
-		name:    "Paladin",
-		ability: func() {},
+		color: Yellow,
+		class: Paladin,
+		name:  "Paladin",
 	}
 }
 
 func newValkyrie() *Hero {
 	return &Hero{
-		color:   Yellow,
-		class:   Valkyrie,
-		name:    "Valkyrie",
-		ability: func() {},
+		color: Yellow,
+		class: Valkyrie,
+		name:  "Valkyrie",
 	}
 }
 
 func newBarbarian() *Hero {
 	return &Hero{
-		color:   Red,
-		class:   Barbarian,
-		name:    "Barbarian",
-		ability: func() {},
+		color: Red,
+		class: Barbarian,
+		name:  "Barbarian",
 	}
 }
 
 func newGladiator() *Hero {
 	return &Hero{
-		color:   Red,
-		class:   Gladiator,
-		name:    "Gladiator",
-		ability: func() {},
+		color: Red,
+		class: Gladiator,
+		name:  "Gladiator",
 	}
 }
 
 func newDruid() *Hero {
 	return &Hero{
-		color:   Black,
-		class:   Druid,
-		name:    "Druid",
-		ability: func() {},
+		color: Black,
+		class: Druid,
+		name:  "Druid",
 	}
 }
 
 func newShaman() *Hero {
 	return &Hero{
-		color:   Black,
-		class:   Shaman,
-		name:    "Shaman",
-		ability: func() {},
+		color: Black,
+		class: Shaman,
+		name:  "Shaman",
 	}
 }
 

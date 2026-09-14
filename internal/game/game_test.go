@@ -21,7 +21,7 @@ func TestGameAddPlayer(t *testing.T) {
 	game := NewGame()
 
 	game.addPlayer(AddPlayerCmd{
-		Name:  "Tanguy",
+		Name:  "Paladin",
 		Class: Paladin,
 		reply: nil,
 	})
@@ -29,7 +29,7 @@ func TestGameAddPlayer(t *testing.T) {
 	if len(game.players) != 1 {
 		t.Errorf("expected 1 player, got %d", len(game.players))
 	}
-	if game.players[0].name != "Tanguy" {
+	if game.players[0].name != "Paladin" {
 		t.Error("expected added player to be in the game")
 	}
 }
