@@ -4,12 +4,12 @@ import "fmt"
 
 type CardAction interface {
 	isCardAction()
-	execute(ctx CardActionContext) ([]Event, error)
+	Execute(ctx CardActionContext) ([]Event, error)
 }
 
 type CardActionContext struct {
-	engine GameEngine
-	player *Player
+	Engine GameEngine
+	Player *Player
 }
 
 // Ranger
@@ -20,29 +20,20 @@ type Snipe struct {
 
 func (Snipe) isCardAction() {}
 
-func (s Snipe) execute(ctx CardActionContext) ([]Event, error) {
-	if !checkPlayerClass(ctx.player, Ranger) {
-		return []Event{}, fmt.Errorf("player is not a Ranger")
-	}
-
+func (s Snipe) Execute(ctx CardActionContext) ([]Event, error) {
 	return defeatDoorKindByAction(ctx, s.Target, DoorPerson)
 }
 
 type EventAction func()
 
 func defeatDoorKindByAction(ctx CardActionContext, target DungeonCard, doorKind DoorKind) ([]Event, error) {
-	if !ctx.engine.hasActiveDoor(target) {
-		return []Event{}, fmt.Errorf("target not found")
+	if !ctx.Engine.HasActiveDoor(target) {
+		return nil, fmt.Errorf("target not found")
 	}
 	door, ok := target.(*DoorCard)
 	if !ok || door.Type != doorKind {
-		return []Event{}, fmt.Errorf("target is not a door of kind %v", doorKind)
+		return nil, fmt.Errorf("target is not a door of kind %v", doorKind)
 	}
 
-	events, err := ctx.engine.defeatDoor(target)
-	if err != nil {
-		return []Event{}, err
-	}
-
-	return events, nil
+	return ctx.Engine.DefeatDoor(target)
 }

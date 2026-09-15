@@ -6,11 +6,11 @@ import (
 )
 
 type Player struct {
-	name    string
-	hero    *Hero
-	deck    *Deck
-	discard []PlayerCard
-	hand    []PlayerCard
+	Name    string
+	Hero    *Hero
+	Deck    *Deck
+	Discard []PlayerCard
+	Hand    []PlayerCard
 }
 
 func NewPlayer(name string, class HeroClass) (*Player, error) {
@@ -20,67 +20,79 @@ func NewPlayer(name string, class HeroClass) (*Player, error) {
 	}
 
 	return &Player{
-		name:    name,
-		hero:    hero,
-		deck:    hero.NewDeck(),
-		discard: []PlayerCard{},
-		hand:    []PlayerCard{},
+		Name:    name,
+		Hero:    hero,
+		Deck:    hero.NewDeck(),
+		Discard: make([]PlayerCard, 0),
+		Hand:    make([]PlayerCard, 0),
 	}, nil
 }
 
-func (p *Player) removeCardFromHand(card PlayerCard) {
-	for i, c := range p.hand {
+func (p *Player) RemoveCardFromHand(card PlayerCard) {
+	for i, c := range p.Hand {
 		if c == card {
-			p.hand = append(p.hand[:i], p.hand[i+1:]...)
+			p.Hand = append(p.Hand[:i], p.Hand[i+1:]...)
 			return
 		}
 	}
 }
 
-func (p *Player) discardMultipleCards(cards []PlayerCard) {
+func (p *Player) DiscardCards(cards []PlayerCard) ([]Event, error) {
+	var events []Event
 	for _, card := range cards {
-		p.discardCard(card)
-	}
-}
-
-func (p *Player) discardCard(card PlayerCard) {
-	for i, c := range p.hand {
-		if c == card {
-			p.hand = append(p.hand[:i], p.hand[i+1:]...)
-			p.discard = append(p.discard, card)
-			return
+		discardEvents, err := p.DiscardCard(card)
+		events = append(events, discardEvents...)
+		if err != nil {
+			return events, err
 		}
 	}
+
+	return events, nil
 }
 
-func (p *Player) drawCards(i int) ([]Event, error) {
-	var cardDrawnEvents []Event
-	if p.deck == nil {
-		return cardDrawnEvents, fmt.Errorf("player has no deck")
+func (p *Player) DiscardCard(card PlayerCard) ([]Event, error) {
+	if !slices.Contains(p.Hand, card) {
+		return nil, fmt.Errorf("player does not have card in hand")
 	}
-	for range i {
-		draw := p.deck.Draw()
-		if draw == nil {
-			return cardDrawnEvents, fmt.Errorf("no more cards in deck")
+
+	p.Hand = slices.DeleteFunc(p.Hand, func(c PlayerCard) bool { return c == card })
+	p.Discard = append(p.Discard, card)
+
+	return []Event{CardDiscardedEvent{ByPlayer: p, Card: card}}, nil
+}
+
+func (p *Player) DrawCards(count int) ([]Event, error) {
+	if p.Deck == nil {
+		return nil, fmt.Errorf("player has no deck")
+	}
+
+	var events []Event
+	for range count {
+		drawn := p.Deck.Draw()
+		if drawn == nil {
+			return events, fmt.Errorf("no more cards in deck")
 		}
-		p.hand = append(p.hand, draw)
-		cardDrawnEvents = append(cardDrawnEvents, CardDrawnEvent{ByPlayer: p, Card: draw})
+		p.Hand = append(p.Hand, drawn)
+		events = append(events, CardDrawnEvent{ByPlayer: p, Card: drawn})
 	}
 
-	return cardDrawnEvents, nil
+	return events, nil
 }
 
-func (p *Player) hasCardInHand(card PlayerCard) bool {
-	return slices.Contains(p.hand, card)
+func (p *Player) HasCardInHand(card PlayerCard) bool {
+	return slices.Contains(p.Hand, card)
 }
 
-func (p *Player) heal(amount int) int {
-	if amount <= 0 || amount > len(p.discard) {
-		amount = len(p.discard)
+func (p *Player) Heal(amount int) ([]Event, error) {
+	if amount <= 0 || amount > len(p.Discard) {
+		amount = len(p.Discard)
 	}
-	toHeal := p.discard[len(p.discard)-amount:]
-	p.deck.putAtop(toHeal...)
-	p.discard = p.discard[:len(p.discard)-amount]
+	toHeal := p.Discard[len(p.Discard)-amount:]
+	p.Deck.PutAtop(toHeal...)
+	p.Discard = p.Discard[:len(p.Discard)-amount]
 
-	return amount
+	return []Event{PlayerHealedEvent{
+		Player: p,
+		Amount: amount,
+	}}, nil
 }

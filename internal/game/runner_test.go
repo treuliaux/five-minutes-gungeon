@@ -14,17 +14,17 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin)
 	barbarian, _ := NewPlayer("Conan", Barbarian)
 
-	door1 := &DoorCard{Type: DoorMonster, name: "Goblin", resources: []ResourceType{Sword}}
-	boss := &BossMat{name: "Piti Amenou", resources: []ResourceType{Shield}}
+	door1 := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	boss := &BossMat{Name: "Piti Amenou", Resources: []ResourceType{Shield}}
 	dungeon := &Dungeon{
-		boss:  boss,
-		doors: []DungeonCard{door1},
+		Boss:  boss,
+		Doors: []DungeonCard{door1},
 	}
 
 	game := &Game{
-		players:   []*Player{paladin, barbarian},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin, barbarian},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Waiting,
 	}
 
@@ -49,8 +49,8 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(DoorOpenedEvent); return ok })
 
 	// 2. Paladin plays Sword to beat door1
-	swordCard := &ResourceCard{resources: []ResourceType{Sword}}
-	paladin.hand = []PlayerCard{swordCard}
+	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	paladin.Hand = []PlayerCard{swordCard}
 
 	if err := runner.PlayCard(ctx, paladin, swordCard); err != nil {
 		t.Fatalf("paladin failed to play sword: %v", err)
@@ -66,8 +66,8 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 	})
 
 	// 3. Barbarian plays Shield to beat Boss
-	shieldCard := &ResourceCard{resources: []ResourceType{Shield}}
-	barbarian.hand = []PlayerCard{shieldCard}
+	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
+	barbarian.Hand = []PlayerCard{shieldCard}
 
 	if err := runner.PlayCard(ctx, barbarian, shieldCard); err != nil {
 		t.Fatalf("barbarian failed to play shield: %v", err)
@@ -181,13 +181,13 @@ func TestRunnerSubscriberFanOutAndUnsubscribe(t *testing.T) {
 
 func TestRunnerCommandErrorPropagation(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin)
-	cInHand := &ResourceCard{resources: []ResourceType{Sword}}
-	cNotInHand := &ResourceCard{resources: []ResourceType{Shield}}
-	paladin.hand = []PlayerCard{cInHand}
+	cInHand := &ResourceCard{Resources: []ResourceType{Sword}}
+	cNotInHand := &ResourceCard{Resources: []ResourceType{Shield}}
+	paladin.Hand = []PlayerCard{cInHand}
 
 	game := &Game{
-		players:   []*Player{paladin},
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin},
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
 
@@ -215,8 +215,8 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 	gladiator, _ := NewPlayer("Gladiator", Gladiator)
 
 	game := &Game{
-		players:   []*Player{paladin, barbarian, valkyrie, gladiator},
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin, barbarian, valkyrie, gladiator},
+		PlayField: *NewPlayfield(),
 		Status:    Waiting,
 	}
 
@@ -242,8 +242,8 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 		wg.Go(func() {
 			for i := range 20 {
 				// Try playing or discarding cards concurrently
-				if len(p.hand) > 0 {
-					card := p.hand[0]
+				if len(p.Hand) > 0 {
+					card := p.Hand[0]
 					if i%2 == 0 {
 						_ = runner.PlayCard(ctx, p, card)
 					} else {
@@ -295,8 +295,8 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin)
 
 	game := &Game{
-		players:   []*Player{wizard, paladin},
-		playField: *NewPlayfield(),
+		Players:   []*Player{wizard, paladin},
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
 
@@ -310,10 +310,10 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 		_ = runner.Run(ctx)
 	}()
 
-	c1 := &ResourceCard{resources: []ResourceType{Scroll}}
-	c2 := &ResourceCard{resources: []ResourceType{Scroll}}
-	c3 := &ResourceCard{resources: []ResourceType{Scroll}}
-	wizard.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c2 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c3 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	wizard.Hand = []PlayerCard{c1, c2, c3}
 
 	err := runner.UseHeroAbility(ctx, wizard, []PlayerCard{c1, c2, c3}, StopTime{})
 	if err != nil {
@@ -327,7 +327,7 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 	})
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(TimeFrozenEvent); return ok })
 
-	if !game.isTimeFrozen {
+	if !game.IsTimeFrozen {
 		t.Error("expected game.isTimeFrozen to be true")
 	}
 }

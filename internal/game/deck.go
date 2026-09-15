@@ -15,122 +15,120 @@ const (
 
 type Deck struct {
 	Color DeckColor
-	cards []PlayerCard
+	Cards []PlayerCard
 }
 
 func (d *Deck) Draw() PlayerCard {
-	if len(d.cards) == 0 {
+	if len(d.Cards) == 0 {
 		return nil
 	}
-	drawnCard, deck := d.cards[0], d.cards[1:]
-	d.cards = deck
+	drawnCard, deck := d.Cards[0], d.Cards[1:]
+	d.Cards = deck
 
 	return drawnCard
 }
 
 func (d *Deck) Shuffle() {
-	rand.Shuffle(len(d.cards), func(i, j int) {
-		d.cards[i], d.cards[j] = d.cards[j], d.cards[i]
+	rand.Shuffle(len(d.Cards), func(i, j int) {
+		d.Cards[i], d.Cards[j] = d.Cards[j], d.Cards[i]
 	})
 }
 
-func (d *Deck) putAtop(cards ...PlayerCard) {
-	for _, card := range cards {
-		d.cards = append(d.cards, card)
-	}
+func (d *Deck) PutAtop(cards ...PlayerCard) {
+	d.Cards = append(d.Cards, cards...)
 }
 
 func NewYellowDeck() *Deck {
-	var cards []PlayerCard
+	cards := make([]PlayerCard, 0, 12)
 	for range 3 {
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Shield}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Shield, Scroll}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Sword, Shield}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Jump}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield, Scroll}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Shield}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump}})
 	}
 	d := &Deck{
 		Color: Yellow,
-		cards: cards,
+		Cards: cards,
 	}
 
 	return d
 }
 
 func NewRedDeck() *Deck {
-	var cards []PlayerCard
+	cards := make([]PlayerCard, 0, 12)
 	for range 3 {
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Sword}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Sword, Scroll}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Sword, Shield}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Arrow}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Scroll}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Shield}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
 	}
 	d := &Deck{
 		Color: Red,
-		cards: cards,
+		Cards: cards,
 	}
 
 	return d
 }
 
 func NewGreenDeck() *Deck {
-	var cards []PlayerCard
+	cards := make([]PlayerCard, 0, 12)
 	for range 3 {
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Arrow}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Arrow, Jump}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Sword, Arrow}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Scroll}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow, Jump}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Arrow}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll}})
 	}
 	d := &Deck{
 		Color: Green,
-		cards: cards,
+		Cards: cards,
 	}
 
 	return d
 }
 
 func NewBlueDeck() *Deck {
-	var cards []PlayerCard
+	cards := make([]PlayerCard, 0, 12)
 	for range 3 {
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Scroll}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Scroll, Jump}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Shield, Scroll}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Arrow}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll, Jump}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield, Scroll}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
 	}
 	d := &Deck{
 		Color: Blue,
-		cards: cards,
+		Cards: cards,
 	}
 
 	return d
 }
 
 func NewPurpleDeck() *Deck {
-	var cards []PlayerCard
+	cards := make([]PlayerCard, 0, 12)
 	for range 3 {
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Jump}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Jump, Sword}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Jump, Scroll}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Shield}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump, Sword}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump, Scroll}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
 	}
 	d := &Deck{
 		Color: Purple,
-		cards: cards,
+		Cards: cards,
 	}
 
 	return d
 }
 
 func NewBlackDeck() *Deck {
-	var cards []PlayerCard
+	cards := make([]PlayerCard, 0, 12)
 	for range 3 {
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Sword, Shield}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Arrow, Jump}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Scroll, Jump}})
-		cards = append(cards, &ResourceCard{resources: []ResourceType{Shield, Arrow}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Shield}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow, Jump}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll, Jump}})
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield, Arrow}})
 	}
 	d := &Deck{
 		Color: Black,
-		cards: cards,
+		Cards: cards,
 	}
 
 	return d

@@ -18,23 +18,23 @@ type PlayerCard interface {
 }
 
 type ResourceCard struct {
-	resources []ResourceType
+	Resources []ResourceType
 }
 
-func (r *ResourceCard) isPlayerCard() {}
+func (rc *ResourceCard) isPlayerCard() {}
 
 type ActionCard struct {
-	name   string
-	action CardAction
+	Name   string
+	Action CardAction
 }
 
-func (r *ActionCard) isPlayerCard() {}
+func (ac *ActionCard) isPlayerCard() {}
 
 // Dungeon types
 
 type DungeonCard interface {
 	isDungeonCard()
-	require() []ResourceType
+	Require() []ResourceType
 }
 
 type ChallengeCard interface {
@@ -58,45 +58,45 @@ const (
 
 type DoorCard struct {
 	Type      DoorKind
-	name      string
-	resources []ResourceType
+	Name      string
+	Resources []ResourceType
 }
 
-func (r *DoorCard) isDungeonCard() {}
-func (r *DoorCard) require() []ResourceType {
-	return r.resources
+func (dc *DoorCard) isDungeonCard() {}
+func (dc *DoorCard) Require() []ResourceType {
+	return dc.Resources
 }
 
 type EventCard struct {
 	Type   ChallengeKind
-	name   string
+	Name   string
 	Action EventAction
 }
 
-func (r *EventCard) isDungeonCard()   {}
-func (r *EventCard) isChallengeCard() {}
-func (r *EventCard) require() []ResourceType {
-	return []ResourceType{}
+func (ec *EventCard) isDungeonCard()   {}
+func (ec *EventCard) isChallengeCard() {}
+func (ec *EventCard) Require() []ResourceType {
+	return nil
 }
 
 type MiniBossCard struct {
 	Type      ChallengeKind
-	name      string
-	resources []ResourceType
+	Name      string
+	Resources []ResourceType
 }
 
-func (r *MiniBossCard) isDungeonCard()   {}
-func (r *MiniBossCard) isChallengeCard() {}
-func (r *MiniBossCard) require() []ResourceType {
-	return r.resources
+func (mc *MiniBossCard) isDungeonCard()   {}
+func (mc *MiniBossCard) isChallengeCard() {}
+func (mc *MiniBossCard) Require() []ResourceType {
+	return mc.Resources
 }
 
 type BossMat struct {
-	name      string
-	resources []ResourceType
+	Name      string
+	Resources []ResourceType
 }
 
-func (r *BossMat) isDungeonCard() {}
-func (r *BossMat) require() []ResourceType {
-	return r.resources
+func (bm *BossMat) isDungeonCard() {}
+func (bm *BossMat) Require() []ResourceType {
+	return bm.Resources
 }

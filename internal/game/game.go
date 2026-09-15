@@ -18,24 +18,24 @@ const (
 const cardPlayDebounceDuration = time.Second / 2
 
 type Game struct {
-	players             []*Player
-	handSize            int
-	dungeon             *Dungeon
-	playField           Playfield
-	isFightingBoss      bool
-	lastPlayedCardTimer time.Duration
-	inGameTimer         time.Duration
-	isTimeFrozen        bool
+	Players             []*Player
+	HandSize            int
+	Dungeon             *Dungeon
+	PlayField           Playfield
+	IsFightingBoss      bool
+	LastPlayedCardTimer time.Duration
+	InGameTimer         time.Duration
+	IsTimeFrozen        bool
 	Status              Status
 }
 
 type GameEngine interface {
-	hasActiveDoor(target DungeonCard) bool
-	defeatDoor(target DungeonCard) ([]Event, error)
-	stopTime(player *Player) []Event
-	drawCards(player *Player, count int) ([]Event, error)
-	listOtherPlayers(omit *Player) []*Player
-	healPlayer(player *Player, amount int) ([]Event, error)
+	HasActiveDoor(target DungeonCard) bool
+	DefeatDoor(target DungeonCard) ([]Event, error)
+	StopTime(player *Player) []Event
+	DrawCards(player *Player, count int) ([]Event, error)
+	ListOtherPlayers(omit *Player) []*Player
+	HealPlayer(player *Player, amount int) ([]Event, error)
 }
 
 func NewGame() *Game {
@@ -45,43 +45,44 @@ func NewGame() *Game {
 }
 
 func (g *Game) Tick(delta time.Duration) ([]Event, error) {
-	var events []Event
-
 	if g.Status == Victory || g.Status == Defeat {
-		return events, nil
+		return nil, nil
 	}
 	if g.Status != Playing {
-		return events, fmt.Errorf("game is not in playing state")
+		return nil, fmt.Errorf("game is not in playing state")
 	}
-	if g.isTimeFrozen {
+	if g.IsTimeFrozen {
 		delta = 0
 	}
-	g.inGameTimer += delta
-	if g.inGameTimer >= 5*time.Minute {
+	g.InGameTimer += delta
+	if g.InGameTimer >= 5*time.Minute {
 		g.Status = Defeat
 
-		return append(events, GameLostEvent{}), nil
+		return []Event{GameLostEvent{}}, nil
 	}
-	if (g.actionDebounce() && !g.isFightingBoss) || !g.playField.isPlayfieldBeaten() {
-		return events, nil
+	if (g.actionDebounce() && !g.IsFightingBoss) || !g.PlayField.IsPlayfieldBeaten() {
+		return nil, nil
 	}
 
-	defeatAllDoorsEvents, err := g.playField.defeatAllDoors()
+	var events []Event
+	defeatAllDoorsEvents, err := g.PlayField.DefeatAllDoors()
 	events = append(events, defeatAllDoorsEvents...)
 	if err != nil {
 		return events, err
 	}
-	if g.isFightingBoss {
+	if g.IsFightingBoss {
 		g.Status = Victory
 
-		return append(events, GameWonEvent{}), nil
+		events = append(events, GameWonEvent{})
+		return events, nil
 	}
 	openDoorEvents, err := g.openDoor()
+	events = append(events, openDoorEvents...)
 	if err != nil {
-		return append(events, openDoorEvents...), err
+		return events, err
 	}
 
-	return append(events, openDoorEvents...), nil
+	return events, nil
 }
 
 func (g *Game) Apply(cmd Command) ([]Event, error) {
@@ -108,80 +109,47 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 }
 
 func (g *Game) addPlayer(name string, class HeroClass) ([]Event, error) {
-	var events []Event
 	if g.Status != Waiting {
-		return events, fmt.Errorf("game is not in waiting state")
+		return nil, fmt.Errorf("game is not in waiting state")
 	}
-	if slices.ContainsFunc(g.players, func(player *Player) bool {
-		return player.hero.class == class
+	if slices.ContainsFunc(g.Players, func(player *Player) bool {
+		return player.Hero.Class == class
 	}) {
-		return events, fmt.Errorf("player with class %d already exists", class)
+		return nil, fmt.Errorf("player with class %d already exists", class)
 	}
 	player, err := NewPlayer(name, class)
 	if err != nil {
-		return events, err
+		return nil, err
 	}
-	g.players = append(g.players, player)
+	g.Players = append(g.Players, player)
 
-	return append(events, PlayerAddedEvent{Player: player}), nil
+	return []Event{PlayerAddedEvent{Player: player}}, nil
 }
 
 func (g *Game) start() ([]Event, error) {
-	var events []Event
-	var err error
-
 	if g.Status != Waiting {
-		return events, fmt.Errorf("game has already started")
+		return nil, fmt.Errorf("game has already started")
 	}
-	if len(g.players) < 2 || len(g.players) > 6 {
-		return events, fmt.Errorf("game has incorrect number of players: %d", len(g.players))
+	if len(g.Players) < 2 || len(g.Players) > 6 {
+		return nil, fmt.Errorf("game has incorrect number of players: %d", len(g.Players))
 	}
 	g.determineHandSize()
-	var cardDrawnEvents []Event
-	for _, player := range g.players {
-		cardDrawnEvents, err = player.drawCards(g.handSize)
-		cardDrawnEvents = append(cardDrawnEvents, cardDrawnEvents...)
-		if err != nil {
-			return events, err
+	for _, player := range g.Players {
+		if _, err := player.DrawCards(g.HandSize); err != nil {
+			return nil, err
 		}
 	}
 
 	g.generateDungeon()
 	g.Status = Playing
-	g.inGameTimer = 0
-	g.lastPlayedCardTimer = 0
+	g.InGameTimer = 0
+	g.LastPlayedCardTimer = 0
 
-	events, err = g.openDoor()
-	if err != nil {
-		return events, err
-	}
-
-	return append([]Event{GameStartedEvent{}}, events...), nil
-}
-
-func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 	var events []Event
-	var err error
-	if !p.hasCardInHand(card) {
-		return events, fmt.Errorf("player does not have card in hand")
-	}
-	p.removeCardFromHand(card)
-	events, err = g.playField.addPlayerCard(p, card)
-	if err != nil {
-		return nil, err
-	}
-	g.lastPlayedCardTimer = g.inGameTimer
-	if g.isTimeFrozen {
-		g.isTimeFrozen = false
-		events = append(events, TimeUnfrozenEvent{ByPlayer: p})
-	}
+	events = append(events, GameStartedEvent{})
 
-	nbToDraw := g.handSize - len(p.hand)
-	var cardDrawnEvents []Event
-	if nbToDraw > 0 {
-		cardDrawnEvents, err = g.drawCards(p, nbToDraw)
-	}
-	events = append(events, cardDrawnEvents...)
+	openDoorEvents, err := g.openDoor()
+	events = append(events, openDoorEvents...)
 	if err != nil {
 		return events, err
 	}
@@ -189,155 +157,172 @@ func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 	return events, nil
 }
 
-func (g *Game) drawCards(player *Player, count int) ([]Event, error) {
-	return player.drawCards(count)
+func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
+	if !p.HasCardInHand(card) {
+		return nil, fmt.Errorf("player does not have card in hand")
+	}
+	p.RemoveCardFromHand(card)
+	events, err := g.PlayField.AddPlayerCard(p, card)
+	if err != nil {
+		return nil, err
+	}
+	g.LastPlayedCardTimer = g.InGameTimer
+	if g.IsTimeFrozen {
+		g.IsTimeFrozen = false
+		events = append(events, TimeUnfrozenEvent{ByPlayer: p})
+	}
+
+	nbToDraw := g.HandSize - len(p.Hand)
+	if nbToDraw > 0 {
+		cardDrawnEvents, err := g.DrawCards(p, nbToDraw)
+		events = append(events, cardDrawnEvents...)
+		if err != nil {
+			return events, err
+		}
+	}
+
+	return events, nil
+}
+
+func (g *Game) DrawCards(player *Player, count int) ([]Event, error) {
+	return player.DrawCards(count)
 }
 
 func (g *Game) discardCard(p *Player, card PlayerCard) ([]Event, error) {
-	var events []Event
-	if !p.hasCardInHand(card) {
-		return events, fmt.Errorf("player does not have card in hand")
-	}
-	p.discardCard(card)
-
-	return append(events, CardDiscardedEvent{ByPlayer: p, Card: card}), nil
+	return p.DiscardCard(card)
 }
 
 func (g *Game) openDoor() ([]Event, error) {
-	card := g.dungeon.OpenDoor()
-	events, err := g.playField.addDungeonCard(card)
+	card := g.Dungeon.OpenDoor()
+	events, err := g.PlayField.AddDungeonCard(card)
 	if err != nil {
-		return []Event{}, err
+		return nil, err
 	}
 	if _, ok := card.(*BossMat); ok {
-		g.isFightingBoss = true
+		g.IsFightingBoss = true
 	}
 
 	return events, nil
 }
 
 func (g *Game) useHeroAbility(player *Player, discardCards []PlayerCard, ability Ability) ([]Event, error) {
-	var events []Event
-	var err error
-
 	if len(discardCards) != 3 {
-		return events, fmt.Errorf("player must discard 3 cards")
+		return nil, fmt.Errorf("player must discard 3 cards")
 	}
-	ok := true
 	for _, card := range discardCards {
-		ok = player.hasCardInHand(card)
-		if !ok {
-			return events, fmt.Errorf("player does not have card in hand")
+		if !player.HasCardInHand(card) {
+			return nil, fmt.Errorf("player does not have card in hand")
 		}
 	}
 	ctx := AbilityContext{
-		engine: g,
-		player: player,
+		Engine: g,
+		Player: player,
 	}
-	events, err = ability.execute(ctx)
+	abilityEvents, err := ability.Execute(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var events []Event
+	events = append(events, HeroAbilityUsedEvent{ByPlayer: player})
+
+	for _, card := range discardCards {
+		discardEvents, err := player.DiscardCard(card)
+		events = append(events, discardEvents...)
+		if err != nil {
+			return events, err
+		}
+	}
+
+	events = append(events, abilityEvents...)
+
+	return events, nil
+}
+
+func (g *Game) clearField() []Event {
+	fieldEvents, err := g.PlayField.ClearField()
+	if err != nil {
+		return nil
+	}
+	g.LastPlayedCardTimer = g.InGameTimer
+
+	return fieldEvents
+}
+
+func (g *Game) DefeatDoor(target DungeonCard) ([]Event, error) {
+	var events []Event
+
+	defeatDoorEvents, err := g.PlayField.DefeatDoor(target)
+	events = append(events, defeatDoorEvents...)
 	if err != nil {
 		return events, err
 	}
 
-	var discardedCardEvents []Event
-	for _, card := range discardCards {
-		discardCardEvents, err := g.discardCard(player, card)
-		discardedCardEvents = append(discardedCardEvents, discardCardEvents...)
-		if err != nil {
-			return append(events, discardCardEvents...), err
-		}
-	}
-	events = append(discardedCardEvents, events...)
-
-	return append([]Event{HeroAbilityUsedEvent{ByPlayer: player}}, events...), nil
-}
-
-func (g *Game) clearField() []Event {
-	var events []Event
-	fieldEvents, err := g.playField.clearField()
-	if err != nil {
-		return nil
-	}
-	g.lastPlayedCardTimer = g.inGameTimer
-
-	return append(events, fieldEvents...)
-}
-
-func (g *Game) defeatDoor(target DungeonCard) ([]Event, error) {
-	var events []Event
-
-	defeatDoorEvents, err := g.playField.defeatDoor(target)
-	events = append(events, defeatDoorEvents...)
-	if err != nil {
-		return append(events, defeatDoorEvents...), err
-	}
-
-	if g.isFightingBoss {
+	if g.IsFightingBoss {
 		g.Status = Victory
 
-		return append(events, GameWonEvent{}), nil
+		events = append(events, GameWonEvent{})
+		return events, nil
 	}
 
-	if g.playField.hasDoorsOpened() {
+	if g.PlayField.HasDoorsOpened() {
 		return events, nil
 	}
 
 	events = append(events, g.clearField()...)
 
 	openDoorEvents, err := g.openDoor()
+	events = append(events, openDoorEvents...)
 	if err != nil {
-		return append(events, openDoorEvents...), err
+		return events, err
 	}
 
-	return append(events, openDoorEvents...), nil
+	return events, nil
 }
 
-func (g *Game) hasActiveDoor(target DungeonCard) bool {
-	return g.playField.hasActiveDoor(target)
+func (g *Game) HasActiveDoor(target DungeonCard) bool {
+	return g.PlayField.HasActiveDoor(target)
 }
 
-func (g *Game) stopTime(player *Player) []Event {
-	g.isTimeFrozen = true
+func (g *Game) StopTime(player *Player) []Event {
+	g.IsTimeFrozen = true
 
 	return []Event{TimeFrozenEvent{ByPlayer: player}}
 }
 
 func (g *Game) determineHandSize() {
-	switch len(g.players) {
+	switch len(g.Players) {
 	case 2:
-		g.handSize = 5
+		g.HandSize = 5
 	case 3:
-		g.handSize = 4
+		g.HandSize = 4
 	case 4, 5, 6:
-		g.handSize = 3
+		g.HandSize = 3
 	}
 }
 
 func (g *Game) generateDungeon() {
-	if g.dungeon == nil {
-		g.dungeon = NewDungeon()
+	if g.Dungeon == nil {
+		g.Dungeon = NewDungeon()
 	}
 }
 
 func (g *Game) actionDebounce() bool {
-	return g.inGameTimer-g.lastPlayedCardTimer <= cardPlayDebounceDuration
+	return g.InGameTimer-g.LastPlayedCardTimer <= cardPlayDebounceDuration
 }
 
-func (g *Game) listOtherPlayers(omit *Player) []*Player {
+func (g *Game) ListOtherPlayers(omit *Player) []*Player {
 	var players []*Player
-	for _, player := range g.players {
-		if player != omit {
-			players = append(players, player)
+	for _, player := range g.Players {
+		if player == omit {
+			continue
 		}
+		players = append(players, player)
 	}
 
 	return players
 }
 
-func (g *Game) healPlayer(p *Player, amount int) ([]Event, error) {
-	amount = p.heal(amount)
-	return []Event{PlayerHealedEvent{
-		Player: p,
-		amount: amount,
-	}}, nil
+func (g *Game) HealPlayer(p *Player, amount int) ([]Event, error) {
+	return p.Heal(amount)
 }

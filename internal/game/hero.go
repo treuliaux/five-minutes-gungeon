@@ -20,9 +20,9 @@ const (
 )
 
 type Hero struct {
-	color DeckColor
-	class HeroClass
-	name  string
+	Color DeckColor
+	Class HeroClass
+	Name  string
 }
 
 func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
@@ -58,102 +58,102 @@ func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
 
 func newSorceress() *Hero {
 	return &Hero{
-		color: Blue,
-		class: Sorceress,
-		name:  "Sorceress",
+		Color: Blue,
+		Class: Sorceress,
+		Name:  "Sorceress",
 	}
 }
 
 func newWizard() *Hero {
 	return &Hero{
-		color: Blue,
-		class: Wizard,
-		name:  "Wizard",
+		Color: Blue,
+		Class: Wizard,
+		Name:  "Wizard",
 	}
 }
 
 func newHuntress() *Hero {
 	return &Hero{
-		color: Green,
-		class: Huntress,
-		name:  "Huntress",
+		Color: Green,
+		Class: Huntress,
+		Name:  "Huntress",
 	}
 }
 
 func newRanger() *Hero {
 	return &Hero{
-		color: Green,
-		class: Ranger,
-		name:  "Ranger",
+		Color: Green,
+		Class: Ranger,
+		Name:  "Ranger",
 	}
 }
 
 func newNinja() *Hero {
 	return &Hero{
-		color: Purple,
-		class: Ninja,
-		name:  "Ninja",
+		Color: Purple,
+		Class: Ninja,
+		Name:  "Ninja",
 	}
 }
 
 func newThief() *Hero {
 	return &Hero{
-		color: Purple,
-		class: Thief,
-		name:  "Thief",
+		Color: Purple,
+		Class: Thief,
+		Name:  "Thief",
 	}
 }
 
 func newPaladin() *Hero {
 	return &Hero{
-		color: Yellow,
-		class: Paladin,
-		name:  "Paladin",
+		Color: Yellow,
+		Class: Paladin,
+		Name:  "Paladin",
 	}
 }
 
 func newValkyrie() *Hero {
 	return &Hero{
-		color: Yellow,
-		class: Valkyrie,
-		name:  "Valkyrie",
+		Color: Yellow,
+		Class: Valkyrie,
+		Name:  "Valkyrie",
 	}
 }
 
 func newBarbarian() *Hero {
 	return &Hero{
-		color: Red,
-		class: Barbarian,
-		name:  "Barbarian",
+		Color: Red,
+		Class: Barbarian,
+		Name:  "Barbarian",
 	}
 }
 
 func newGladiator() *Hero {
 	return &Hero{
-		color: Red,
-		class: Gladiator,
-		name:  "Gladiator",
+		Color: Red,
+		Class: Gladiator,
+		Name:  "Gladiator",
 	}
 }
 
 func newDruid() *Hero {
 	return &Hero{
-		color: Black,
-		class: Druid,
-		name:  "Druid",
+		Color: Black,
+		Class: Druid,
+		Name:  "Druid",
 	}
 }
 
 func newShaman() *Hero {
 	return &Hero{
-		color: Black,
-		class: Shaman,
-		name:  "Shaman",
+		Color: Black,
+		Class: Shaman,
+		Name:  "Shaman",
 	}
 }
 
-func (p *Hero) NewDeck() *Deck {
-	switch p.color {
+func (h *Hero) NewDeck() *Deck {
+	switch h.Color {
 	case Yellow:
 		return NewYellowDeck()
 	case Red:

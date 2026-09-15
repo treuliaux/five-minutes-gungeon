@@ -7,83 +7,83 @@ type Event interface {
 type GameStartedEvent struct {
 }
 
-func (evt GameStartedEvent) isEvent() {}
+func (GameStartedEvent) isEvent() {}
 
 type GameLostEvent struct {
 }
 
-func (evt GameLostEvent) isEvent() {}
+func (GameLostEvent) isEvent() {}
 
 type GameWonEvent struct {
 }
 
-func (evt GameWonEvent) isEvent() {}
+func (GameWonEvent) isEvent() {}
 
 type DoorDefeatedEvent struct {
 	DungeonCard DungeonCard
 }
 
-func (evt DoorDefeatedEvent) isEvent() {}
+func (DoorDefeatedEvent) isEvent() {}
 
 type FieldClearedEvent struct {
 }
 
-func (evt FieldClearedEvent) isEvent() {}
+func (FieldClearedEvent) isEvent() {}
 
 type PlayerAddedEvent struct {
 	Player *Player
 }
 
-func (evt PlayerAddedEvent) isEvent() {}
+func (PlayerAddedEvent) isEvent() {}
 
 type CardPlayedEvent struct {
 	ByPlayer *Player
 	Card     PlayerCard
 }
 
-func (evt CardPlayedEvent) isEvent() {}
+func (CardPlayedEvent) isEvent() {}
 
 type CardDrawnEvent struct {
 	ByPlayer *Player
 	Card     PlayerCard
 }
 
-func (evt CardDrawnEvent) isEvent() {}
+func (CardDrawnEvent) isEvent() {}
 
 type CardDiscardedEvent struct {
 	ByPlayer *Player
 	Card     PlayerCard
 }
 
-func (evt CardDiscardedEvent) isEvent() {}
+func (CardDiscardedEvent) isEvent() {}
 
 type TimeFrozenEvent struct {
 	ByPlayer *Player
 }
 
-func (evt TimeFrozenEvent) isEvent() {}
+func (TimeFrozenEvent) isEvent() {}
 
 type TimeUnfrozenEvent struct {
 	ByPlayer *Player
 }
 
-func (evt TimeUnfrozenEvent) isEvent() {}
+func (TimeUnfrozenEvent) isEvent() {}
 
 type DoorOpenedEvent struct {
 	DungeonCard DungeonCard
 }
 
-func (evt DoorOpenedEvent) isEvent() {}
+func (DoorOpenedEvent) isEvent() {}
 
 type HeroAbilityUsedEvent struct {
 	ByPlayer *Player
 }
 
-func (evt HeroAbilityUsedEvent) isEvent() {}
+func (HeroAbilityUsedEvent) isEvent() {}
 
 type PlayerHealedEvent struct {
 	Player *Player
-	amount int
+	Amount int
 }
 
-func (evt PlayerHealedEvent) isEvent() {}
+func (PlayerHealedEvent) isEvent() {}

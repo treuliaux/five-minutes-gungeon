@@ -1,41 +1,41 @@
 package game
 
 type Dungeon struct {
-	boss  *BossMat
-	doors []DungeonCard
+	Boss  *BossMat
+	Doors []DungeonCard
 }
 
 func NewDungeon() *Dungeon {
 	return &Dungeon{
-		boss: &BossMat{
-			name: "Piti Amenou",
-			resources: []ResourceType{
+		Boss: &BossMat{
+			Name: "Piti Amenou",
+			Resources: []ResourceType{
 				Sword,
 				Shield,
 				Scroll,
 				Scroll,
 			},
 		},
-		doors: []DungeonCard{
+		Doors: []DungeonCard{
 			&DoorCard{
 				Type:      DoorMonster,
-				name:      "Goblin",
-				resources: []ResourceType{Sword, Shield},
+				Name:      "Goblin",
+				Resources: []ResourceType{Sword, Shield},
 			},
 		},
 	}
 }
 
 func (d *Dungeon) OpenDoor() DungeonCard {
-	if len(d.doors) == 0 {
-		return d.revealBoss()
+	if len(d.Doors) == 0 {
+		return d.RevealBoss()
 	}
-	drawnCard, doors := d.doors[0], d.doors[1:]
-	d.doors = doors
+	drawnCard, doors := d.Doors[0], d.Doors[1:]
+	d.Doors = doors
 
 	return drawnCard
 }
 
-func (d *Dungeon) revealBoss() DungeonCard {
-	return d.boss
+func (d *Dungeon) RevealBoss() DungeonCard {
+	return d.Boss
 }

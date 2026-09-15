@@ -17,11 +17,11 @@ func TestNewGameInitialization(t *testing.T) {
 	if game.Status != Waiting {
 		t.Errorf("expected initial status to be Waiting, got %v", game.Status)
 	}
-	if len(game.players) != 0 {
-		t.Errorf("expected 0 players initially, got %d", len(game.players))
+	if len(game.Players) != 0 {
+		t.Errorf("expected 0 players initially, got %d", len(game.Players))
 	}
-	if game.handSize != 0 {
-		t.Errorf("expected 0 handSize initially, got %d", game.handSize)
+	if game.HandSize != 0 {
+		t.Errorf("expected 0 handSize initially, got %d", game.HandSize)
 	}
 }
 
@@ -35,14 +35,14 @@ func TestGameAddPlayerSuccess(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected player to be added successfully, got error: %v", err)
 	}
-	if len(game.players) != 1 {
-		t.Fatalf("expected 1 player in game, got %d", len(game.players))
+	if len(game.Players) != 1 {
+		t.Fatalf("expected 1 player in game, got %d", len(game.Players))
 	}
-	if game.players[0].name != "Sir Lancelot" {
-		t.Errorf("expected player name 'Sir Lancelot', got '%s'", game.players[0].name)
+	if game.Players[0].Name != "Sir Lancelot" {
+		t.Errorf("expected player name 'Sir Lancelot', got '%s'", game.Players[0].Name)
 	}
-	if game.players[0].hero.class != Paladin {
-		t.Errorf("expected player hero class Paladin, got %v", game.players[0].hero.class)
+	if game.Players[0].Hero.Class != Paladin {
+		t.Errorf("expected player hero class Paladin, got %v", game.Players[0].Hero.Class)
 	}
 
 	// Verify PlayerAddedEvent
@@ -53,7 +53,7 @@ func TestGameAddPlayerSuccess(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected PlayerAddedEvent, got %T", events[0])
 	}
-	if addedEvt.Player != game.players[0] {
+	if addedEvt.Player != game.Players[0] {
 		t.Errorf("expected event Player to match created player")
 	}
 }
@@ -70,8 +70,8 @@ func TestGameAddPlayerDuplicateClassRejected(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when adding duplicate class Paladin, got nil")
 	}
-	if len(game.players) != 1 {
-		t.Errorf("expected game to still have 1 player, got %d", len(game.players))
+	if len(game.Players) != 1 {
+		t.Errorf("expected game to still have 1 player, got %d", len(game.Players))
 	}
 }
 
@@ -149,7 +149,7 @@ func TestGameCannotStartWithMoreThanSixPlayers(t *testing.T) {
 	p7, _ := NewPlayer("P7", Huntress)
 
 	game := &Game{
-		players: []*Player{p1, p2, p3, p4, p5, p6, p7},
+		Players: []*Player{p1, p2, p3, p4, p5, p6, p7},
 		Status:  Waiting,
 	}
 
@@ -209,26 +209,26 @@ func TestGameHandSizePerPlayerCount(t *testing.T) {
 				class := classes[i]
 				p, _ := NewPlayer(fmt.Sprintf("P%d", i+1), class)
 				// Ensure all players have a deck with enough cards for test
-				p.deck = NewYellowDeck()
-				p.deck.putAtop(
-					&ResourceCard{resources: []ResourceType{Sword}},
-					&ResourceCard{resources: []ResourceType{Shield}},
-					&ResourceCard{resources: []ResourceType{Arrow}},
-					&ResourceCard{resources: []ResourceType{Jump}},
+				p.Deck = NewYellowDeck()
+				p.Deck.PutAtop(
+					&ResourceCard{Resources: []ResourceType{Sword}},
+					&ResourceCard{Resources: []ResourceType{Shield}},
+					&ResourceCard{Resources: []ResourceType{Arrow}},
+					&ResourceCard{Resources: []ResourceType{Jump}},
 				)
-				game.players = append(game.players, p)
+				game.Players = append(game.Players, p)
 			}
 
 			_, err := game.Apply(StartCmd{})
 			if err != nil {
 				t.Fatalf("failed to start: %v", err)
 			}
-			if game.handSize != tt.expectedHandSize {
-				t.Errorf("expected handSize %d, got %d", tt.expectedHandSize, game.handSize)
+			if game.HandSize != tt.expectedHandSize {
+				t.Errorf("expected handSize %d, got %d", tt.expectedHandSize, game.HandSize)
 			}
-			for i, p := range game.players {
-				if len(p.hand) != tt.expectedHandSize {
-					t.Errorf("player %d hand size expected %d, got %d", i, tt.expectedHandSize, len(p.hand))
+			for i, p := range game.Players {
+				if len(p.Hand) != tt.expectedHandSize {
+					t.Errorf("player %d hand size expected %d, got %d", i, tt.expectedHandSize, len(p.Hand))
 				}
 			}
 		})
@@ -242,17 +242,17 @@ func TestPlayCardSuccessAndAutoDraw(t *testing.T) {
 	barbarian, _ := NewPlayer("Barbarian", Barbarian)
 
 	// Custom decks with known cards
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	cDraw := &ResourceCard{resources: []ResourceType{Arrow}}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	cDraw := &ResourceCard{Resources: []ResourceType{Arrow}}
 
-	paladin.hand = []PlayerCard{c1, c2}
-	paladin.deck = &Deck{cards: []PlayerCard{cDraw}}
+	paladin.Hand = []PlayerCard{c1, c2}
+	paladin.Deck = &Deck{Cards: []PlayerCard{cDraw}}
 
 	game := &Game{
-		players:   []*Player{paladin, barbarian},
-		handSize:  2,
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin, barbarian},
+		HandSize:  2,
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
 
@@ -262,18 +262,18 @@ func TestPlayCardSuccessAndAutoDraw(t *testing.T) {
 	}
 
 	// Verify card was played on field
-	if len(game.playField.field) != 1 || game.playField.field[0] != c1 {
+	if len(game.PlayField.Field) != 1 || game.PlayField.Field[0] != c1 {
 		t.Errorf("expected card to be on playfield")
 	}
 	// Verify card was removed from hand and auto-drawn back to handSize 2
-	if len(paladin.hand) != 2 {
-		t.Fatalf("expected player hand to auto-draw back to 2, got %d", len(paladin.hand))
+	if len(paladin.Hand) != 2 {
+		t.Fatalf("expected player hand to auto-draw back to 2, got %d", len(paladin.Hand))
 	}
-	if paladin.hand[0] != c2 || paladin.hand[1] != cDraw {
-		t.Errorf("expected hand to contain [c2, cDraw], got %v", paladin.hand)
+	if paladin.Hand[0] != c2 || paladin.Hand[1] != cDraw {
+		t.Errorf("expected hand to contain [c2, cDraw], got %v", paladin.Hand)
 	}
-	if len(paladin.deck.cards) != 0 {
-		t.Errorf("expected deck to be empty after draw, got %d", len(paladin.deck.cards))
+	if len(paladin.Deck.Cards) != 0 {
+		t.Errorf("expected deck to be empty after draw, got %d", len(paladin.Deck.Cards))
 	}
 
 	// Verify CardPlayedEvent
@@ -291,15 +291,15 @@ func TestPlayCardSuccessAndAutoDraw(t *testing.T) {
 
 func TestPlayCardNotInHandRejected(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin)
-	cInHand := &ResourceCard{resources: []ResourceType{Sword}}
-	cNotInHand := &ResourceCard{resources: []ResourceType{Shield}}
+	cInHand := &ResourceCard{Resources: []ResourceType{Sword}}
+	cNotInHand := &ResourceCard{Resources: []ResourceType{Shield}}
 
-	paladin.hand = []PlayerCard{cInHand}
+	paladin.Hand = []PlayerCard{cInHand}
 
 	game := &Game{
-		players:   []*Player{paladin},
-		handSize:  1,
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin},
+		HandSize:  1,
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
 
@@ -307,24 +307,24 @@ func TestPlayCardNotInHandRejected(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when playing card not in hand, got nil")
 	}
-	if len(game.playField.field) != 0 {
+	if len(game.PlayField.Field) != 0 {
 		t.Errorf("expected field to be empty")
 	}
-	if len(paladin.hand) != 1 || paladin.hand[0] != cInHand {
+	if len(paladin.Hand) != 1 || paladin.Hand[0] != cInHand {
 		t.Errorf("expected hand to remain unchanged")
 	}
 }
 
 func TestPlayCardUnfreezesTime(t *testing.T) {
 	wizard, _ := NewPlayer("Wizard", Wizard)
-	card := &ResourceCard{resources: []ResourceType{Scroll}}
-	wizard.hand = []PlayerCard{card}
+	card := &ResourceCard{Resources: []ResourceType{Scroll}}
+	wizard.Hand = []PlayerCard{card}
 
 	game := &Game{
-		players:      []*Player{wizard},
-		handSize:     1,
-		isTimeFrozen: true,
-		playField:    *NewPlayfield(),
+		Players:      []*Player{wizard},
+		HandSize:     1,
+		IsTimeFrozen: true,
+		PlayField:    *NewPlayfield(),
 		Status:       Playing,
 	}
 
@@ -332,7 +332,7 @@ func TestPlayCardUnfreezesTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if game.isTimeFrozen {
+	if game.IsTimeFrozen {
 		t.Errorf("expected time to be unfrozen after card play")
 	}
 
@@ -355,13 +355,13 @@ func TestPlayCardUnfreezesTime(t *testing.T) {
 
 func TestDiscardCardSuccess(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin)
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
 
-	paladin.hand = []PlayerCard{c1, c2}
+	paladin.Hand = []PlayerCard{c1, c2}
 
 	game := &Game{
-		players: []*Player{paladin},
+		Players: []*Player{paladin},
 		Status:  Playing,
 	}
 
@@ -370,10 +370,10 @@ func TestDiscardCardSuccess(t *testing.T) {
 		t.Fatalf("failed to discard: %v", err)
 	}
 
-	if len(paladin.hand) != 1 || paladin.hand[0] != c2 {
+	if len(paladin.Hand) != 1 || paladin.Hand[0] != c2 {
 		t.Errorf("expected hand to only contain c2")
 	}
-	if len(paladin.discard) != 1 || paladin.discard[0] != c1 {
+	if len(paladin.Discard) != 1 || paladin.Discard[0] != c1 {
 		t.Errorf("expected discard pile to contain c1")
 	}
 
@@ -391,13 +391,13 @@ func TestDiscardCardSuccess(t *testing.T) {
 
 func TestDiscardCardNotInHandRejected(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin)
-	cInHand := &ResourceCard{resources: []ResourceType{Sword}}
-	cNotInHand := &ResourceCard{resources: []ResourceType{Shield}}
+	cInHand := &ResourceCard{Resources: []ResourceType{Sword}}
+	cNotInHand := &ResourceCard{Resources: []ResourceType{Shield}}
 
-	paladin.hand = []PlayerCard{cInHand}
+	paladin.Hand = []PlayerCard{cInHand}
 
 	game := &Game{
-		players: []*Player{paladin},
+		Players: []*Player{paladin},
 		Status:  Playing,
 	}
 
@@ -405,57 +405,71 @@ func TestDiscardCardNotInHandRejected(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when discarding card not in hand, got nil")
 	}
-	if len(paladin.discard) != 0 {
+	if len(paladin.Discard) != 0 {
 		t.Errorf("expected discard pile to be empty")
 	}
 }
 
 func TestPlayerHealRecyclesDiscardPile(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin)
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{resources: []ResourceType{Arrow}}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
 
-	paladin.discard = []PlayerCard{c1, c2, c3}
-	paladin.deck = &Deck{cards: []PlayerCard{}}
+	paladin.Discard = []PlayerCard{c1, c2, c3}
+	paladin.Deck = &Deck{Cards: []PlayerCard{}}
 
 	// Partial heal (amount 2: takes c2, c3 to deck, leaving c1 in discard)
-	healed := paladin.heal(2)
-	if healed != 2 {
-		t.Errorf("expected 2 healed, got %d", healed)
+	events, err := paladin.Heal(2)
+	if err != nil {
+		t.Fatalf("unexpected error healing player: %v", err)
 	}
-	if len(paladin.discard) != 1 || paladin.discard[0] != c1 {
-		t.Errorf("expected discard to have [c1], got %v", paladin.discard)
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if len(paladin.deck.cards) != 2 || paladin.deck.cards[0] != c2 || paladin.deck.cards[1] != c3 {
-		t.Errorf("expected deck to have [c2, c3], got %v", paladin.deck.cards)
+	healedEvt, ok := events[0].(PlayerHealedEvent)
+	if !ok || healedEvt.Amount != 2 {
+		t.Errorf("expected 2 healed, got %+v", events[0])
+	}
+	if len(paladin.Discard) != 1 || paladin.Discard[0] != c1 {
+		t.Errorf("expected discard to have [c1], got %v", paladin.Discard)
+	}
+	if len(paladin.Deck.Cards) != 2 || paladin.Deck.Cards[0] != c2 || paladin.Deck.Cards[1] != c3 {
+		t.Errorf("expected deck to have [c2, c3], got %v", paladin.Deck.Cards)
 	}
 
 	// Full heal (amount 0 or amount >= len(discard) heals all remaining)
-	healed = paladin.heal(0)
-	if healed != 1 {
-		t.Errorf("expected 1 healed, got %d", healed)
+	events, err = paladin.Heal(0)
+	if err != nil {
+		t.Fatalf("unexpected error healing player: %v", err)
 	}
-	if len(paladin.discard) != 0 {
-		t.Errorf("expected discard pile to be empty after heal, got %d", len(paladin.discard))
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
 	}
-	if len(paladin.deck.cards) != 3 {
-		t.Fatalf("expected deck to have 3 recycled cards, got %d", len(paladin.deck.cards))
+	healedEvt, ok = events[0].(PlayerHealedEvent)
+	if !ok || healedEvt.Amount != 1 {
+		t.Errorf("expected 1 healed, got %+v", events[0])
+	}
+	if len(paladin.Discard) != 0 {
+		t.Errorf("expected discard pile to be empty after heal, got %d", len(paladin.Discard))
+	}
+	if len(paladin.Deck.Cards) != 3 {
+		t.Fatalf("expected deck to have 3 recycled cards, got %d", len(paladin.Deck.Cards))
 	}
 }
 
 func TestGameHealPlayerEmitsEvent(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin)
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	paladin.discard = []PlayerCard{c1}
-	paladin.deck = &Deck{cards: []PlayerCard{}}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	paladin.Discard = []PlayerCard{c1}
+	paladin.Deck = &Deck{Cards: []PlayerCard{}}
 
 	game := &Game{
-		players: []*Player{paladin},
+		Players: []*Player{paladin},
 		Status:  Playing,
 	}
 
-	events, err := game.healPlayer(paladin, 1)
+	events, err := game.HealPlayer(paladin, 1)
 	if err != nil {
 		t.Fatalf("unexpected error healing player: %v", err)
 	}
@@ -466,7 +480,7 @@ func TestGameHealPlayerEmitsEvent(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected PlayerHealedEvent, got %T", events[0])
 	}
-	if healedEvt.Player != paladin || healedEvt.amount != 1 {
+	if healedEvt.Player != paladin || healedEvt.Amount != 1 {
 		t.Errorf("unexpected healed event values: %+v", healedEvt)
 	}
 }
@@ -478,25 +492,25 @@ func TestPlayfieldResourceRequirementResolution(t *testing.T) {
 
 	door := &DoorCard{
 		Type:      DoorMonster,
-		name:      "Orc",
-		resources: []ResourceType{Sword, Sword, Shield},
+		Name:      "Orc",
+		Resources: []ResourceType{Sword, Sword, Shield},
 	}
-	_, _ = pf.addDungeonCard(door)
+	_, _ = pf.AddDungeonCard(door)
 
-	if pf.isPlayfieldBeaten() {
+	if pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield not to be beaten initially")
 	}
 
 	// Play 1 Sword - not beaten
 	p, _ := NewPlayer("P", Paladin)
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{Sword}})
-	if pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{Sword}})
+	if pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield not to be beaten with 1/2 swords")
 	}
 
 	// Play Dual card (Sword + Shield) - total: 2 Swords, 1 Shield -> Beaten!
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{Sword, Shield}})
-	if !pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{Sword, Shield}})
+	if !pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield to be beaten with required 2 Swords and 1 Shield")
 	}
 }
@@ -506,28 +520,28 @@ func TestPlayfieldWildCardRequirementResolution(t *testing.T) {
 
 	door := &DoorCard{
 		Type:      DoorMonster,
-		name:      "Chimera",
-		resources: []ResourceType{Sword, Shield, Arrow},
+		Name:      "Chimera",
+		Resources: []ResourceType{Sword, Shield, Arrow},
 	}
-	_, _ = pf.addDungeonCard(door)
+	_, _ = pf.AddDungeonCard(door)
 
 	p, _ := NewPlayer("P", Paladin)
 
 	// Play 1 Sword - missing Shield and Arrow
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{Sword}})
-	if pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{Sword}})
+	if pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield not to be beaten with only 1 Sword")
 	}
 
 	// Play 1 WildCard - covers Shield or Arrow, but 1 resource still missing
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{WildCard}})
-	if pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{WildCard}})
+	if pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield not to be beaten with 1 Sword + 1 WildCard for 3 requirements")
 	}
 
 	// Play 2nd WildCard - total: 1 Sword + 2 WildCards -> fulfills Sword + Shield + Arrow!
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{WildCard}})
-	if !pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{WildCard}})
+	if !pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield to be beaten with 1 Sword and 2 WildCards")
 	}
 }
@@ -537,25 +551,25 @@ func TestPlayfieldWildCardMultipleDeficits(t *testing.T) {
 
 	door := &DoorCard{
 		Type:      DoorObstacle,
-		name:      "Heavy Gate",
-		resources: []ResourceType{Sword, Sword, Shield, Shield},
+		Name:      "Heavy Gate",
+		Resources: []ResourceType{Sword, Sword, Shield, Shield},
 	}
-	_, _ = pf.addDungeonCard(door)
+	_, _ = pf.AddDungeonCard(door)
 
 	p, _ := NewPlayer("P", Paladin)
 
 	// Play 1 Sword (deficit: 1 Sword, 2 Shields = 3 deficit)
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{Sword}})
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{Sword}})
 
 	// Play 2 WildCards (covers 2 out of 3 deficits, 1 deficit remains)
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{WildCard, WildCard}})
-	if pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{WildCard, WildCard}})
+	if pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield not to be beaten with 2 WildCards covering 3 deficits")
 	}
 
 	// Play 3rd WildCard (covers all 3 deficits) -> Beaten!
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{WildCard}})
-	if !pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{WildCard}})
+	if !pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield to be beaten when WildCards cover all multiple resource deficits")
 	}
 }
@@ -563,24 +577,24 @@ func TestPlayfieldWildCardMultipleDeficits(t *testing.T) {
 func TestPlayfieldWildCardMultiDoorResolution(t *testing.T) {
 	pf := NewPlayfield()
 
-	d1 := &DoorCard{Type: DoorMonster, name: "Goblin", resources: []ResourceType{Sword, Jump}}
-	d2 := &DoorCard{Type: DoorObstacle, name: "Trap", resources: []ResourceType{Shield, Scroll}}
+	d1 := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword, Jump}}
+	d2 := &DoorCard{Type: DoorObstacle, Name: "Trap", Resources: []ResourceType{Shield, Scroll}}
 
-	_, _ = pf.addDungeonCard(d1)
-	_, _ = pf.addDungeonCard(d2)
+	_, _ = pf.AddDungeonCard(d1)
+	_, _ = pf.AddDungeonCard(d2)
 
 	p, _ := NewPlayer("P", Paladin)
 
 	// Play 1 Sword and 1 Shield (missing Jump and Scroll)
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{Sword}})
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{Shield}})
-	if pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{Sword}})
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{Shield}})
+	if pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield not beaten before WildCards")
 	}
 
 	// Play 2 WildCards -> covers Jump and Scroll across both doors
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{WildCard, WildCard}})
-	if !pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{WildCard, WildCard}})
+	if !pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield beaten when WildCards fulfill deficits across multiple doors")
 	}
 }
@@ -590,16 +604,16 @@ func TestPlayfieldWildCardExcess(t *testing.T) {
 
 	door := &DoorCard{
 		Type:      DoorPerson,
-		name:      "Guard",
-		resources: []ResourceType{Sword},
+		Name:      "Guard",
+		Resources: []ResourceType{Sword},
 	}
-	_, _ = pf.addDungeonCard(door)
+	_, _ = pf.AddDungeonCard(door)
 
 	p, _ := NewPlayer("P", Paladin)
 
 	// Play 2 WildCards for 1 Sword requirement -> Beaten!
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{WildCard, WildCard}})
-	if !pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{WildCard, WildCard}})
+	if !pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield to be beaten with excess WildCards")
 	}
 }
@@ -607,39 +621,39 @@ func TestPlayfieldWildCardExcess(t *testing.T) {
 func TestPlayfieldMultiDoorResolution(t *testing.T) {
 	pf := NewPlayfield()
 
-	d1 := &DoorCard{Type: DoorMonster, name: "Goblin", resources: []ResourceType{Sword}}
-	d2 := &DoorCard{Type: DoorObstacle, name: "Trap", resources: []ResourceType{Jump}}
+	d1 := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	d2 := &DoorCard{Type: DoorObstacle, Name: "Trap", Resources: []ResourceType{Jump}}
 
-	_, _ = pf.addDungeonCard(d1)
-	_, _ = pf.addDungeonCard(d2)
+	_, _ = pf.AddDungeonCard(d1)
+	_, _ = pf.AddDungeonCard(d2)
 
 	p, _ := NewPlayer("P", Paladin)
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{Sword}})
-	if pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{Sword}})
+	if pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield not beaten: Jump still missing")
 	}
 
-	_, _ = pf.addPlayerCard(p, &ResourceCard{resources: []ResourceType{Jump}})
-	if !pf.isPlayfieldBeaten() {
+	_, _ = pf.AddPlayerCard(p, &ResourceCard{Resources: []ResourceType{Jump}})
+	if !pf.IsPlayfieldBeaten() {
 		t.Error("expected playfield beaten when both doors' requirements are fulfilled")
 	}
 }
 
 func TestPlayfieldAddMoreThanTwoDoorsRejected(t *testing.T) {
 	pf := NewPlayfield()
-	d1 := &DoorCard{Type: DoorMonster, name: "D1"}
-	d2 := &DoorCard{Type: DoorMonster, name: "D2"}
-	d3 := &DoorCard{Type: DoorMonster, name: "D3"}
+	d1 := &DoorCard{Type: DoorMonster, Name: "D1"}
+	d2 := &DoorCard{Type: DoorMonster, Name: "D2"}
+	d3 := &DoorCard{Type: DoorMonster, Name: "D3"}
 
-	_, err := pf.addDungeonCard(d1)
+	_, err := pf.AddDungeonCard(d1)
 	if err != nil {
 		t.Fatalf("unexpected error adding d1: %v", err)
 	}
-	_, err = pf.addDungeonCard(d2)
+	_, err = pf.AddDungeonCard(d2)
 	if err != nil {
 		t.Fatalf("unexpected error adding d2: %v", err)
 	}
-	_, err = pf.addDungeonCard(d3)
+	_, err = pf.AddDungeonCard(d3)
 	if err == nil {
 		t.Error("expected error when adding more than 2 doors, got nil")
 	}
@@ -647,12 +661,12 @@ func TestPlayfieldAddMoreThanTwoDoorsRejected(t *testing.T) {
 
 func TestPlayfieldDefeatDoorNotInPlayfield(t *testing.T) {
 	pf := NewPlayfield()
-	d1 := &DoorCard{Type: DoorMonster, name: "D1"}
-	d2 := &DoorCard{Type: DoorMonster, name: "D2"}
+	d1 := &DoorCard{Type: DoorMonster, Name: "D1"}
+	d2 := &DoorCard{Type: DoorMonster, Name: "D2"}
 
-	_, _ = pf.addDungeonCard(d1)
+	_, _ = pf.AddDungeonCard(d1)
 
-	_, err := pf.defeatDoor(d2)
+	_, err := pf.DefeatDoor(d2)
 	if err == nil {
 		t.Error("expected error when defeating door not on playfield, got nil")
 	}
@@ -665,9 +679,9 @@ func TestTickTimeoutCausesDefeat(t *testing.T) {
 	barbarian, _ := NewPlayer("P2", Barbarian)
 
 	game := &Game{
-		players:   []*Player{paladin, barbarian},
-		dungeon:   NewDungeon(),
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin, barbarian},
+		Dungeon:   NewDungeon(),
+		PlayField: *NewPlayfield(),
 		Status:    Waiting,
 	}
 
@@ -715,10 +729,10 @@ func TestTickFrozenTimeDoesNotAdvanceGameTimer(t *testing.T) {
 	barbarian, _ := NewPlayer("P2", Barbarian)
 
 	game := &Game{
-		players:      []*Player{paladin, barbarian},
-		dungeon:      NewDungeon(),
-		playField:    *NewPlayfield(),
-		isTimeFrozen: true,
+		Players:      []*Player{paladin, barbarian},
+		Dungeon:      NewDungeon(),
+		PlayField:    *NewPlayfield(),
+		IsTimeFrozen: true,
 		Status:       Playing,
 	}
 
@@ -729,8 +743,8 @@ func TestTickFrozenTimeDoesNotAdvanceGameTimer(t *testing.T) {
 	if game.Status != Playing {
 		t.Errorf("expected game to still be Playing because time is frozen, got %v", game.Status)
 	}
-	if game.inGameTimer != 0 {
-		t.Errorf("expected inGameTimer to remain 0, got %v", game.inGameTimer)
+	if game.InGameTimer != 0 {
+		t.Errorf("expected inGameTimer to remain 0, got %v", game.InGameTimer)
 	}
 }
 
@@ -748,18 +762,18 @@ func TestFullDungeonProgressionToVictory(t *testing.T) {
 	barbarian, _ := NewPlayer("Barbarian", Barbarian)
 
 	// Dungeon with 1 door and 1 boss
-	door1 := &DoorCard{Type: DoorMonster, name: "Goblin", resources: []ResourceType{Sword}}
-	boss := &BossMat{name: "Final Boss", resources: []ResourceType{Shield}}
+	door1 := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	boss := &BossMat{Name: "Final Boss", Resources: []ResourceType{Shield}}
 
 	dungeon := &Dungeon{
-		boss:  boss,
-		doors: []DungeonCard{door1},
+		Boss:  boss,
+		Doors: []DungeonCard{door1},
 	}
 
 	game := &Game{
-		players:   []*Player{paladin, barbarian},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin, barbarian},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Waiting,
 	}
 
@@ -771,13 +785,13 @@ func TestFullDungeonProgressionToVictory(t *testing.T) {
 	if len(startEvents) < 2 {
 		t.Fatalf("expected Start and Door events, got %d", len(startEvents))
 	}
-	if !game.playField.hasActiveDoor(door1) {
+	if !game.PlayField.HasActiveDoor(door1) {
 		t.Fatal("expected door1 to be active on playfield")
 	}
 
 	// 2. Play Sword to match door1
-	swordCard := &ResourceCard{resources: []ResourceType{Sword}}
-	paladin.hand = []PlayerCard{swordCard}
+	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	paladin.Hand = []PlayerCard{swordCard}
 	_, err = game.Apply(PlayCardCmd{Player: paladin, Card: swordCard})
 	if err != nil {
 		t.Fatalf("failed to play sword: %v", err)
@@ -811,13 +825,13 @@ func TestFullDungeonProgressionToVictory(t *testing.T) {
 		t.Errorf("missing expected events in door resolution: defeated=%v, cleared=%v, bossOpened=%v",
 			foundDoorDefeated, foundFieldCleared, foundBossOpened)
 	}
-	if !game.isFightingBoss {
-		t.Error("expected game.isFightingBoss to be true")
+	if !game.IsFightingBoss {
+		t.Error("expected game.IsFightingBoss to be true")
 	}
 
 	// 4. Play Shield to match Boss requirements
-	shieldCard := &ResourceCard{resources: []ResourceType{Shield}}
-	barbarian.hand = []PlayerCard{shieldCard}
+	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
+	barbarian.Hand = []PlayerCard{shieldCard}
 	_, err = game.Apply(PlayCardCmd{Player: barbarian, Card: shieldCard})
 	if err != nil {
 		t.Fatalf("failed to play shield: %v", err)
@@ -848,35 +862,35 @@ func TestGameWildCardResolvesDoor(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin)
 	barbarian, _ := NewPlayer("Barbarian", Barbarian)
 
-	door1 := &DoorCard{Type: DoorMonster, name: "Chimera", resources: []ResourceType{Sword, Arrow, Shield}}
-	door2 := &DoorCard{Type: DoorObstacle, name: "Spike Wall", resources: []ResourceType{Jump}}
+	door1 := &DoorCard{Type: DoorMonster, Name: "Chimera", Resources: []ResourceType{Sword, Arrow, Shield}}
+	door2 := &DoorCard{Type: DoorObstacle, Name: "Spike Wall", Resources: []ResourceType{Jump}}
 
 	dungeon := &Dungeon{
-		boss:  &BossMat{name: "Boss", resources: []ResourceType{Scroll}},
-		doors: []DungeonCard{door1, door2},
+		Boss:  &BossMat{Name: "Boss", Resources: []ResourceType{Scroll}},
+		Doors: []DungeonCard{door1, door2},
 	}
 
 	game := &Game{
-		players:   []*Player{paladin, barbarian},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin, barbarian},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Waiting,
 	}
 
 	_, _ = game.Apply(StartCmd{})
 
 	// Paladin plays 1 Sword
-	swordCard := &ResourceCard{resources: []ResourceType{Sword}}
-	paladin.hand = []PlayerCard{swordCard}
+	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	paladin.Hand = []PlayerCard{swordCard}
 	_, err := game.Apply(PlayCardCmd{Player: paladin, Card: swordCard})
 	if err != nil {
 		t.Fatalf("paladin failed to play sword: %v", err)
 	}
 
 	// Barbarian plays 2 WildCards to satisfy remaining Arrow and Shield
-	wildCard1 := &ResourceCard{resources: []ResourceType{WildCard}}
-	wildCard2 := &ResourceCard{resources: []ResourceType{WildCard}}
-	barbarian.hand = []PlayerCard{wildCard1, wildCard2}
+	wildCard1 := &ResourceCard{Resources: []ResourceType{WildCard}}
+	wildCard2 := &ResourceCard{Resources: []ResourceType{WildCard}}
+	barbarian.Hand = []PlayerCard{wildCard1, wildCard2}
 
 	_, err = game.Apply(PlayCardCmd{Player: barbarian, Card: wildCard1})
 	if err != nil {
@@ -910,7 +924,7 @@ func TestGameWildCardResolvesDoor(t *testing.T) {
 	if !foundDoorOpened {
 		t.Error("expected door2 to be opened after door1 defeated")
 	}
-	if !game.playField.hasActiveDoor(door2) {
+	if !game.PlayField.HasActiveDoor(door2) {
 		t.Error("expected door2 to be the active door on playfield")
 	}
 }
@@ -921,27 +935,27 @@ func TestHeroAbilityTrickShotSuccess(t *testing.T) {
 	ranger, _ := NewPlayer("Robin", Ranger)
 	paladin, _ := NewPlayer("Arthur", Paladin)
 
-	doorPerson := &DoorCard{Type: DoorPerson, name: "Evil Guard", resources: []ResourceType{Sword, Shield, Jump}}
-	nextDoor := &DoorCard{Type: DoorMonster, name: "Dragon", resources: []ResourceType{Sword}}
+	doorPerson := &DoorCard{Type: DoorPerson, Name: "Evil Guard", Resources: []ResourceType{Sword, Shield, Jump}}
+	nextDoor := &DoorCard{Type: DoorMonster, Name: "Dragon", Resources: []ResourceType{Sword}}
 
 	dungeon := &Dungeon{
-		boss:  &BossMat{name: "Boss"},
-		doors: []DungeonCard{doorPerson, nextDoor},
+		Boss:  &BossMat{Name: "Boss"},
+		Doors: []DungeonCard{doorPerson, nextDoor},
 	}
 
 	game := &Game{
-		players:   []*Player{ranger, paladin},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{ranger, paladin},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Waiting,
 	}
 
 	_, _ = game.Apply(StartCmd{})
 
-	if len(ranger.hand) < 3 {
-		t.Fatalf("expected ranger to have at least 3 cards in hand, got %d", len(ranger.hand))
+	if len(ranger.Hand) < 3 {
+		t.Fatalf("expected ranger to have at least 3 cards in hand, got %d", len(ranger.Hand))
 	}
-	discards := []PlayerCard{ranger.hand[0], ranger.hand[1], ranger.hand[2]}
+	discards := []PlayerCard{ranger.Hand[0], ranger.Hand[1], ranger.Hand[2]}
 
 	// Ranger uses TrickShot on doorPerson
 	events, err := game.Apply(UseHeroAbilityCmd{
@@ -954,18 +968,18 @@ func TestHeroAbilityTrickShotSuccess(t *testing.T) {
 	}
 
 	// Verify hand had 3 cards discarded (hand size was 5, now 2)
-	if len(ranger.hand) != 2 {
-		t.Errorf("expected ranger hand to have 2 cards remaining after discarding 3, got %d", len(ranger.hand))
+	if len(ranger.Hand) != 2 {
+		t.Errorf("expected ranger hand to have 2 cards remaining after discarding 3, got %d", len(ranger.Hand))
 	}
-	if len(ranger.discard) != 3 {
-		t.Errorf("expected ranger discard to have 3 cards, got %d", len(ranger.discard))
+	if len(ranger.Discard) != 3 {
+		t.Errorf("expected ranger discard to have 3 cards, got %d", len(ranger.Discard))
 	}
 
 	// Verify doorPerson was defeated and nextDoor opened
-	if game.playField.hasActiveDoor(doorPerson) {
+	if game.PlayField.HasActiveDoor(doorPerson) {
 		t.Error("expected doorPerson to no longer be active")
 	}
-	if !game.playField.hasActiveDoor(nextDoor) {
+	if !game.PlayField.HasActiveDoor(nextDoor) {
 		t.Error("expected nextDoor to be active")
 	}
 
@@ -980,19 +994,19 @@ func TestHeroAbilityTrickShotSuccess(t *testing.T) {
 
 func TestHeroAbilityTrickShotInvalidClassRejected(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin)
-	doorPerson := &DoorCard{Type: DoorPerson, name: "Guard"}
+	doorPerson := &DoorCard{Type: DoorPerson, Name: "Guard"}
 
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{resources: []ResourceType{Arrow}}
-	paladin.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	paladin.Hand = []PlayerCard{c1, c2, c3}
 
 	game := &Game{
-		players:   []*Player{paladin},
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin},
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.playField.addDungeonCard(doorPerson)
+	_, _ = game.PlayField.AddDungeonCard(doorPerson)
 
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
@@ -1003,26 +1017,26 @@ func TestHeroAbilityTrickShotInvalidClassRejected(t *testing.T) {
 		t.Error("expected error when non-Ranger attempts TrickShot, got nil")
 	}
 	// Hand must not be discarded on failure
-	if len(paladin.hand) != 3 {
-		t.Errorf("expected hand to remain intact on failure, got %d", len(paladin.hand))
+	if len(paladin.Hand) != 3 {
+		t.Errorf("expected hand to remain intact on failure, got %d", len(paladin.Hand))
 	}
 }
 
 func TestHeroAbilityTrickShotInvalidTargetTypeRejected(t *testing.T) {
 	ranger, _ := NewPlayer("Robin", Ranger)
-	doorMonster := &DoorCard{Type: DoorMonster, name: "Orc"} // Monster, not Person
+	doorMonster := &DoorCard{Type: DoorMonster, Name: "Orc"} // Monster, not Person
 
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{resources: []ResourceType{Arrow}}
-	ranger.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	ranger.Hand = []PlayerCard{c1, c2, c3}
 
 	game := &Game{
-		players:   []*Player{ranger},
-		playField: *NewPlayfield(),
+		Players:   []*Player{ranger},
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.playField.addDungeonCard(doorMonster)
+	_, _ = game.PlayField.AddDungeonCard(doorMonster)
 
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       ranger,
@@ -1032,19 +1046,19 @@ func TestHeroAbilityTrickShotInvalidTargetTypeRejected(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when targeting non-Person door with TrickShot, got nil")
 	}
-	if len(ranger.hand) != 3 {
-		t.Errorf("expected hand to remain intact, got %d", len(ranger.hand))
+	if len(ranger.Hand) != 3 {
+		t.Errorf("expected hand to remain intact, got %d", len(ranger.Hand))
 	}
 }
 
 func TestHeroAbilityRequiresExactlyThreeCards(t *testing.T) {
 	ranger, _ := NewPlayer("Robin", Ranger)
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	ranger.hand = []PlayerCard{c1, c2}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	ranger.Hand = []PlayerCard{c1, c2}
 
 	game := &Game{
-		players: []*Player{ranger},
+		Players: []*Player{ranger},
 		Status:  Playing,
 	}
 
@@ -1060,14 +1074,14 @@ func TestHeroAbilityRequiresExactlyThreeCards(t *testing.T) {
 
 func TestHeroAbilityStopTime(t *testing.T) {
 	wizard, _ := NewPlayer("Gandalf", Wizard)
-	c1 := &ResourceCard{resources: []ResourceType{Scroll}}
-	c2 := &ResourceCard{resources: []ResourceType{Scroll}}
-	c3 := &ResourceCard{resources: []ResourceType{Scroll}}
-	wizard.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c2 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c3 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	wizard.Hand = []PlayerCard{c1, c2, c3}
 
 	game := &Game{
-		players:      []*Player{wizard},
-		isTimeFrozen: false,
+		Players:      []*Player{wizard},
+		IsTimeFrozen: false,
 		Status:       Playing,
 	}
 
@@ -1079,7 +1093,7 @@ func TestHeroAbilityStopTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed StopTime: %v", err)
 	}
-	if !game.isTimeFrozen {
+	if !game.IsTimeFrozen {
 		t.Error("expected isTimeFrozen to be true")
 	}
 
@@ -1094,13 +1108,13 @@ func TestHeroAbilityStopTime(t *testing.T) {
 	}
 
 	// Playing a card unfreezes time
-	cPlay := &ResourceCard{resources: []ResourceType{Scroll}}
-	wizard.hand = []PlayerCard{cPlay}
+	cPlay := &ResourceCard{Resources: []ResourceType{Scroll}}
+	wizard.Hand = []PlayerCard{cPlay}
 	playEvents, err := game.Apply(PlayCardCmd{Player: wizard, Card: cPlay})
 	if err != nil {
 		t.Fatalf("failed to play card: %v", err)
 	}
-	if game.isTimeFrozen {
+	if game.IsTimeFrozen {
 		t.Error("expected isTimeFrozen to be false after playing card")
 	}
 	foundUnfrozen := false
@@ -1116,27 +1130,27 @@ func TestHeroAbilityStopTime(t *testing.T) {
 
 func TestHeroAbilitySmite(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin)
-	doorMonster := &DoorCard{Type: DoorMonster, name: "Dragon"}
-	doorPerson := &DoorCard{Type: DoorPerson, name: "Thief"}
-	nextDoor := &DoorCard{Type: DoorObstacle, name: "Wall"}
+	doorMonster := &DoorCard{Type: DoorMonster, Name: "Dragon"}
+	doorPerson := &DoorCard{Type: DoorPerson, Name: "Thief"}
+	nextDoor := &DoorCard{Type: DoorObstacle, Name: "Wall"}
 
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{resources: []ResourceType{Shield}}
-	paladin.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Shield}}
+	paladin.Hand = []PlayerCard{c1, c2, c3}
 
 	dungeon := &Dungeon{
-		boss:  &BossMat{name: "Boss"},
-		doors: []DungeonCard{doorMonster, nextDoor},
+		Boss:  &BossMat{Name: "Boss"},
+		Doors: []DungeonCard{doorMonster, nextDoor},
 	}
 
 	game := &Game{
-		players:   []*Player{paladin},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{paladin},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.playField.addDungeonCard(doorMonster)
+	_, _ = game.PlayField.AddDungeonCard(doorMonster)
 
 	// 1. Success on DoorMonster
 	events, err := game.Apply(UseHeroAbilityCmd{
@@ -1152,8 +1166,8 @@ func TestHeroAbilitySmite(t *testing.T) {
 	}
 
 	// 2. Reject non-Monster
-	paladin.hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.playField.addDungeonCard(doorPerson)
+	paladin.Hand = []PlayerCard{c1, c2, c3}
+	_, _ = game.PlayField.AddDungeonCard(doorPerson)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1165,7 +1179,7 @@ func TestHeroAbilitySmite(t *testing.T) {
 
 	// 3. Reject non-Paladin
 	barbarian, _ := NewPlayer("Conan", Barbarian)
-	barbarian.hand = []PlayerCard{c1, c2, c3}
+	barbarian.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       barbarian,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1178,27 +1192,27 @@ func TestHeroAbilitySmite(t *testing.T) {
 
 func TestHeroAbilitySlay(t *testing.T) {
 	barbarian, _ := NewPlayer("Conan", Barbarian)
-	doorMonster := &DoorCard{Type: DoorMonster, name: "Beast"}
-	doorObstacle := &DoorCard{Type: DoorObstacle, name: "Pit"}
-	nextDoor := &DoorCard{Type: DoorPerson, name: "Guard"}
+	doorMonster := &DoorCard{Type: DoorMonster, Name: "Beast"}
+	doorObstacle := &DoorCard{Type: DoorObstacle, Name: "Pit"}
+	nextDoor := &DoorCard{Type: DoorPerson, Name: "Guard"}
 
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Sword}}
-	c3 := &ResourceCard{resources: []ResourceType{Sword}}
-	barbarian.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c3 := &ResourceCard{Resources: []ResourceType{Sword}}
+	barbarian.Hand = []PlayerCard{c1, c2, c3}
 
 	dungeon := &Dungeon{
-		boss:  &BossMat{name: "Boss"},
-		doors: []DungeonCard{doorMonster, nextDoor},
+		Boss:  &BossMat{Name: "Boss"},
+		Doors: []DungeonCard{doorMonster, nextDoor},
 	}
 
 	game := &Game{
-		players:   []*Player{barbarian},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{barbarian},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.playField.addDungeonCard(doorMonster)
+	_, _ = game.PlayField.AddDungeonCard(doorMonster)
 
 	// Success on DoorMonster
 	_, err := game.Apply(UseHeroAbilityCmd{
@@ -1211,8 +1225,8 @@ func TestHeroAbilitySlay(t *testing.T) {
 	}
 
 	// Reject non-Monster
-	barbarian.hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.playField.addDungeonCard(doorObstacle)
+	barbarian.Hand = []PlayerCard{c1, c2, c3}
+	_, _ = game.PlayField.AddDungeonCard(doorObstacle)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       barbarian,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1224,7 +1238,7 @@ func TestHeroAbilitySlay(t *testing.T) {
 
 	// Reject non-Barbarian
 	sorceress, _ := NewPlayer("Sorceress", Sorceress)
-	sorceress.hand = []PlayerCard{c1, c2, c3}
+	sorceress.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       sorceress,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1237,27 +1251,27 @@ func TestHeroAbilitySlay(t *testing.T) {
 
 func TestHeroAbilityTeleport(t *testing.T) {
 	sorceress, _ := NewPlayer("Jaina", Sorceress)
-	doorObstacle := &DoorCard{Type: DoorObstacle, name: "Wall"}
-	doorPerson := &DoorCard{Type: DoorPerson, name: "Bandit"}
-	nextDoor := &DoorCard{Type: DoorMonster, name: "Dragon"}
+	doorObstacle := &DoorCard{Type: DoorObstacle, Name: "Wall"}
+	doorPerson := &DoorCard{Type: DoorPerson, Name: "Bandit"}
+	nextDoor := &DoorCard{Type: DoorMonster, Name: "Dragon"}
 
-	c1 := &ResourceCard{resources: []ResourceType{Scroll}}
-	c2 := &ResourceCard{resources: []ResourceType{Scroll}}
-	c3 := &ResourceCard{resources: []ResourceType{Scroll}}
-	sorceress.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c2 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c3 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	sorceress.Hand = []PlayerCard{c1, c2, c3}
 
 	dungeon := &Dungeon{
-		boss:  &BossMat{name: "Boss"},
-		doors: []DungeonCard{doorObstacle, nextDoor},
+		Boss:  &BossMat{Name: "Boss"},
+		Doors: []DungeonCard{doorObstacle, nextDoor},
 	}
 
 	game := &Game{
-		players:   []*Player{sorceress},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{sorceress},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.playField.addDungeonCard(doorObstacle)
+	_, _ = game.PlayField.AddDungeonCard(doorObstacle)
 
 	// Success on DoorObstacle
 	_, err := game.Apply(UseHeroAbilityCmd{
@@ -1270,8 +1284,8 @@ func TestHeroAbilityTeleport(t *testing.T) {
 	}
 
 	// Reject non-Obstacle
-	sorceress.hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.playField.addDungeonCard(doorPerson)
+	sorceress.Hand = []PlayerCard{c1, c2, c3}
+	_, _ = game.PlayField.AddDungeonCard(doorPerson)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       sorceress,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1283,7 +1297,7 @@ func TestHeroAbilityTeleport(t *testing.T) {
 
 	// Reject non-Sorceress
 	paladin, _ := NewPlayer("Arthur", Paladin)
-	paladin.hand = []PlayerCard{c1, c2, c3}
+	paladin.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1296,27 +1310,27 @@ func TestHeroAbilityTeleport(t *testing.T) {
 
 func TestHeroAbilityVault(t *testing.T) {
 	ninja, _ := NewPlayer("Shadow", Ninja)
-	doorObstacle := &DoorCard{Type: DoorObstacle, name: "Trap"}
-	doorMonster := &DoorCard{Type: DoorMonster, name: "Ogre"}
-	nextDoor := &DoorCard{Type: DoorPerson, name: "Guard"}
+	doorObstacle := &DoorCard{Type: DoorObstacle, Name: "Trap"}
+	doorMonster := &DoorCard{Type: DoorMonster, Name: "Ogre"}
+	nextDoor := &DoorCard{Type: DoorPerson, Name: "Guard"}
 
-	c1 := &ResourceCard{resources: []ResourceType{Jump}}
-	c2 := &ResourceCard{resources: []ResourceType{Jump}}
-	c3 := &ResourceCard{resources: []ResourceType{Jump}}
-	ninja.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c2 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c3 := &ResourceCard{Resources: []ResourceType{Jump}}
+	ninja.Hand = []PlayerCard{c1, c2, c3}
 
 	dungeon := &Dungeon{
-		boss:  &BossMat{name: "Boss"},
-		doors: []DungeonCard{doorObstacle, nextDoor},
+		Boss:  &BossMat{Name: "Boss"},
+		Doors: []DungeonCard{doorObstacle, nextDoor},
 	}
 
 	game := &Game{
-		players:   []*Player{ninja},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{ninja},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.playField.addDungeonCard(doorObstacle)
+	_, _ = game.PlayField.AddDungeonCard(doorObstacle)
 
 	// Success on DoorObstacle
 	_, err := game.Apply(UseHeroAbilityCmd{
@@ -1329,8 +1343,8 @@ func TestHeroAbilityVault(t *testing.T) {
 	}
 
 	// Reject non-Obstacle
-	ninja.hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.playField.addDungeonCard(doorMonster)
+	ninja.Hand = []PlayerCard{c1, c2, c3}
+	_, _ = game.PlayField.AddDungeonCard(doorMonster)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       ninja,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1342,7 +1356,7 @@ func TestHeroAbilityVault(t *testing.T) {
 
 	// Reject non-Ninja
 	thief, _ := NewPlayer("Rogue", Thief)
-	thief.hand = []PlayerCard{c1, c2, c3}
+	thief.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       thief,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1355,27 +1369,27 @@ func TestHeroAbilityVault(t *testing.T) {
 
 func TestHeroAbilityIntimidate(t *testing.T) {
 	gladiator, _ := NewPlayer("Spartacus", Gladiator)
-	doorPerson := &DoorCard{Type: DoorPerson, name: "Guard"}
-	doorMonster := &DoorCard{Type: DoorMonster, name: "Wolf"}
-	nextDoor := &DoorCard{Type: DoorObstacle, name: "Wall"}
+	doorPerson := &DoorCard{Type: DoorPerson, Name: "Guard"}
+	doorMonster := &DoorCard{Type: DoorMonster, Name: "Wolf"}
+	nextDoor := &DoorCard{Type: DoorObstacle, Name: "Wall"}
 
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Sword}}
-	c3 := &ResourceCard{resources: []ResourceType{Sword}}
-	gladiator.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c3 := &ResourceCard{Resources: []ResourceType{Sword}}
+	gladiator.Hand = []PlayerCard{c1, c2, c3}
 
 	dungeon := &Dungeon{
-		boss:  &BossMat{name: "Boss"},
-		doors: []DungeonCard{doorPerson, nextDoor},
+		Boss:  &BossMat{Name: "Boss"},
+		Doors: []DungeonCard{doorPerson, nextDoor},
 	}
 
 	game := &Game{
-		players:   []*Player{gladiator},
-		dungeon:   dungeon,
-		playField: *NewPlayfield(),
+		Players:   []*Player{gladiator},
+		Dungeon:   dungeon,
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.playField.addDungeonCard(doorPerson)
+	_, _ = game.PlayField.AddDungeonCard(doorPerson)
 
 	// Success on DoorPerson
 	_, err := game.Apply(UseHeroAbilityCmd{
@@ -1388,8 +1402,8 @@ func TestHeroAbilityIntimidate(t *testing.T) {
 	}
 
 	// Reject non-Person
-	gladiator.hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.playField.addDungeonCard(doorMonster)
+	gladiator.Hand = []PlayerCard{c1, c2, c3}
+	_, _ = game.PlayField.AddDungeonCard(doorMonster)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       gladiator,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1401,7 +1415,7 @@ func TestHeroAbilityIntimidate(t *testing.T) {
 
 	// Reject non-Gladiator
 	paladin, _ := NewPlayer("Arthur", Paladin)
-	paladin.hand = []PlayerCard{c1, c2, c3}
+	paladin.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1416,23 +1430,23 @@ func TestHeroAbilityAnimalCompanion(t *testing.T) {
 	huntress, _ := NewPlayer("Artemis", Huntress)
 	paladin, _ := NewPlayer("Arthur", Paladin)
 
-	c1 := &ResourceCard{resources: []ResourceType{Arrow}}
-	c2 := &ResourceCard{resources: []ResourceType{Arrow}}
-	c3 := &ResourceCard{resources: []ResourceType{Arrow}}
-	huntress.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	c2 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	huntress.Hand = []PlayerCard{c1, c2, c3}
 
-	paladin.hand = []PlayerCard{}
-	paladin.deck = &Deck{
-		cards: []PlayerCard{
-			&ResourceCard{resources: []ResourceType{Sword}},
-			&ResourceCard{resources: []ResourceType{Shield}},
-			&ResourceCard{resources: []ResourceType{Jump}},
-			&ResourceCard{resources: []ResourceType{Scroll}},
+	paladin.Hand = []PlayerCard{}
+	paladin.Deck = &Deck{
+		Cards: []PlayerCard{
+			&ResourceCard{Resources: []ResourceType{Sword}},
+			&ResourceCard{Resources: []ResourceType{Shield}},
+			&ResourceCard{Resources: []ResourceType{Jump}},
+			&ResourceCard{Resources: []ResourceType{Scroll}},
 		},
 	}
 
 	game := &Game{
-		players: []*Player{huntress, paladin},
+		Players: []*Player{huntress, paladin},
 		Status:  Playing,
 	}
 
@@ -1445,8 +1459,8 @@ func TestHeroAbilityAnimalCompanion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed AnimalCompanion: %v", err)
 	}
-	if len(paladin.hand) != 4 {
-		t.Errorf("expected target player to have 4 cards, got %d", len(paladin.hand))
+	if len(paladin.Hand) != 4 {
+		t.Errorf("expected target player to have 4 cards, got %d", len(paladin.Hand))
 	}
 	foundDrawnEvents := 0
 	for _, evt := range events {
@@ -1459,7 +1473,7 @@ func TestHeroAbilityAnimalCompanion(t *testing.T) {
 	}
 
 	// 2. Reject nil target
-	huntress.hand = []PlayerCard{c1, c2, c3}
+	huntress.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       huntress,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1471,7 +1485,7 @@ func TestHeroAbilityAnimalCompanion(t *testing.T) {
 
 	// 3. Reject non-Huntress
 	ranger, _ := NewPlayer("Robin", Ranger)
-	ranger.hand = []PlayerCard{c1, c2, c3}
+	ranger.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       ranger,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1487,28 +1501,28 @@ func TestHeroAbilityInspire(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin)
 	barbarian, _ := NewPlayer("Conan", Barbarian)
 
-	c1 := &ResourceCard{resources: []ResourceType{Shield}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{resources: []ResourceType{Shield}}
-	valkyrie.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Shield}}
+	valkyrie.Hand = []PlayerCard{c1, c2, c3}
 
-	paladin.hand = []PlayerCard{}
-	paladin.deck = &Deck{
-		cards: []PlayerCard{
-			&ResourceCard{resources: []ResourceType{Sword}},
-			&ResourceCard{resources: []ResourceType{Sword}},
+	paladin.Hand = []PlayerCard{}
+	paladin.Deck = &Deck{
+		Cards: []PlayerCard{
+			&ResourceCard{Resources: []ResourceType{Sword}},
+			&ResourceCard{Resources: []ResourceType{Sword}},
 		},
 	}
-	barbarian.hand = []PlayerCard{}
-	barbarian.deck = &Deck{
-		cards: []PlayerCard{
-			&ResourceCard{resources: []ResourceType{Sword}},
-			&ResourceCard{resources: []ResourceType{Sword}},
+	barbarian.Hand = []PlayerCard{}
+	barbarian.Deck = &Deck{
+		Cards: []PlayerCard{
+			&ResourceCard{Resources: []ResourceType{Sword}},
+			&ResourceCard{Resources: []ResourceType{Sword}},
 		},
 	}
 
 	game := &Game{
-		players: []*Player{valkyrie, paladin, barbarian},
+		Players: []*Player{valkyrie, paladin, barbarian},
 		Status:  Playing,
 	}
 
@@ -1521,14 +1535,14 @@ func TestHeroAbilityInspire(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed Inspire: %v", err)
 	}
-	if len(paladin.hand) != 2 {
-		t.Errorf("expected paladin to have drawn 2 cards, got %d", len(paladin.hand))
+	if len(paladin.Hand) != 2 {
+		t.Errorf("expected paladin to have drawn 2 cards, got %d", len(paladin.Hand))
 	}
-	if len(barbarian.hand) != 2 {
-		t.Errorf("expected barbarian to have drawn 2 cards, got %d", len(barbarian.hand))
+	if len(barbarian.Hand) != 2 {
+		t.Errorf("expected barbarian to have drawn 2 cards, got %d", len(barbarian.Hand))
 	}
-	if len(valkyrie.hand) != 0 {
-		t.Errorf("expected valkyrie to have 0 cards (only discards), got %d", len(valkyrie.hand))
+	if len(valkyrie.Hand) != 0 {
+		t.Errorf("expected valkyrie to have 0 cards (only discards), got %d", len(valkyrie.Hand))
 	}
 
 	foundDrawnEvents := 0
@@ -1542,7 +1556,7 @@ func TestHeroAbilityInspire(t *testing.T) {
 	}
 
 	// Reject non-Valkyrie
-	paladin.hand = []PlayerCard{c1, c2, c3}
+	paladin.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1555,23 +1569,23 @@ func TestHeroAbilityInspire(t *testing.T) {
 
 func TestHeroAbilityPickpocket(t *testing.T) {
 	thief, _ := NewPlayer("Lupin", Thief)
-	c1 := &ResourceCard{resources: []ResourceType{Jump}}
-	c2 := &ResourceCard{resources: []ResourceType{Jump}}
-	c3 := &ResourceCard{resources: []ResourceType{Jump}}
-	thief.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c2 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c3 := &ResourceCard{Resources: []ResourceType{Jump}}
+	thief.Hand = []PlayerCard{c1, c2, c3}
 
-	thief.deck = &Deck{
-		cards: []PlayerCard{
-			&ResourceCard{resources: []ResourceType{Jump}},
-			&ResourceCard{resources: []ResourceType{Jump}},
-			&ResourceCard{resources: []ResourceType{Jump}},
-			&ResourceCard{resources: []ResourceType{Jump}},
-			&ResourceCard{resources: []ResourceType{Jump}},
+	thief.Deck = &Deck{
+		Cards: []PlayerCard{
+			&ResourceCard{Resources: []ResourceType{Jump}},
+			&ResourceCard{Resources: []ResourceType{Jump}},
+			&ResourceCard{Resources: []ResourceType{Jump}},
+			&ResourceCard{Resources: []ResourceType{Jump}},
+			&ResourceCard{Resources: []ResourceType{Jump}},
 		},
 	}
 
 	game := &Game{
-		players: []*Player{thief},
+		Players: []*Player{thief},
 		Status:  Playing,
 	}
 
@@ -1584,8 +1598,8 @@ func TestHeroAbilityPickpocket(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed Pickpocket: %v", err)
 	}
-	if len(thief.hand) != 5 {
-		t.Errorf("expected thief to have 5 cards in hand, got %d", len(thief.hand))
+	if len(thief.Hand) != 5 {
+		t.Errorf("expected thief to have 5 cards in hand, got %d", len(thief.Hand))
 	}
 
 	foundDrawnEvents := 0
@@ -1600,7 +1614,7 @@ func TestHeroAbilityPickpocket(t *testing.T) {
 
 	// Reject non-Thief
 	ninja, _ := NewPlayer("Ninja", Ninja)
-	ninja.hand = []PlayerCard{c1, c2, c3}
+	ninja.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       ninja,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1613,13 +1627,13 @@ func TestHeroAbilityPickpocket(t *testing.T) {
 
 func TestHeroAbilityForestSpirits(t *testing.T) {
 	druid, _ := NewPlayer("Malfurion", Druid)
-	c1 := &ResourceCard{resources: []ResourceType{Shield}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{resources: []ResourceType{Shield}}
-	druid.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Shield}}
+	druid.Hand = []PlayerCard{c1, c2, c3}
 
 	game := &Game{
-		players: []*Player{druid},
+		Players: []*Player{druid},
 		Status:  Playing,
 	}
 
@@ -1635,7 +1649,7 @@ func TestHeroAbilityForestSpirits(t *testing.T) {
 
 	// Reject non-Druid
 	shaman, _ := NewPlayer("Thrall", Shaman)
-	shaman.hand = []PlayerCard{c1, c2, c3}
+	shaman.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       shaman,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1650,20 +1664,20 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 	shaman, _ := NewPlayer("Thrall", Shaman)
 	paladin, _ := NewPlayer("Arthur", Paladin)
 
-	c1 := &ResourceCard{resources: []ResourceType{Shield}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{resources: []ResourceType{Shield}}
-	shaman.hand = []PlayerCard{c1, c2, c3}
+	c1 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Shield}}
+	shaman.Hand = []PlayerCard{c1, c2, c3}
 
-	paladin.discard = []PlayerCard{
-		&ResourceCard{resources: []ResourceType{Sword}},
-		&ResourceCard{resources: []ResourceType{Shield}},
-		&ResourceCard{resources: []ResourceType{Jump}},
+	paladin.Discard = []PlayerCard{
+		&ResourceCard{Resources: []ResourceType{Sword}},
+		&ResourceCard{Resources: []ResourceType{Shield}},
+		&ResourceCard{Resources: []ResourceType{Jump}},
 	}
-	paladin.deck = &Deck{cards: []PlayerCard{}}
+	paladin.Deck = &Deck{Cards: []PlayerCard{}}
 
 	game := &Game{
-		players: []*Player{shaman, paladin},
+		Players: []*Player{shaman, paladin},
 		Status:  Playing,
 	}
 
@@ -1676,16 +1690,16 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed SpiritAnimal: %v", err)
 	}
-	if len(paladin.discard) != 0 {
-		t.Errorf("expected paladin discard to be empty, got %d", len(paladin.discard))
+	if len(paladin.Discard) != 0 {
+		t.Errorf("expected paladin discard to be empty, got %d", len(paladin.Discard))
 	}
-	if len(paladin.deck.cards) != 3 {
-		t.Errorf("expected paladin deck to have 3 healed cards, got %d", len(paladin.deck.cards))
+	if len(paladin.Deck.Cards) != 3 {
+		t.Errorf("expected paladin deck to have 3 healed cards, got %d", len(paladin.Deck.Cards))
 	}
 
 	foundHealedEvent := false
 	for _, evt := range events {
-		if h, ok := evt.(PlayerHealedEvent); ok && h.Player == paladin && h.amount == 3 {
+		if h, ok := evt.(PlayerHealedEvent); ok && h.Player == paladin && h.Amount == 3 {
 			foundHealedEvent = true
 		}
 	}
@@ -1694,7 +1708,7 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 	}
 
 	// 2. Reject nil target
-	shaman.hand = []PlayerCard{c1, c2, c3}
+	shaman.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       shaman,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1706,7 +1720,7 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 
 	// 3. Reject non-Shaman
 	druid, _ := NewPlayer("Druid", Druid)
-	druid.hand = []PlayerCard{c1, c2, c3}
+	druid.Hand = []PlayerCard{c1, c2, c3}
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       druid,
 		DiscardCards: []PlayerCard{c1, c2, c3},
@@ -1719,14 +1733,14 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 
 func TestHeroAbilityDiscardCardsMustBeInHand(t *testing.T) {
 	ranger, _ := NewPlayer("Robin", Ranger)
-	c1 := &ResourceCard{resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{resources: []ResourceType{Shield}}
-	cNotInHand := &ResourceCard{resources: []ResourceType{Arrow}}
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	cNotInHand := &ResourceCard{Resources: []ResourceType{Arrow}}
 
-	ranger.hand = []PlayerCard{c1, c2}
+	ranger.Hand = []PlayerCard{c1, c2}
 
 	game := &Game{
-		players: []*Player{ranger},
+		Players: []*Player{ranger},
 		Status:  Playing,
 	}
 
@@ -1766,14 +1780,14 @@ func TestAllHeroClassesAndDecks(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error creating hero %s: %v", tc.expectedName, err)
 			}
-			if hero.class != tc.class {
-				t.Errorf("expected class %v, got %v", tc.class, hero.class)
+			if hero.Class != tc.class {
+				t.Errorf("expected class %v, got %v", tc.class, hero.Class)
 			}
-			if hero.color != tc.expectedColor {
-				t.Errorf("expected color %v, got %v", tc.expectedColor, hero.color)
+			if hero.Color != tc.expectedColor {
+				t.Errorf("expected color %v, got %v", tc.expectedColor, hero.Color)
 			}
-			if hero.name != tc.expectedName {
-				t.Errorf("expected name %s, got %s", tc.expectedName, hero.name)
+			if hero.Name != tc.expectedName {
+				t.Errorf("expected name %s, got %s", tc.expectedName, hero.Name)
 			}
 
 			deck := hero.NewDeck()
@@ -1783,7 +1797,7 @@ func TestAllHeroClassesAndDecks(t *testing.T) {
 			if deck.Color != tc.expectedColor {
 				t.Errorf("expected deck color %v, got %v", tc.expectedColor, deck.Color)
 			}
-			if len(deck.cards) == 0 {
+			if len(deck.Cards) == 0 {
 				t.Errorf("expected non-empty deck for %s", tc.expectedName)
 			}
 
@@ -1791,10 +1805,10 @@ func TestAllHeroClassesAndDecks(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error creating player with hero %s: %v", tc.expectedName, err)
 			}
-			if player.hero.class != tc.class {
-				t.Errorf("expected player hero class %v, got %v", tc.class, player.hero.class)
+			if player.Hero.Class != tc.class {
+				t.Errorf("expected player hero class %v, got %v", tc.class, player.Hero.Class)
 			}
-			if player.deck == nil || len(player.deck.cards) == 0 {
+			if player.Deck == nil || len(player.Deck.Cards) == 0 {
 				t.Errorf("expected player to have populated deck for %s", tc.expectedName)
 			}
 		})
@@ -1806,39 +1820,39 @@ func TestAbilityEngineMethods(t *testing.T) {
 	p2, _ := NewPlayer("P2", Barbarian)
 	p3, _ := NewPlayer("P3", Wizard)
 
-	door := &DoorCard{Type: DoorMonster, name: "Goblin"}
+	door := &DoorCard{Type: DoorMonster, Name: "Goblin"}
 
 	game := &Game{
-		players:   []*Player{p1, p2, p3},
-		playField: *NewPlayfield(),
+		Players:   []*Player{p1, p2, p3},
+		PlayField: *NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.playField.addDungeonCard(door)
+	_, _ = game.PlayField.AddDungeonCard(door)
 
 	// 1. listOtherPlayers
-	others := game.listOtherPlayers(p1)
+	others := game.ListOtherPlayers(p1)
 	if len(others) != 2 || others[0] != p2 || others[1] != p3 {
 		t.Errorf("unexpected listOtherPlayers result: %v", others)
 	}
 
 	// 2. hasActiveDoor
-	if !game.hasActiveDoor(door) {
+	if !game.HasActiveDoor(door) {
 		t.Error("expected door to be active")
 	}
-	fakeDoor := &DoorCard{Type: DoorObstacle, name: "Fake"}
-	if game.hasActiveDoor(fakeDoor) {
+	fakeDoor := &DoorCard{Type: DoorObstacle, Name: "Fake"}
+	if game.HasActiveDoor(fakeDoor) {
 		t.Error("expected fake door not to be active")
 	}
 
 	// 3. drawCards
-	p1.deck = &Deck{cards: []PlayerCard{&ResourceCard{resources: []ResourceType{Sword}}}}
-	p1.hand = []PlayerCard{}
-	drawnEvents, err := game.drawCards(p1, 1)
+	p1.Deck = &Deck{Cards: []PlayerCard{&ResourceCard{Resources: []ResourceType{Sword}}}}
+	p1.Hand = []PlayerCard{}
+	drawnEvents, err := game.DrawCards(p1, 1)
 	if err != nil {
 		t.Fatalf("failed drawCards: %v", err)
 	}
-	if len(drawnEvents) != 1 || len(p1.hand) != 1 {
-		t.Errorf("expected 1 card drawn, got hand len %d", len(p1.hand))
+	if len(drawnEvents) != 1 || len(p1.Hand) != 1 {
+		t.Errorf("expected 1 card drawn, got hand len %d", len(p1.Hand))
 	}
 }
 

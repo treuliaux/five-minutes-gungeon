@@ -9,9 +9,9 @@ type StartCmd struct {
 	reply chan error
 }
 
-func (cmd StartCmd) isCommand() {}
-func (cmd StartCmd) Reply() chan error {
-	return cmd.reply
+func (StartCmd) isCommand() {}
+func (c StartCmd) Reply() chan error {
+	return c.reply
 }
 
 type AddPlayerCmd struct {
@@ -20,9 +20,9 @@ type AddPlayerCmd struct {
 	reply chan error
 }
 
-func (cmd AddPlayerCmd) isCommand() {}
-func (cmd AddPlayerCmd) Reply() chan error {
-	return cmd.reply
+func (AddPlayerCmd) isCommand() {}
+func (c AddPlayerCmd) Reply() chan error {
+	return c.reply
 }
 
 type PlayCardCmd struct {
@@ -31,9 +31,9 @@ type PlayCardCmd struct {
 	reply  chan error
 }
 
-func (cmd PlayCardCmd) isCommand() {}
-func (cmd PlayCardCmd) Reply() chan error {
-	return cmd.reply
+func (PlayCardCmd) isCommand() {}
+func (c PlayCardCmd) Reply() chan error {
+	return c.reply
 }
 
 type DiscardCardCmd struct {
@@ -42,9 +42,9 @@ type DiscardCardCmd struct {
 	reply  chan error
 }
 
-func (cmd DiscardCardCmd) isCommand() {}
-func (cmd DiscardCardCmd) Reply() chan error {
-	return cmd.reply
+func (DiscardCardCmd) isCommand() {}
+func (c DiscardCardCmd) Reply() chan error {
+	return c.reply
 }
 
 type UseHeroAbilityCmd struct {
@@ -54,7 +54,7 @@ type UseHeroAbilityCmd struct {
 	reply        chan error
 }
 
-func (cmd UseHeroAbilityCmd) isCommand() {}
-func (cmd UseHeroAbilityCmd) Reply() chan error {
-	return cmd.reply
+func (UseHeroAbilityCmd) isCommand() {}
+func (c UseHeroAbilityCmd) Reply() chan error {
+	return c.reply
 }

@@ -6,19 +6,19 @@ import (
 )
 
 type Playfield struct {
-	field       []PlayerCard
-	openedDoors []DungeonCard
+	Field       []PlayerCard
+	OpenedDoors []DungeonCard
 }
 
 func NewPlayfield() *Playfield {
 	return &Playfield{
-		field:       make([]PlayerCard, 0, 16),
-		openedDoors: make([]DungeonCard, 0, 2),
+		Field:       make([]PlayerCard, 0, 16),
+		OpenedDoors: make([]DungeonCard, 0, 2),
 	}
 }
 
-func (p *Playfield) addPlayerCard(player *Player, card PlayerCard) ([]Event, error) {
-	p.field = append(p.field, card)
+func (p *Playfield) AddPlayerCard(player *Player, card PlayerCard) ([]Event, error) {
+	p.Field = append(p.Field, card)
 
 	return []Event{CardPlayedEvent{
 		ByPlayer: player,
@@ -26,60 +26,57 @@ func (p *Playfield) addPlayerCard(player *Player, card PlayerCard) ([]Event, err
 	}}, nil
 }
 
-func (p *Playfield) addDungeonCard(card DungeonCard) ([]Event, error) {
-	if p.isDoorsFull() {
-		return []Event{}, fmt.Errorf("cannot add more than two dungeon cards")
+func (p *Playfield) AddDungeonCard(card DungeonCard) ([]Event, error) {
+	if p.IsDoorsFull() {
+		return nil, fmt.Errorf("cannot add more than two dungeon cards")
 	}
-	p.openedDoors = append(p.openedDoors, card)
+	p.OpenedDoors = append(p.OpenedDoors, card)
 
 	return []Event{DoorOpenedEvent{DungeonCard: card}}, nil
 }
 
-func (p *Playfield) clearField() ([]Event, error) {
-	var events []Event
-	p.openedDoors = make([]DungeonCard, 0, 2)
-	p.field = make([]PlayerCard, 0, 16)
+func (p *Playfield) ClearField() ([]Event, error) {
+	p.OpenedDoors = make([]DungeonCard, 0, 2)
+	p.Field = make([]PlayerCard, 0, 16)
 
-	return append(events, FieldClearedEvent{}), nil
+	return []Event{FieldClearedEvent{}}, nil
 }
 
-func (p *Playfield) isDoorsFull() bool {
-	return len(p.openedDoors) == 2
+func (p *Playfield) IsDoorsFull() bool {
+	return len(p.OpenedDoors) == 2
 }
 
-func (p *Playfield) hasDoorsOpened() bool {
-	return len(p.openedDoors) != 0
+func (p *Playfield) HasDoorsOpened() bool {
+	return len(p.OpenedDoors) != 0
 }
 
-func (p *Playfield) hasActiveDoor(target DungeonCard) bool {
-	return slices.Contains(p.openedDoors, target)
+func (p *Playfield) HasActiveDoor(target DungeonCard) bool {
+	return slices.Contains(p.OpenedDoors, target)
 }
 
-func (p *Playfield) defeatDoor(target DungeonCard) ([]Event, error) {
-	var events []Event
-	if !p.hasActiveDoor(target) {
-		return events, fmt.Errorf("target is not the current dungeon card")
+func (p *Playfield) DefeatDoor(target DungeonCard) ([]Event, error) {
+	if !p.HasActiveDoor(target) {
+		return nil, fmt.Errorf("target is not the current dungeon card")
 	}
 
-	p.openedDoors = slices.DeleteFunc(p.openedDoors, func(dungeonCard DungeonCard) bool {
+	p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(dungeonCard DungeonCard) bool {
 		return dungeonCard == target
 	})
 
-	return append(events, DoorDefeatedEvent{DungeonCard: target}), nil
+	return []Event{DoorDefeatedEvent{DungeonCard: target}}, nil
 }
 
-func (p *Playfield) defeatAllDoors() ([]Event, error) {
-	var events []Event
-
-	if len(p.openedDoors) == 0 {
-		return events, fmt.Errorf("no active doors")
+func (p *Playfield) DefeatAllDoors() ([]Event, error) {
+	if len(p.OpenedDoors) == 0 {
+		return nil, fmt.Errorf("no active doors")
 	}
 
-	for _, card := range p.openedDoors {
+	var events []Event
+	for _, card := range p.OpenedDoors {
 		events = append(events, DoorDefeatedEvent{DungeonCard: card})
 	}
-	clearFieldEvent, err := p.clearField()
-	events = append(events, clearFieldEvent...)
+	clearEvents, err := p.ClearField()
+	events = append(events, clearEvents...)
 	if err != nil {
 		return events, err
 	}
@@ -87,22 +84,22 @@ func (p *Playfield) defeatAllDoors() ([]Event, error) {
 	return events, nil
 }
 
-func (p *Playfield) isPlayfieldBeaten() bool {
-	if !p.hasDoorsOpened() {
+func (p *Playfield) IsPlayfieldBeaten() bool {
+	if !p.HasDoorsOpened() {
 		return true
 	}
 
 	totalPlayed := make(map[ResourceType]int, 6)
-	for _, playedCard := range p.field {
+	for _, playedCard := range p.Field {
 		if rc, ok := playedCard.(*ResourceCard); ok {
-			for _, r := range rc.resources {
+			for _, r := range rc.Resources {
 				totalPlayed[r]++
 			}
 		}
 	}
 	totalRequired := make(map[ResourceType]int, 6)
-	for _, door := range p.openedDoors {
-		for _, r := range door.require() {
+	for _, door := range p.OpenedDoors {
+		for _, r := range door.Require() {
 			totalRequired[r]++
 		}
 	}
@@ -121,6 +118,6 @@ func (p *Playfield) isPlayfieldBeaten() bool {
 	return true
 }
 
-func (p *Playfield) isFightingBoss(dungeon *Dungeon) bool {
-	return len(p.openedDoors) == 1 && p.openedDoors[0] == dungeon.boss
+func (p *Playfield) IsFightingBoss(dungeon *Dungeon) bool {
+	return len(p.OpenedDoors) == 1 && p.OpenedDoors[0] == dungeon.Boss
 }
