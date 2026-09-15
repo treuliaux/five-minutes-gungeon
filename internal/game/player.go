@@ -9,7 +9,7 @@ type Player struct {
 	Name    string
 	Hero    *Hero
 	Deck    *Deck
-	Discard []PlayerCard
+	Discard *Discard
 	Hand    []PlayerCard
 }
 
@@ -23,7 +23,7 @@ func NewPlayer(name string, class HeroClass) (*Player, error) {
 		Name:    name,
 		Hero:    hero,
 		Deck:    hero.NewDeck(),
-		Discard: make([]PlayerCard, 0),
+		Discard: NewDiscard(),
 		Hand:    make([]PlayerCard, 0),
 	}, nil
 }
@@ -56,7 +56,7 @@ func (p *Player) DiscardCard(card PlayerCard) ([]Event, error) {
 	}
 
 	p.Hand = slices.DeleteFunc(p.Hand, func(c PlayerCard) bool { return c == card })
-	p.Discard = append(p.Discard, card)
+	p.Discard.PutAtop(card)
 
 	return []Event{CardDiscardedEvent{ByPlayer: p, Card: card}}, nil
 }
@@ -79,20 +79,44 @@ func (p *Player) DrawCards(count int) ([]Event, error) {
 	return events, nil
 }
 
+func (p *Player) DrawCardsFromDiscard(count int) ([]Event, error) {
+	if p.Discard.Empty() {
+		return nil, fmt.Errorf("player discard is empty")
+	}
+
+	var events []Event
+	for range count {
+		drawn := p.Discard.Draw()
+		if drawn == nil {
+			return events, fmt.Errorf("no more cards in discard")
+		}
+		p.Hand = append(p.Hand, drawn)
+		events = append(events, CardDrawnFromDiscardEvent{ByPlayer: p, Card: drawn})
+	}
+
+	return events, nil
+}
+
 func (p *Player) HasCardInHand(card PlayerCard) bool {
 	return slices.Contains(p.Hand, card)
 }
 
 func (p *Player) Heal(amount int) ([]Event, error) {
-	if amount <= 0 || amount > len(p.Discard) {
-		amount = len(p.Discard)
+	if amount <= 0 || amount > p.Discard.Length() {
+		amount = p.Discard.Length()
 	}
-	toHeal := p.Discard[len(p.Discard)-amount:]
-	p.Deck.PutAtop(toHeal...)
-	p.Discard = p.Discard[:len(p.Discard)-amount]
+	var healed []PlayerCard
+	for range amount {
+		toHeal := p.Discard.Draw()
+		if toHeal == nil {
+			break
+		}
+		p.Deck.PutAtop(toHeal)
+		healed = append(healed, toHeal)
+	}
 
 	return []Event{PlayerHealedEvent{
 		Player: p,
-		Amount: amount,
+		Cards:  healed,
 	}}, nil
 }

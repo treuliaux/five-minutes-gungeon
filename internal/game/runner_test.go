@@ -315,7 +315,7 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 	c3 := &ResourceCard{Resources: []ResourceType{Scroll}}
 	wizard.Hand = []PlayerCard{c1, c2, c3}
 
-	err := runner.UseHeroAbility(ctx, wizard, []PlayerCard{c1, c2, c3}, StopTime{})
+	err := runner.UseHeroAbility(ctx, wizard, []PlayerCard{c1, c2, c3}, StopTimeAbility{})
 	if err != nil {
 		t.Fatalf("failed to use ability via runner: %v", err)
 	}

@@ -1,6 +1,8 @@
 package game
 
-import "math/rand"
+import (
+	"math/rand"
+)
 
 type DeckColor int
 
@@ -22,8 +24,8 @@ func (d *Deck) Draw() PlayerCard {
 	if len(d.Cards) == 0 {
 		return nil
 	}
-	drawnCard, deck := d.Cards[0], d.Cards[1:]
-	d.Cards = deck
+	drawnCard := d.Cards[len(d.Cards)-1]
+	d.Cards = d.Cards[:len(d.Cards)-1]
 
 	return drawnCard
 }
@@ -36,6 +38,14 @@ func (d *Deck) Shuffle() {
 
 func (d *Deck) PutAtop(cards ...PlayerCard) {
 	d.Cards = append(d.Cards, cards...)
+}
+
+func (d *Deck) Empty() bool {
+	return d.Length() == 0
+}
+
+func (d *Deck) Length() int {
+	return len(d.Cards)
 }
 
 func NewYellowDeck() *Deck {

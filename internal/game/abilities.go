@@ -14,13 +14,13 @@ type AbilityContext struct {
 
 // Ranger
 
-type TrickShot struct {
+type TrickShotAbility struct {
 	Target DungeonCard
 }
 
-func (TrickShot) isAbility() {}
+func (TrickShotAbility) isAbility() {}
 
-func (t TrickShot) Execute(ctx AbilityContext) ([]Event, error) {
+func (t TrickShotAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Ranger) {
 		return nil, fmt.Errorf("player is not a Ranger")
 	}
@@ -30,13 +30,13 @@ func (t TrickShot) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Huntress
 
-type AnimalCompanion struct {
+type AnimalCompanionAbility struct {
 	Target *Player
 }
 
-func (AnimalCompanion) isAbility() {}
+func (AnimalCompanionAbility) isAbility() {}
 
-func (a AnimalCompanion) Execute(ctx AbilityContext) ([]Event, error) {
+func (a AnimalCompanionAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Huntress) {
 		return nil, fmt.Errorf("player is not a Huntress")
 	}
@@ -50,12 +50,12 @@ func (a AnimalCompanion) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Valkyrie
 
-type Inspire struct {
+type InspireAbility struct {
 }
 
-func (Inspire) isAbility() {}
+func (InspireAbility) isAbility() {}
 
-func (Inspire) Execute(ctx AbilityContext) ([]Event, error) {
+func (InspireAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Valkyrie) {
 		return nil, fmt.Errorf("player is not a Valkyrie")
 	}
@@ -74,13 +74,13 @@ func (Inspire) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Paladin
 
-type Smite struct {
+type SmiteAbility struct {
 	Target DungeonCard
 }
 
-func (Smite) isAbility() {}
+func (SmiteAbility) isAbility() {}
 
-func (s Smite) Execute(ctx AbilityContext) ([]Event, error) {
+func (s SmiteAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Paladin) {
 		return nil, fmt.Errorf("player is not a Paladin")
 	}
@@ -90,28 +90,28 @@ func (s Smite) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Wizard
 
-type StopTime struct {
+type StopTimeAbility struct {
 }
 
-func (StopTime) isAbility() {}
+func (StopTimeAbility) isAbility() {}
 
-func (StopTime) Execute(ctx AbilityContext) ([]Event, error) {
+func (StopTimeAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Wizard) {
 		return nil, fmt.Errorf("player is not a Wizard")
 	}
 
-	return ctx.Engine.StopTime(ctx.Player), nil
+	return ctx.Engine.StopTime(ctx.Player)
 }
 
 // Sorceress
 
-type Teleport struct {
+type TeleportAbility struct {
 	Target DungeonCard
 }
 
-func (Teleport) isAbility() {}
+func (TeleportAbility) isAbility() {}
 
-func (t Teleport) Execute(ctx AbilityContext) ([]Event, error) {
+func (t TeleportAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Sorceress) {
 		return nil, fmt.Errorf("player is not a Sorceress")
 	}
@@ -121,13 +121,13 @@ func (t Teleport) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Barbarian
 
-type Slay struct {
+type SlayAbility struct {
 	Target DungeonCard
 }
 
-func (Slay) isAbility() {}
+func (SlayAbility) isAbility() {}
 
-func (s Slay) Execute(ctx AbilityContext) ([]Event, error) {
+func (s SlayAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Barbarian) {
 		return nil, fmt.Errorf("player is not a Barbarian")
 	}
@@ -137,13 +137,13 @@ func (s Slay) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Gladiator
 
-type Intimidate struct {
+type IntimidateAbility struct {
 	Target DungeonCard
 }
 
-func (Intimidate) isAbility() {}
+func (IntimidateAbility) isAbility() {}
 
-func (i Intimidate) Execute(ctx AbilityContext) ([]Event, error) {
+func (i IntimidateAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Gladiator) {
 		return nil, fmt.Errorf("player is not a Gladiator")
 	}
@@ -153,13 +153,13 @@ func (i Intimidate) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Ninja
 
-type Vault struct {
+type VaultAbility struct {
 	Target DungeonCard
 }
 
-func (Vault) isAbility() {}
+func (VaultAbility) isAbility() {}
 
-func (v Vault) Execute(ctx AbilityContext) ([]Event, error) {
+func (v VaultAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Ninja) {
 		return nil, fmt.Errorf("player is not a Ninja")
 	}
@@ -169,12 +169,12 @@ func (v Vault) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Thief
 
-type Pickpocket struct {
+type PickpocketAbility struct {
 }
 
-func (Pickpocket) isAbility() {}
+func (PickpocketAbility) isAbility() {}
 
-func (Pickpocket) Execute(ctx AbilityContext) ([]Event, error) {
+func (PickpocketAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Thief) {
 		return nil, fmt.Errorf("player is not a Thief")
 	}
@@ -184,13 +184,13 @@ func (Pickpocket) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Druid
 
-type ForestSpirits struct {
+type ForestSpiritsAbility struct {
 	Target DungeonCard
 }
 
-func (ForestSpirits) isAbility() {}
+func (ForestSpiritsAbility) isAbility() {}
 
-func (ForestSpirits) Execute(ctx AbilityContext) ([]Event, error) {
+func (ForestSpiritsAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Druid) {
 		return nil, fmt.Errorf("player is not a Druid")
 	}
@@ -202,13 +202,13 @@ func (ForestSpirits) Execute(ctx AbilityContext) ([]Event, error) {
 
 // Shaman
 
-type SpiritAnimal struct {
+type SpiritAnimalAbility struct {
 	Target *Player
 }
 
-func (SpiritAnimal) isAbility() {}
+func (SpiritAnimalAbility) isAbility() {}
 
-func (s SpiritAnimal) Execute(ctx AbilityContext) ([]Event, error) {
+func (s SpiritAnimalAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Shaman) {
 		return nil, fmt.Errorf("player is not a Shaman")
 	}

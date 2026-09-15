@@ -32,10 +32,12 @@ type Game struct {
 type GameEngine interface {
 	HasActiveDoor(target DungeonCard) bool
 	DefeatDoor(target DungeonCard) ([]Event, error)
-	StopTime(player *Player) []Event
+	StopTime(player *Player) ([]Event, error)
 	DrawCards(player *Player, count int) ([]Event, error)
 	ListOtherPlayers(omit *Player) []*Player
+	ListPlayers() []*Player
 	HealPlayer(player *Player, amount int) ([]Event, error)
+	GetActiveDoorsOfKind(doorKind DoorKind) []DungeonCard
 }
 
 func NewGame() *Game {
@@ -172,6 +174,19 @@ func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 		events = append(events, TimeUnfrozenEvent{ByPlayer: p})
 	}
 
+	if ac, ok := card.(*ActionCard); ok {
+		ctx := CardActionContext{
+			Engine: g,
+			Player: p,
+			Card:   card,
+		}
+		actionEvents, err := ac.Action.Execute(ctx)
+		events = append(events, actionEvents...)
+		if err != nil {
+			return events, err
+		}
+	}
+
 	nbToDraw := g.HandSize - len(p.Hand)
 	if nbToDraw > 0 {
 		cardDrawnEvents, err := g.DrawCards(p, nbToDraw)
@@ -186,6 +201,10 @@ func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 
 func (g *Game) DrawCards(player *Player, count int) ([]Event, error) {
 	return player.DrawCards(count)
+}
+
+func (g *Game) DrawCardsFromDiscard(player *Player, count int) ([]Event, error) {
+	return player.DrawCardsFromDiscard(count)
 }
 
 func (g *Game) discardCard(p *Player, card PlayerCard) ([]Event, error) {
@@ -284,10 +303,13 @@ func (g *Game) HasActiveDoor(target DungeonCard) bool {
 	return g.PlayField.HasActiveDoor(target)
 }
 
-func (g *Game) StopTime(player *Player) []Event {
+func (g *Game) StopTime(player *Player) ([]Event, error) {
+	if g.IsTimeFrozen {
+		return nil, fmt.Errorf("time is already frozen")
+	}
 	g.IsTimeFrozen = true
 
-	return []Event{TimeFrozenEvent{ByPlayer: player}}
+	return []Event{TimeFrozenEvent{ByPlayer: player}}, nil
 }
 
 func (g *Game) determineHandSize() {
@@ -323,6 +345,23 @@ func (g *Game) ListOtherPlayers(omit *Player) []*Player {
 	return players
 }
 
+func (g *Game) ListPlayers() []*Player {
+	return g.Players
+}
+
 func (g *Game) HealPlayer(p *Player, amount int) ([]Event, error) {
 	return p.Heal(amount)
+}
+
+func (g *Game) GetActiveDoorsOfKind(doorKind DoorKind) []DungeonCard {
+	var doors []DungeonCard
+	for _, dungeonCard := range g.PlayField.OpenedDoors {
+		door, ok := dungeonCard.(*DoorCard)
+		if ok && door.Type != doorKind {
+			continue
+		}
+		doors = append(doors, door)
+	}
+
+	return doors
 }

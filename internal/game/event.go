@@ -50,6 +50,13 @@ type CardDrawnEvent struct {
 
 func (CardDrawnEvent) isEvent() {}
 
+type CardDrawnFromDiscardEvent struct {
+	ByPlayer *Player
+	Card     PlayerCard
+}
+
+func (CardDrawnFromDiscardEvent) isEvent() {}
+
 type CardDiscardedEvent struct {
 	ByPlayer *Player
 	Card     PlayerCard
@@ -83,7 +90,7 @@ func (HeroAbilityUsedEvent) isEvent() {}
 
 type PlayerHealedEvent struct {
 	Player *Player
-	Amount int
+	Cards  []PlayerCard
 }
 
 func (PlayerHealedEvent) isEvent() {}

@@ -373,7 +373,7 @@ func TestDiscardCardSuccess(t *testing.T) {
 	if len(paladin.Hand) != 1 || paladin.Hand[0] != c2 {
 		t.Errorf("expected hand to only contain c2")
 	}
-	if len(paladin.Discard) != 1 || paladin.Discard[0] != c1 {
+	if paladin.Discard.Length() != 1 || paladin.Discard.Cards[0] != c1 {
 		t.Errorf("expected discard pile to contain c1")
 	}
 
@@ -405,7 +405,7 @@ func TestDiscardCardNotInHandRejected(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when discarding card not in hand, got nil")
 	}
-	if len(paladin.Discard) != 0 {
+	if paladin.Discard.Length() != 0 {
 		t.Errorf("expected discard pile to be empty")
 	}
 }
@@ -416,10 +416,10 @@ func TestPlayerHealRecyclesDiscardPile(t *testing.T) {
 	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
 	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
 
-	paladin.Discard = []PlayerCard{c1, c2, c3}
+	paladin.Discard.Cards = []PlayerCard{c1, c2, c3}
 	paladin.Deck = &Deck{Cards: []PlayerCard{}}
 
-	// Partial heal (amount 2: takes c2, c3 to deck, leaving c1 in discard)
+	// Partial heal (amount 2: takes c3, c2 to deck, leaving c1 in discard)
 	events, err := paladin.Heal(2)
 	if err != nil {
 		t.Fatalf("unexpected error healing player: %v", err)
@@ -428,14 +428,14 @@ func TestPlayerHealRecyclesDiscardPile(t *testing.T) {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
 	healedEvt, ok := events[0].(PlayerHealedEvent)
-	if !ok || healedEvt.Amount != 2 {
+	if !ok || len(healedEvt.Cards) != 2 {
 		t.Errorf("expected 2 healed, got %+v", events[0])
 	}
-	if len(paladin.Discard) != 1 || paladin.Discard[0] != c1 {
+	if paladin.Discard.Length() != 1 || paladin.Discard.Cards[0] != c1 {
 		t.Errorf("expected discard to have [c1], got %v", paladin.Discard)
 	}
-	if len(paladin.Deck.Cards) != 2 || paladin.Deck.Cards[0] != c2 || paladin.Deck.Cards[1] != c3 {
-		t.Errorf("expected deck to have [c2, c3], got %v", paladin.Deck.Cards)
+	if len(paladin.Deck.Cards) != 2 || paladin.Deck.Cards[0] != c3 || paladin.Deck.Cards[1] != c2 {
+		t.Errorf("expected deck to have [c3, c2], got %v", paladin.Deck.Cards)
 	}
 
 	// Full heal (amount 0 or amount >= len(discard) heals all remaining)
@@ -447,11 +447,11 @@ func TestPlayerHealRecyclesDiscardPile(t *testing.T) {
 		t.Fatalf("expected 1 event, got %d", len(events))
 	}
 	healedEvt, ok = events[0].(PlayerHealedEvent)
-	if !ok || healedEvt.Amount != 1 {
+	if !ok || len(healedEvt.Cards) != 1 {
 		t.Errorf("expected 1 healed, got %+v", events[0])
 	}
-	if len(paladin.Discard) != 0 {
-		t.Errorf("expected discard pile to be empty after heal, got %d", len(paladin.Discard))
+	if paladin.Discard.Length() != 0 {
+		t.Errorf("expected discard pile to be empty after heal, got %d", paladin.Discard.Length())
 	}
 	if len(paladin.Deck.Cards) != 3 {
 		t.Fatalf("expected deck to have 3 recycled cards, got %d", len(paladin.Deck.Cards))
@@ -461,7 +461,7 @@ func TestPlayerHealRecyclesDiscardPile(t *testing.T) {
 func TestGameHealPlayerEmitsEvent(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin)
 	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	paladin.Discard = []PlayerCard{c1}
+	paladin.Discard.Cards = []PlayerCard{c1}
 	paladin.Deck = &Deck{Cards: []PlayerCard{}}
 
 	game := &Game{
@@ -480,7 +480,7 @@ func TestGameHealPlayerEmitsEvent(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected PlayerHealedEvent, got %T", events[0])
 	}
-	if healedEvt.Player != paladin || healedEvt.Amount != 1 {
+	if healedEvt.Player != paladin || len(healedEvt.Cards) != 1 {
 		t.Errorf("unexpected healed event values: %+v", healedEvt)
 	}
 }
@@ -961,7 +961,7 @@ func TestHeroAbilityTrickShotSuccess(t *testing.T) {
 	events, err := game.Apply(UseHeroAbilityCmd{
 		Player:       ranger,
 		DiscardCards: discards,
-		Ability:      TrickShot{Target: doorPerson},
+		Ability:      TrickShotAbility{Target: doorPerson},
 	})
 	if err != nil {
 		t.Fatalf("failed to use TrickShot: %v", err)
@@ -971,8 +971,8 @@ func TestHeroAbilityTrickShotSuccess(t *testing.T) {
 	if len(ranger.Hand) != 2 {
 		t.Errorf("expected ranger hand to have 2 cards remaining after discarding 3, got %d", len(ranger.Hand))
 	}
-	if len(ranger.Discard) != 3 {
-		t.Errorf("expected ranger discard to have 3 cards, got %d", len(ranger.Discard))
+	if ranger.Discard.Length() != 3 {
+		t.Errorf("expected ranger discard to have 3 cards, got %d", ranger.Discard.Length())
 	}
 
 	// Verify doorPerson was defeated and nextDoor opened
@@ -1011,7 +1011,7 @@ func TestHeroAbilityTrickShotInvalidClassRejected(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      TrickShot{Target: doorPerson},
+		Ability:      TrickShotAbility{Target: doorPerson},
 	})
 	if err == nil {
 		t.Error("expected error when non-Ranger attempts TrickShot, got nil")
@@ -1041,7 +1041,7 @@ func TestHeroAbilityTrickShotInvalidTargetTypeRejected(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       ranger,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      TrickShot{Target: doorMonster},
+		Ability:      TrickShotAbility{Target: doorMonster},
 	})
 	if err == nil {
 		t.Error("expected error when targeting non-Person door with TrickShot, got nil")
@@ -1065,7 +1065,7 @@ func TestHeroAbilityRequiresExactlyThreeCards(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       ranger,
 		DiscardCards: []PlayerCard{c1, c2}, // only 2 cards
-		Ability:      TrickShot{},
+		Ability:      TrickShotAbility{},
 	})
 	if err == nil {
 		t.Error("expected error when providing less than 3 discard cards, got nil")
@@ -1088,7 +1088,7 @@ func TestHeroAbilityStopTime(t *testing.T) {
 	events, err := game.Apply(UseHeroAbilityCmd{
 		Player:       wizard,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      StopTime{},
+		Ability:      StopTimeAbility{},
 	})
 	if err != nil {
 		t.Fatalf("failed StopTime: %v", err)
@@ -1156,7 +1156,7 @@ func TestHeroAbilitySmite(t *testing.T) {
 	events, err := game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Smite{Target: doorMonster},
+		Ability:      SmiteAbility{Target: doorMonster},
 	})
 	if err != nil {
 		t.Fatalf("failed Smite: %v", err)
@@ -1171,7 +1171,7 @@ func TestHeroAbilitySmite(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Smite{Target: doorPerson},
+		Ability:      SmiteAbility{Target: doorPerson},
 	})
 	if err == nil {
 		t.Error("expected error when Smite targets non-Monster, got nil")
@@ -1183,7 +1183,7 @@ func TestHeroAbilitySmite(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       barbarian,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Smite{Target: doorMonster},
+		Ability:      SmiteAbility{Target: doorMonster},
 	})
 	if err == nil {
 		t.Error("expected error when non-Paladin uses Smite, got nil")
@@ -1218,7 +1218,7 @@ func TestHeroAbilitySlay(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       barbarian,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Slay{Target: doorMonster},
+		Ability:      SlayAbility{Target: doorMonster},
 	})
 	if err != nil {
 		t.Fatalf("failed Slay: %v", err)
@@ -1230,7 +1230,7 @@ func TestHeroAbilitySlay(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       barbarian,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Slay{Target: doorObstacle},
+		Ability:      SlayAbility{Target: doorObstacle},
 	})
 	if err == nil {
 		t.Error("expected error when Slay targets non-Monster, got nil")
@@ -1242,7 +1242,7 @@ func TestHeroAbilitySlay(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       sorceress,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Slay{Target: doorMonster},
+		Ability:      SlayAbility{Target: doorMonster},
 	})
 	if err == nil {
 		t.Error("expected error when non-Barbarian uses Slay, got nil")
@@ -1277,7 +1277,7 @@ func TestHeroAbilityTeleport(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       sorceress,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Teleport{Target: doorObstacle},
+		Ability:      TeleportAbility{Target: doorObstacle},
 	})
 	if err != nil {
 		t.Fatalf("failed Teleport: %v", err)
@@ -1289,7 +1289,7 @@ func TestHeroAbilityTeleport(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       sorceress,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Teleport{Target: doorPerson},
+		Ability:      TeleportAbility{Target: doorPerson},
 	})
 	if err == nil {
 		t.Error("expected error when Teleport targets non-Obstacle, got nil")
@@ -1301,7 +1301,7 @@ func TestHeroAbilityTeleport(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Teleport{Target: doorObstacle},
+		Ability:      TeleportAbility{Target: doorObstacle},
 	})
 	if err == nil {
 		t.Error("expected error when non-Sorceress uses Teleport, got nil")
@@ -1336,7 +1336,7 @@ func TestHeroAbilityVault(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       ninja,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Vault{Target: doorObstacle},
+		Ability:      VaultAbility{Target: doorObstacle},
 	})
 	if err != nil {
 		t.Fatalf("failed Vault: %v", err)
@@ -1348,7 +1348,7 @@ func TestHeroAbilityVault(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       ninja,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Vault{Target: doorMonster},
+		Ability:      VaultAbility{Target: doorMonster},
 	})
 	if err == nil {
 		t.Error("expected error when Vault targets non-Obstacle, got nil")
@@ -1360,7 +1360,7 @@ func TestHeroAbilityVault(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       thief,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Vault{Target: doorObstacle},
+		Ability:      VaultAbility{Target: doorObstacle},
 	})
 	if err == nil {
 		t.Error("expected error when non-Ninja uses Vault, got nil")
@@ -1395,7 +1395,7 @@ func TestHeroAbilityIntimidate(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       gladiator,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Intimidate{Target: doorPerson},
+		Ability:      IntimidateAbility{Target: doorPerson},
 	})
 	if err != nil {
 		t.Fatalf("failed Intimidate: %v", err)
@@ -1407,7 +1407,7 @@ func TestHeroAbilityIntimidate(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       gladiator,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Intimidate{Target: doorMonster},
+		Ability:      IntimidateAbility{Target: doorMonster},
 	})
 	if err == nil {
 		t.Error("expected error when Intimidate targets non-Person, got nil")
@@ -1419,7 +1419,7 @@ func TestHeroAbilityIntimidate(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Intimidate{Target: doorPerson},
+		Ability:      IntimidateAbility{Target: doorPerson},
 	})
 	if err == nil {
 		t.Error("expected error when non-Gladiator uses Intimidate, got nil")
@@ -1454,7 +1454,7 @@ func TestHeroAbilityAnimalCompanion(t *testing.T) {
 	events, err := game.Apply(UseHeroAbilityCmd{
 		Player:       huntress,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      AnimalCompanion{Target: paladin},
+		Ability:      AnimalCompanionAbility{Target: paladin},
 	})
 	if err != nil {
 		t.Fatalf("failed AnimalCompanion: %v", err)
@@ -1477,7 +1477,7 @@ func TestHeroAbilityAnimalCompanion(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       huntress,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      AnimalCompanion{Target: nil},
+		Ability:      AnimalCompanionAbility{Target: nil},
 	})
 	if err == nil {
 		t.Error("expected error when target is nil, got nil")
@@ -1489,7 +1489,7 @@ func TestHeroAbilityAnimalCompanion(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       ranger,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      AnimalCompanion{Target: paladin},
+		Ability:      AnimalCompanionAbility{Target: paladin},
 	})
 	if err == nil {
 		t.Error("expected error when non-Huntress uses AnimalCompanion, got nil")
@@ -1530,7 +1530,7 @@ func TestHeroAbilityInspire(t *testing.T) {
 	events, err := game.Apply(UseHeroAbilityCmd{
 		Player:       valkyrie,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Inspire{},
+		Ability:      InspireAbility{},
 	})
 	if err != nil {
 		t.Fatalf("failed Inspire: %v", err)
@@ -1560,7 +1560,7 @@ func TestHeroAbilityInspire(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       paladin,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Inspire{},
+		Ability:      InspireAbility{},
 	})
 	if err == nil {
 		t.Error("expected error when non-Valkyrie uses Inspire, got nil")
@@ -1593,7 +1593,7 @@ func TestHeroAbilityPickpocket(t *testing.T) {
 	events, err := game.Apply(UseHeroAbilityCmd{
 		Player:       thief,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Pickpocket{},
+		Ability:      PickpocketAbility{},
 	})
 	if err != nil {
 		t.Fatalf("failed Pickpocket: %v", err)
@@ -1618,7 +1618,7 @@ func TestHeroAbilityPickpocket(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       ninja,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      Pickpocket{},
+		Ability:      PickpocketAbility{},
 	})
 	if err == nil {
 		t.Error("expected error when non-Thief uses Pickpocket, got nil")
@@ -1641,7 +1641,7 @@ func TestHeroAbilityForestSpirits(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       druid,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      ForestSpirits{},
+		Ability:      ForestSpiritsAbility{},
 	})
 	if err != nil {
 		t.Fatalf("failed ForestSpirits: %v", err)
@@ -1653,7 +1653,7 @@ func TestHeroAbilityForestSpirits(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       shaman,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      ForestSpirits{},
+		Ability:      ForestSpiritsAbility{},
 	})
 	if err == nil {
 		t.Error("expected error when non-Druid uses ForestSpirits, got nil")
@@ -1669,7 +1669,7 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 	c3 := &ResourceCard{Resources: []ResourceType{Shield}}
 	shaman.Hand = []PlayerCard{c1, c2, c3}
 
-	paladin.Discard = []PlayerCard{
+	paladin.Discard.Cards = []PlayerCard{
 		&ResourceCard{Resources: []ResourceType{Sword}},
 		&ResourceCard{Resources: []ResourceType{Shield}},
 		&ResourceCard{Resources: []ResourceType{Jump}},
@@ -1685,13 +1685,13 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 	events, err := game.Apply(UseHeroAbilityCmd{
 		Player:       shaman,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      SpiritAnimal{Target: paladin},
+		Ability:      SpiritAnimalAbility{Target: paladin},
 	})
 	if err != nil {
 		t.Fatalf("failed SpiritAnimal: %v", err)
 	}
-	if len(paladin.Discard) != 0 {
-		t.Errorf("expected paladin discard to be empty, got %d", len(paladin.Discard))
+	if paladin.Discard.Length() != 0 {
+		t.Errorf("expected paladin discard to be empty, got %d", paladin.Discard.Length())
 	}
 	if len(paladin.Deck.Cards) != 3 {
 		t.Errorf("expected paladin deck to have 3 healed cards, got %d", len(paladin.Deck.Cards))
@@ -1699,7 +1699,7 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 
 	foundHealedEvent := false
 	for _, evt := range events {
-		if h, ok := evt.(PlayerHealedEvent); ok && h.Player == paladin && h.Amount == 3 {
+		if h, ok := evt.(PlayerHealedEvent); ok && h.Player == paladin && len(h.Cards) == 3 {
 			foundHealedEvent = true
 		}
 	}
@@ -1712,7 +1712,7 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       shaman,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      SpiritAnimal{Target: nil},
+		Ability:      SpiritAnimalAbility{Target: nil},
 	})
 	if err == nil {
 		t.Error("expected error when target is nil, got nil")
@@ -1724,7 +1724,7 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 	_, err = game.Apply(UseHeroAbilityCmd{
 		Player:       druid,
 		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      SpiritAnimal{Target: paladin},
+		Ability:      SpiritAnimalAbility{Target: paladin},
 	})
 	if err == nil {
 		t.Error("expected error when non-Shaman uses SpiritAnimal, got nil")
@@ -1747,7 +1747,7 @@ func TestHeroAbilityDiscardCardsMustBeInHand(t *testing.T) {
 	_, err := game.Apply(UseHeroAbilityCmd{
 		Player:       ranger,
 		DiscardCards: []PlayerCard{c1, c2, cNotInHand},
-		Ability:      TrickShot{},
+		Ability:      TrickShotAbility{},
 	})
 	if err == nil {
 		t.Error("expected error when discard cards are not in hand, got nil")
@@ -1906,5 +1906,133 @@ func TestApplyWithNilReplyDoesNotPanicOrBlock(t *testing.T) {
 	})
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+// --- Deck & Discard Mechanics Tests ---
+
+func TestDeckDrawAndPutAtopOrder(t *testing.T) {
+	deck := &Deck{Cards: []PlayerCard{}}
+
+	if deck.Draw() != nil {
+		t.Error("expected Draw() on empty deck to return nil")
+	}
+	if !deck.Empty() || deck.Length() != 0 {
+		t.Errorf("expected empty deck, got length %d", deck.Length())
+	}
+
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
+
+	// PutAtop adds to the top of the pile
+	deck.PutAtop(c1, c2)
+	deck.PutAtop(c3)
+
+	if deck.Length() != 3 {
+		t.Fatalf("expected length 3, got %d", deck.Length())
+	}
+
+	// Draw should draw from the top (c3 first, then c2, then c1)
+	drawn1 := deck.Draw()
+	if drawn1 != c3 {
+		t.Errorf("expected first drawn card to be top card c3, got %v", drawn1)
+	}
+
+	drawn2 := deck.Draw()
+	if drawn2 != c2 {
+		t.Errorf("expected second drawn card to be c2, got %v", drawn2)
+	}
+
+	drawn3 := deck.Draw()
+	if drawn3 != c1 {
+		t.Errorf("expected third drawn card to be bottom card c1, got %v", drawn3)
+	}
+
+	if deck.Draw() != nil {
+		t.Error("expected Draw() on exhausted deck to return nil")
+	}
+}
+
+func TestDiscardDrawAndPutAtopOrder(t *testing.T) {
+	discard := NewDiscard()
+
+	if discard.Draw() != nil {
+		t.Error("expected Draw() on empty discard to return nil")
+	}
+	if !discard.Empty() || discard.Length() != 0 {
+		t.Errorf("expected empty discard, got length %d", discard.Length())
+	}
+
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
+
+	// PutAtop adds to the top of the discard pile
+	discard.PutAtop(c1, c2)
+	discard.PutAtop(c3)
+
+	if discard.Length() != 3 {
+		t.Fatalf("expected length 3, got %d", discard.Length())
+	}
+
+	// Draw should draw from the top (c3 first, then c2, then c1)
+	drawn1 := discard.Draw()
+	if drawn1 != c3 {
+		t.Errorf("expected first drawn card to be top card c3, got %v", drawn1)
+	}
+
+	drawn2 := discard.Draw()
+	if drawn2 != c2 {
+		t.Errorf("expected second drawn card to be c2, got %v", drawn2)
+	}
+
+	drawn3 := discard.Draw()
+	if drawn3 != c1 {
+		t.Errorf("expected third drawn card to be bottom card c1, got %v", drawn3)
+	}
+
+	if discard.Draw() != nil {
+		t.Error("expected Draw() on exhausted discard to return nil")
+	}
+}
+
+func TestPlayerDrawCardsFromDiscardOrder(t *testing.T) {
+	player, _ := NewPlayer("Arthur", Paladin)
+	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+
+	player.Discard.PutAtop(c1, c2)
+	player.Hand = []PlayerCard{}
+
+	// Draw 1 card from discard -> should draw c2 (top card)
+	events, err := player.DrawCardsFromDiscard(1)
+	if err != nil {
+		t.Fatalf("unexpected error drawing from discard: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("expected 1 event, got %d", len(events))
+	}
+	drawnEvt, ok := events[0].(CardDrawnFromDiscardEvent)
+	if !ok || drawnEvt.Card != c2 {
+		t.Errorf("expected CardDrawnFromDiscardEvent with c2, got %+v", events[0])
+	}
+	if len(player.Hand) != 1 || player.Hand[0] != c2 {
+		t.Errorf("expected hand to contain [c2], got %v", player.Hand)
+	}
+
+	// Draw remaining card -> should draw c1
+	events, err = player.DrawCardsFromDiscard(1)
+	if err != nil {
+		t.Fatalf("unexpected error drawing from discard: %v", err)
+	}
+	if len(player.Hand) != 2 || player.Hand[1] != c1 {
+		t.Errorf("expected hand to contain [c2, c1], got %v", player.Hand)
+	}
+
+	// Draw from now-empty discard -> should fail
+	_, err = player.DrawCardsFromDiscard(1)
+	if err == nil {
+		t.Error("expected error when drawing from empty discard, got nil")
 	}
 }
