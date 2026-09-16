@@ -121,3 +121,14 @@ func (p *Playfield) IsPlayfieldBeaten() bool {
 func (p *Playfield) IsFightingBoss(dungeon *Dungeon) bool {
 	return len(p.OpenedDoors) == 1 && p.OpenedDoors[0] == dungeon.Boss
 }
+
+func (p *Playfield) DoorsOnly() []DungeonCard {
+	var openedDoors []DungeonCard
+	for _, c := range p.OpenedDoors {
+		if _, ok := c.(*BossMat); !ok {
+			openedDoors = append(openedDoors, c)
+		}
+	}
+
+	return openedDoors
+}

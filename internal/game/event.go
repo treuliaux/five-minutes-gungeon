@@ -43,12 +43,27 @@ type CardPlayedEvent struct {
 
 func (CardPlayedEvent) isEvent() {}
 
-type CardDrawnEvent struct {
+type ActionCardPlayedEvent struct {
 	ByPlayer *Player
 	Card     PlayerCard
 }
 
-func (CardDrawnEvent) isEvent() {}
+func (ActionCardPlayedEvent) isEvent() {}
+
+type EventCounteredEvent struct {
+	ByPlayer  *Player
+	EventCard DungeonCard
+	WithCard  PlayerCard
+}
+
+func (EventCounteredEvent) isEvent() {}
+
+type CardDrawnFromDeckEvent struct {
+	ByPlayer *Player
+	Card     PlayerCard
+}
+
+func (CardDrawnFromDeckEvent) isEvent() {}
 
 type CardDrawnFromDiscardEvent struct {
 	ByPlayer *Player

@@ -45,7 +45,7 @@ func (a AnimalCompanionAbility) Execute(ctx AbilityContext) ([]Event, error) {
 		return nil, fmt.Errorf("target player cannot be nil")
 	}
 
-	return ctx.Engine.DrawCards(a.Target, 4)
+	return ctx.Engine.DrawCardsFromDeck(a.Target, 4)
 }
 
 // Valkyrie
@@ -62,7 +62,7 @@ func (InspireAbility) Execute(ctx AbilityContext) ([]Event, error) {
 
 	var events []Event
 	for _, player := range ctx.Engine.ListOtherPlayers(ctx.Player) {
-		drawnEvents, err := ctx.Engine.DrawCards(player, 2)
+		drawnEvents, err := ctx.Engine.DrawCardsFromDeck(player, 2)
 		events = append(events, drawnEvents...)
 		if err != nil {
 			return events, err
@@ -179,7 +179,7 @@ func (PickpocketAbility) Execute(ctx AbilityContext) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Thief")
 	}
 
-	return ctx.Engine.DrawCards(ctx.Player, 5)
+	return ctx.Engine.DrawCardsFromDeck(ctx.Player, 5)
 }
 
 // Druid

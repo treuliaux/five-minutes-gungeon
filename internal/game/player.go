@@ -61,9 +61,15 @@ func (p *Player) DiscardCard(card PlayerCard) ([]Event, error) {
 	return []Event{CardDiscardedEvent{ByPlayer: p, Card: card}}, nil
 }
 
-func (p *Player) DrawCards(count int) ([]Event, error) {
+func (p *Player) DrawCardsFromDeck(count int) ([]Event, error) {
+	if count <= 0 {
+		return nil, nil
+	}
 	if p.Deck == nil {
 		return nil, fmt.Errorf("player has no deck")
+	}
+	if p.Deck.Empty() {
+		return nil, fmt.Errorf("player deck is empty")
 	}
 
 	var events []Event
@@ -73,13 +79,16 @@ func (p *Player) DrawCards(count int) ([]Event, error) {
 			return events, fmt.Errorf("no more cards in deck")
 		}
 		p.Hand = append(p.Hand, drawn)
-		events = append(events, CardDrawnEvent{ByPlayer: p, Card: drawn})
+		events = append(events, CardDrawnFromDeckEvent{ByPlayer: p, Card: drawn})
 	}
 
 	return events, nil
 }
 
 func (p *Player) DrawCardsFromDiscard(count int) ([]Event, error) {
+	if p.Discard == nil {
+		return nil, fmt.Errorf("player has no discard")
+	}
 	if p.Discard.Empty() {
 		return nil, fmt.Errorf("player discard is empty")
 	}
@@ -89,6 +98,24 @@ func (p *Player) DrawCardsFromDiscard(count int) ([]Event, error) {
 		drawn := p.Discard.Draw()
 		if drawn == nil {
 			return events, fmt.Errorf("no more cards in discard")
+		}
+		p.Hand = append(p.Hand, drawn)
+		events = append(events, CardDrawnFromDiscardEvent{ByPlayer: p, Card: drawn})
+	}
+
+	return events, nil
+}
+
+func (p *Player) DrawResourceCardsFromDiscard(resourceTypes []ResourceType) ([]Event, error) {
+	if p.Discard == nil {
+		return nil, fmt.Errorf("player has no discard")
+	}
+
+	var events []Event
+	for {
+		drawn := p.Discard.DrawResourceCard(resourceTypes)
+		if drawn == nil {
+			break
 		}
 		p.Hand = append(p.Hand, drawn)
 		events = append(events, CardDrawnFromDiscardEvent{ByPlayer: p, Card: drawn})
