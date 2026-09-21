@@ -152,20 +152,20 @@ func newShaman() *Hero {
 	}
 }
 
-func (h *Hero) NewDeck() *Deck {
+func (h *Hero) NewDeck(includeExtension bool) *Deck {
 	switch h.Color {
 	case Yellow:
-		return NewYellowDeck()
+		return NewYellowDeck(includeExtension).Shuffle()
 	case Red:
-		return NewRedDeck()
+		return NewRedDeck(includeExtension).Shuffle()
 	case Blue:
-		return NewBlueDeck()
+		return NewBlueDeck(includeExtension).Shuffle()
 	case Black:
-		return NewBlackDeck()
+		return NewBlackDeck().Shuffle()
 	case Green:
-		return NewGreenDeck()
+		return NewGreenDeck(includeExtension).Shuffle()
 	case Purple:
-		return NewPurpleDeck()
+		return NewPurpleDeck(includeExtension).Shuffle()
 	}
 	return nil
 }

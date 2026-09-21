@@ -28,7 +28,8 @@ func (d *Discard) DrawResourceCard(resources []ResourceType) PlayerCard {
 			for _, resource := range resources {
 				if slices.Contains(card.Resources, resource) {
 					drawnCard := d.Cards[i]
-					d.Cards = append(d.Cards[:i], d.Cards[i+1:]...)
+					d.Cards = slices.Delete(d.Cards, i, i+1)
+
 					return drawnCard
 				}
 			}

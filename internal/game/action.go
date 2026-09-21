@@ -38,8 +38,29 @@ type SnipeAction struct {
 }
 
 func (SnipeAction) isCardAction() {}
-func (s SnipeAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorKindByAction(ctx, s.Target, DoorPerson)
+func (a SnipeAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorPerson)
+}
+
+type WildCardAction struct {
+}
+
+func (WildCardAction) isCardAction() {}
+func (a WildCardAction) Execute(ctx CardActionContext) ([]Event, error) {
+	var events []Event
+	var err error
+	events, err = ctx.Engine.PlayArbitraryCard(ctx.Player, &ResourceCard{Resources: []ResourceType{WildCard}})
+	if err != nil {
+		return events, err
+	}
+	var removeEvents []Event
+	removeEvents, err = ctx.Engine.RemovePlayerCardFromPlayfield(ctx.Card)
+	events = append(events, removeEvents...)
+	if err != nil {
+		return events, err
+	}
+
+	return events, err
 }
 
 type HealingHerbsAction struct {
@@ -47,8 +68,8 @@ type HealingHerbsAction struct {
 }
 
 func (HealingHerbsAction) isCardAction() {}
-func (h HealingHerbsAction) Execute(ctx CardActionContext) ([]Event, error) {
-	target := h.Target
+func (a HealingHerbsAction) Execute(ctx CardActionContext) ([]Event, error) {
+	target := a.Target
 	if target == nil {
 		var err error
 		target, err = smartPlayerTargeting(ctx.Card, ctx.Engine.ListOtherPlayers(ctx.Player))
@@ -69,16 +90,16 @@ type CriticalHitAction struct {
 }
 
 func (CriticalHitAction) isCardAction() {}
-func (c CriticalHitAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorKindByAction(ctx, c.Target, DoorMonster)
+func (a CriticalHitAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorMonster)
 }
 
 type ExtraQuiverAction struct {
 }
 
 func (ExtraQuiverAction) isCardAction() {}
-func (e ExtraQuiverAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return makePlayersDraw(ctx.Engine, ctx.Engine.ListPlayers(), 2)
+func (a ExtraQuiverAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return makePlayersDrawFromDeck(ctx.Engine, ctx.Engine.ListPlayers(), 2)
 }
 
 // Valkyrie / Paladin
@@ -88,20 +109,20 @@ type SmiteAction struct {
 }
 
 func (SmiteAction) isCardAction() {}
-func (s SmiteAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorKindByAction(ctx, s.Target, DoorMonster)
+func (a SmiteAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorMonster)
 }
 
 type DivineShieldAction struct {
 }
 
 func (DivineShieldAction) isCardAction() {}
-func (d DivineShieldAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a DivineShieldAction) Execute(ctx CardActionContext) ([]Event, error) {
 	events, err := ctx.Engine.StopTime(ctx.Player)
 	if err != nil {
 		return nil, err
 	}
-	drawEvents, err := makePlayersDraw(ctx.Engine, ctx.Engine.ListPlayers(), 1)
+	drawEvents, err := makePlayersDrawFromDeck(ctx.Engine, ctx.Engine.ListPlayers(), 1)
 	events = append(events, drawEvents...)
 	if err != nil {
 		return events, err
@@ -115,8 +136,8 @@ type HolyHandGrenadeAction struct {
 }
 
 func (HolyHandGrenadeAction) isCardAction() {}
-func (h HolyHandGrenadeAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByAction(ctx, h.Target)
+func (a HolyHandGrenadeAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorByAction(ctx, a.Target)
 }
 
 type HealAction struct {
@@ -124,8 +145,8 @@ type HealAction struct {
 }
 
 func (HealAction) isCardAction() {}
-func (h HealAction) Execute(ctx CardActionContext) ([]Event, error) {
-	target := h.Target
+func (a HealAction) Execute(ctx CardActionContext) ([]Event, error) {
+	target := a.Target
 	if target == nil {
 		var err error
 		target, err = smartPlayerTargeting(ctx.Card, ctx.Engine.ListOtherPlayers(ctx.Player))
@@ -134,38 +155,25 @@ func (h HealAction) Execute(ctx CardActionContext) ([]Event, error) {
 		}
 	}
 
-	return ctx.Engine.HealPlayer(target, 0)
+	return ctx.Engine.HealPlayer(target, target.Discard.Length())
 }
 
 type HealthPotionAction struct {
 }
 
 func (HealthPotionAction) isCardAction() {}
-func (h HealthPotionAction) Execute(ctx CardActionContext) ([]Event, error) {
-	var events []Event
-	for _, player := range ctx.Engine.ListPlayers() {
-		if player.Discard == nil || player.Discard.Empty() {
-			continue
-		}
-		count := min(3, player.Discard.Length())
-		drawFromDiscardEvents, err := ctx.Engine.DrawCardsFromDiscard(player, count)
-		events = append(events, drawFromDiscardEvents...)
-		if err != nil {
-			return events, err
-		}
-	}
-
-	return events, nil
+func (a HealthPotionAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return makePlayersDrawFromDiscard(ctx.Engine, ctx.Engine.ListPlayers(), 3)
 }
 
 type MysticRuneAction struct {
 }
 
 func (MysticRuneAction) isCardAction() {}
-func (m MysticRuneAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a MysticRuneAction) Execute(ctx CardActionContext) ([]Event, error) {
 	var events []Event
 	for _, player := range ctx.Engine.ListPlayers() {
-		drawEvents, err := ctx.Engine.DrawCardsFromDeck(player, 1) // TODO: Replace `1` by active curses count
+		drawEvents, err := ctx.Engine.DrawCardsFromDeck(player, len(ctx.Engine.GetActiveCurses()))
 		events = append(events, drawEvents...)
 		if err != nil {
 			return events, err
@@ -179,7 +187,7 @@ type RallyAction struct {
 }
 
 func (RallyAction) isCardAction() {}
-func (r RallyAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a RallyAction) Execute(ctx CardActionContext) ([]Event, error) {
 	var events []Event
 	for _, player := range ctx.Engine.ListPlayers() {
 		drawEvents, err := ctx.Engine.DrawResourceCardsFromDiscard(player, []ResourceType{Sword, Shield})
@@ -197,8 +205,29 @@ type FireballAction struct {
 }
 
 func (FireballAction) isCardAction() {}
-func (f FireballAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorKindByAction(ctx, f.Target, DoorMonster)
+func (a FireballAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorMonster)
+}
+
+type MagicBombAction struct {
+}
+
+func (MagicBombAction) isCardAction() {}
+func (a MagicBombAction) Execute(ctx CardActionContext) ([]Event, error) {
+	var events []Event
+	var err error
+	events, err = ctx.Engine.PlayArbitraryCard(ctx.Player, &ResourceCard{Resources: []ResourceType{Sword, Shield, Arrow, Scroll, Jump}})
+	if err != nil {
+		return events, err
+	}
+	var removeEvents []Event
+	removeEvents, err = ctx.Engine.RemovePlayerCardFromPlayfield(ctx.Card)
+	events = append(events, removeEvents...)
+	if err != nil {
+		return events, err
+	}
+
+	return events, err
 }
 
 type CancelAction struct {
@@ -206,8 +235,29 @@ type CancelAction struct {
 }
 
 func (CancelAction) isCardAction() {}
-func (c CancelAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatEventDoorByAction(ctx, c.Target)
+func (a CancelAction) Execute(ctx CardActionContext) ([]Event, error) {
+	target := a.Target
+	if target == nil {
+		var err error
+		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfType(
+			[]DoorKind{},
+			[]ChallengeKind{ChallengeEvent},
+			false,
+		))
+		if err != nil {
+			return nil, err
+		}
+	}
+	actionEvents, err := defeatEventDoorByAction(ctx, target)
+	if err != nil {
+		return actionEvents, err
+	}
+
+	return append([]Event{EventCounteredEvent{
+		ByPlayer:  ctx.Player,
+		EventCard: target,
+		WithCard:  ctx.Card,
+	}}, actionEvents...), nil
 }
 
 type PortalAction struct {
@@ -215,9 +265,25 @@ type PortalAction struct {
 }
 
 func (PortalAction) isCardAction() {}
-func (p PortalAction) Execute(ctx CardActionContext) ([]Event, error) {
-	// TODO: Move an opened door at the bottom of dungeon pile (except Events and Curses)
-	return nil, nil
+func (a PortalAction) Execute(ctx CardActionContext) ([]Event, error) {
+	target := a.Target
+	if target == nil {
+		var err error
+		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfType(
+			[]DoorKind{DoorPerson, DoorObstacle, DoorMonster},
+			[]ChallengeKind{ChallengeMiniBoss},
+			false,
+		))
+		if err != nil {
+			return nil, err
+		}
+	}
+	switch target.(type) {
+	case *EventCard, *CurseCard, *BossMat:
+		return nil, fmt.Errorf("curses, events, and boss mat cannot be targeted")
+	default:
+		return ctx.Engine.SendDungeonCardBottomDungeon(target)
+	}
 }
 
 type TimeWarpAction struct {
@@ -234,8 +300,8 @@ type MightyLeapAction struct {
 }
 
 func (MightyLeapAction) isCardAction() {}
-func (m MightyLeapAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorKindByAction(ctx, m.Target, DoorObstacle)
+func (a MightyLeapAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorObstacle)
 }
 
 type EnrageAction struct {
@@ -243,27 +309,13 @@ type EnrageAction struct {
 }
 
 func (EnrageAction) isCardAction() {}
-func (m EnrageAction) Execute(ctx CardActionContext) ([]Event, error) {
-	targets := m.Targets
-	if len(targets) > 2 {
-		return nil, fmt.Errorf("cannot target more than 2 players")
-	}
-	if len(targets) == 0 {
-		candidates := ctx.Engine.ListPlayers()
-		switch len(candidates) {
-		case 0:
-			return nil, fmt.Errorf("no valid target player")
-		case 1, 2:
-			targets = candidates
-		default:
-			return nil, &AmbiguousPlayerTargetError{
-				Card:         ctx.Card,
-				ValidTargets: candidates,
-			}
-		}
+func (a EnrageAction) Execute(ctx CardActionContext) ([]Event, error) {
+	targets, err := smartTwoPlayersTargeting(ctx, a.Targets)
+	if err != nil {
+		return nil, err
 	}
 
-	return makePlayersDraw(ctx.Engine, targets, 3)
+	return makePlayersDrawFromDeck(ctx.Engine, targets, 3)
 }
 
 type CrushAction struct {
@@ -271,8 +323,8 @@ type CrushAction struct {
 }
 
 func (CrushAction) isCardAction() {}
-func (c CrushAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatMiniBossByAction(ctx, c.Target)
+func (a CrushAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatMiniBossByAction(ctx, a.Target)
 }
 
 type BattleRageAction struct {
@@ -280,9 +332,24 @@ type BattleRageAction struct {
 }
 
 func (BattleRageAction) isCardAction() {}
-func (b BattleRageAction) Execute(ctx CardActionContext) ([]Event, error) {
-	// TODO: Move a curse door at the bottom of dungeon pile
-	return nil, nil
+func (a BattleRageAction) Execute(ctx CardActionContext) ([]Event, error) {
+	target := a.Target
+	if target == nil {
+		var err error
+		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfType(
+			[]DoorKind{},
+			[]ChallengeKind{ChallengeCurse},
+			false,
+		))
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, ok := target.(*CurseCard); !ok {
+		return nil, fmt.Errorf("target is not a curse")
+	}
+
+	return ctx.Engine.SendDungeonCardBottomDungeon(target)
 }
 
 type BackstabAction struct {
@@ -290,8 +357,8 @@ type BackstabAction struct {
 }
 
 func (BackstabAction) isCardAction() {}
-func (b BackstabAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorKindByAction(ctx, b.Target, DoorPerson)
+func (a BackstabAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorPerson)
 }
 
 type SprintAction struct {
@@ -299,36 +366,136 @@ type SprintAction struct {
 }
 
 func (SprintAction) isCardAction() {}
-func (s SprintAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorKindByAction(ctx, s.Target, DoorObstacle)
+func (a SprintAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorObstacle)
 }
 
 type StealAction struct {
-	Target DungeonCard
+	Target *Player
 }
 
 func (StealAction) isCardAction() {}
-func (s StealAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a StealAction) Execute(ctx CardActionContext) ([]Event, error) {
 	// TODO: Steal another's player's whole hand
 	return nil, nil
 }
 
 type DonateAction struct {
-	Target DungeonCard
+	Target *Player
 }
 
 func (DonateAction) isCardAction() {}
-func (d DonateAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a DonateAction) Execute(ctx CardActionContext) ([]Event, error) {
 	// TODO: Donate whole hand to another player
 	return nil, nil
 }
 
-type EventAction func()
+type ThrowingKnivesAction struct {
+}
+
+func (ThrowingKnivesAction) isCardAction() {}
+func (a ThrowingKnivesAction) Execute(ctx CardActionContext) ([]Event, error) {
+	var events []Event
+	var err error
+	events, err = ctx.Engine.PlayArbitraryCard(ctx.Player, &ResourceCard{Resources: []ResourceType{WildCard, WildCard, WildCard}})
+	if err != nil {
+		return events, err
+	}
+	var removeEvents []Event
+	removeEvents, err = ctx.Engine.RemovePlayerCardFromPlayfield(ctx.Card)
+	events = append(events, removeEvents...)
+	if err != nil {
+		return events, err
+	}
+
+	return events, err
+}
+
+type TameCreatureAction struct {
+	Target DungeonCard
+}
+
+func (TameCreatureAction) isCardAction() {}
+func (a TameCreatureAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorMonster)
+}
+
+type TrueSightAction struct {
+	Target DungeonCard
+}
+
+func (TrueSightAction) isCardAction() {}
+func (a TrueSightAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorObstacle)
+}
+
+type LivingVinesAction struct {
+	Target DungeonCard
+}
+
+func (LivingVinesAction) isCardAction() {}
+func (a LivingVinesAction) Execute(ctx CardActionContext) ([]Event, error) {
+	return defeatDoorKindByAction(ctx, a.Target, DoorPerson)
+}
+
+type CleanseAction struct {
+	Target DungeonCard
+}
+
+func (CleanseAction) isCardAction() {}
+func (a CleanseAction) Execute(ctx CardActionContext) ([]Event, error) {
+	target := a.Target
+	if target == nil {
+		var err error
+		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfType(
+			[]DoorKind{},
+			[]ChallengeKind{ChallengeCurse},
+			false,
+		))
+		if err != nil {
+			return nil, err
+		}
+	}
+	targetCurse, ok := target.(*CurseCard)
+	if !ok {
+		return nil, fmt.Errorf("target is not a curse")
+	}
+
+	return ctx.Engine.RemoveCurseFromPlayfield(targetCurse)
+}
+
+type AncientHealingAction struct {
+	Targets []*Player
+}
+
+func (AncientHealingAction) isCardAction() {}
+func (a AncientHealingAction) Execute(ctx CardActionContext) ([]Event, error) {
+	targets, err := smartTwoPlayersTargeting(ctx, a.Targets)
+	if err != nil {
+		return nil, err
+	}
+
+	return makePlayersDrawFromDiscard(ctx.Engine, targets, 2)
+}
+
+type EventAction interface {
+	isCardEvent()
+	Execute(ctx CardEventContext) ([]Event, error)
+}
+
+type CardEventContext struct {
+	Engine GameEngine
+	Card   DungeonCard
+}
 
 func defeatDoorKindByAction(ctx CardActionContext, target DungeonCard, doorKind DoorKind) ([]Event, error) {
 	if target == nil {
 		var err error
-		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfKind(doorKind))
+		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfType(
+			[]DoorKind{doorKind},
+			[]ChallengeKind{},
+			false,
+		))
 		if err != nil {
 			return nil, err
 		}
@@ -343,13 +510,14 @@ func defeatDoorKindByAction(ctx CardActionContext, target DungeonCard, doorKind 
 func defeatDoorByAction(ctx CardActionContext, target DungeonCard) ([]Event, error) {
 	if target == nil {
 		var err error
-		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoors())
+		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfType(
+			[]DoorKind{DoorMonster, DoorObstacle, DoorPerson},
+			[]ChallengeKind{ChallengeCurse, ChallengeMiniBoss, ChallengeEvent},
+			true,
+		))
 		if err != nil {
 			return nil, err
 		}
-	}
-	if _, ok := target.(*BossMat); ok {
-		return nil, fmt.Errorf("boss mat cannot be targeted")
 	}
 
 	return ctx.Engine.DefeatDoor(target)
@@ -358,7 +526,11 @@ func defeatDoorByAction(ctx CardActionContext, target DungeonCard) ([]Event, err
 func defeatMiniBossByAction(ctx CardActionContext, target DungeonCard) ([]Event, error) {
 	if target == nil {
 		var err error
-		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveMiniBossDoors())
+		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfType(
+			[]DoorKind{},
+			[]ChallengeKind{ChallengeMiniBoss},
+			false,
+		))
 		if err != nil {
 			return nil, err
 		}
@@ -373,7 +545,11 @@ func defeatMiniBossByAction(ctx CardActionContext, target DungeonCard) ([]Event,
 func defeatEventDoorByAction(ctx CardActionContext, target DungeonCard) ([]Event, error) {
 	if target == nil {
 		var err error
-		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveEventDoors())
+		target, err = smartDungeonCardTargeting(ctx.Card, ctx.Engine.GetActiveDoorsOfType(
+			[]DoorKind{},
+			[]ChallengeKind{ChallengeEvent},
+			false,
+		))
 		if err != nil {
 			return nil, err
 		}
@@ -385,10 +561,27 @@ func defeatEventDoorByAction(ctx CardActionContext, target DungeonCard) ([]Event
 	return ctx.Engine.DefeatDoor(target)
 }
 
-func makePlayersDraw(gameEngine GameEngine, players []*Player, count int) ([]Event, error) {
+func makePlayersDrawFromDeck(gameEngine GameEngine, players []*Player, count int) ([]Event, error) {
 	var events []Event
 	for _, player := range players {
 		drawEvents, err := gameEngine.DrawCardsFromDeck(player, count)
+		events = append(events, drawEvents...)
+		if err != nil {
+			return events, err
+		}
+	}
+
+	return events, nil
+}
+
+func makePlayersDrawFromDiscard(gameEngine GameEngine, players []*Player, count int) ([]Event, error) {
+	var events []Event
+	for _, player := range players {
+		if player.Discard == nil || player.Discard.Empty() {
+			continue
+		}
+		toDraw := min(count, player.Discard.Length())
+		drawEvents, err := gameEngine.DrawCardsFromDiscard(player, toDraw)
 		events = append(events, drawEvents...)
 		if err != nil {
 			return events, err
@@ -424,4 +617,25 @@ func smartPlayerTargeting(card PlayerCard, candidates []*Player) (*Player, error
 			ValidTargets: candidates,
 		}
 	}
+}
+
+func smartTwoPlayersTargeting(ctx CardActionContext, targets []*Player) ([]*Player, error) {
+	if len(targets) > 2 {
+		return nil, fmt.Errorf("cannot target more than 2 players")
+	}
+	if len(targets) == 0 {
+		candidates := ctx.Engine.ListPlayers()
+		switch len(candidates) {
+		case 0:
+			return nil, fmt.Errorf("no valid target player")
+		case 1, 2:
+			targets = candidates
+		default:
+			return nil, &AmbiguousPlayerTargetError{
+				Card:         ctx.Card,
+				ValidTargets: candidates,
+			}
+		}
+	}
+	return targets, nil
 }

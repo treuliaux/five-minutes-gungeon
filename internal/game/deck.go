@@ -1,7 +1,7 @@
 package game
 
 import (
-	"math/rand"
+	"math/rand/v2"
 )
 
 type DeckColor int
@@ -30,10 +30,12 @@ func (d *Deck) Draw() PlayerCard {
 	return drawnCard
 }
 
-func (d *Deck) Shuffle() {
+func (d *Deck) Shuffle() *Deck {
 	rand.Shuffle(len(d.Cards), func(i, j int) {
 		d.Cards[i], d.Cards[j] = d.Cards[j], d.Cards[i]
 	})
+
+	return d
 }
 
 func (d *Deck) PutAtop(cards ...PlayerCard) {
@@ -48,21 +50,40 @@ func (d *Deck) Length() int {
 	return len(d.Cards)
 }
 
-func NewYellowDeck() *Deck {
-	cards := make([]PlayerCard, 0, 17)
-	for range 3 {
+func NewYellowDeck(includeExtension bool) *Deck {
+	cards := make([]PlayerCard, 0, 42)
+	for range 9 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield, Scroll}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Shield}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield, Shield}})
+	}
+	for range 3 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump}})
+	}
+	for range 8 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll}})
+	}
+	for range 6 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword}})
+	}
+	for range 6 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
 	}
 	cards = append(cards,
 		&ActionCard{Name: "Holy Hand Grenade", Action: HolyHandGrenadeAction{}},
 		&ActionCard{Name: "Heal", Action: HealAction{}},
 		&ActionCard{Name: "Health Potion", Action: HealthPotionAction{}},
 		&ActionCard{Name: "Divine Shield", Action: DivineShieldAction{}},
+		&ActionCard{Name: "Divine Shield", Action: DivineShieldAction{}},
 		&ActionCard{Name: "Smite", Action: SmiteAction{}},
 	)
+	if includeExtension {
+		cards = append(cards,
+			&ActionCard{Name: "Mystic Rune", Action: MysticRuneAction{}},
+			&ActionCard{Name: "Rally", Action: RallyAction{}},
+		)
+	}
 	d := &Deck{
 		Color: Yellow,
 		Cards: cards,
@@ -71,20 +92,50 @@ func NewYellowDeck() *Deck {
 	return d
 }
 
-func NewRedDeck() *Deck {
-	cards := make([]PlayerCard, 0, 16)
-	for range 3 {
+func NewRedDeck(includeExtension bool) *Deck {
+	cards := make([]PlayerCard, 0, 42)
+	for range 5 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Scroll}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Shield}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Sword}})
+	}
+	for range 7 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
+	}
+	for range 3 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll}})
+	}
+	for range 5 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
+	}
+	for range 6 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Jump}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Scroll}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Arrow}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Shield}})
 	}
 	cards = append(cards,
 		&ActionCard{Name: "Mighty Leap", Action: MightyLeapAction{}},
+		&ActionCard{Name: "Mighty Leap", Action: MightyLeapAction{}},
 		&ActionCard{Name: "Enrage", Action: EnrageAction{}},
-		&ActionCard{Name: "Crush", Action: CrushAction{}},
-		&ActionCard{Name: "Battle Rage", Action: BattleRageAction{}},
+		&ActionCard{Name: "Enrage", Action: EnrageAction{}},
 	)
+	if includeExtension {
+		cards = append(cards,
+			&ActionCard{Name: "Crush", Action: CrushAction{}},
+			&ActionCard{Name: "Battle Rage", Action: BattleRageAction{}},
+		)
+	}
 	d := &Deck{
 		Color: Red,
 		Cards: cards,
@@ -93,20 +144,45 @@ func NewRedDeck() *Deck {
 	return d
 }
 
-func NewGreenDeck() *Deck {
-	cards := make([]PlayerCard, 0, 16)
-	for range 3 {
+func NewGreenDeck(includeExtension bool) *Deck {
+	cards := make([]PlayerCard, 0, 42)
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow, Arrow}})
+	}
+	for range 9 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow, Jump}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Arrow}})
+	}
+	for range 7 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump}})
+	}
+	for range 4 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll}})
+	}
+	for range 3 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
+	}
+	for range 4 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword}})
 	}
 	cards = append(cards,
 		&ActionCard{Name: "Snipe", Action: SnipeAction{}},
 		&ActionCard{Name: "Healing Herbs", Action: HealingHerbsAction{}},
-		&ActionCard{Name: "Critical Hit", Action: CriticalHitAction{}},
-		&ActionCard{Name: "Extra Quiver", Action: ExtraQuiverAction{}},
+		&ActionCard{Name: "Healing Herbs", Action: HealingHerbsAction{}},
+		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
+		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
+		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
+		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
+		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
+		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
+		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
+		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
 	)
+	if includeExtension {
+		cards = append(cards,
+			&ActionCard{Name: "Critical Hit", Action: CriticalHitAction{}},
+			&ActionCard{Name: "Extra Quiver", Action: ExtraQuiverAction{}},
+		)
+	}
 	d := &Deck{
 		Color: Green,
 		Cards: cards,
@@ -115,21 +191,42 @@ func NewGreenDeck() *Deck {
 	return d
 }
 
-func NewBlueDeck() *Deck {
-	// TODO: Add MagicBomb ResourceCard{Resources: []ResourceType{Sword, Arrow, Shield, Jump, Scroll}}
-	cards := make([]PlayerCard, 0, 16)
-	for range 3 {
+func NewBlueDeck(includeExtension bool) *Deck {
+	cards := make([]PlayerCard, 0, 42)
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll, Scroll}})
+	}
+	for range 9 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll, Jump}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield, Scroll}})
+	}
+	for range 7 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
 	}
+	for range 3 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword}})
+	}
+	for range 5 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
+	}
+	for range 6 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump}})
+	}
 	cards = append(cards,
-		&ActionCard{Name: "Time Warp", Action: TimeWarpAction{}},
-		&ActionCard{Name: "Fireball", Action: FireballAction{}},
 		&ActionCard{Name: "Cancel", Action: CancelAction{}},
-		&ActionCard{Name: "Portal", Action: PortalAction{}},
+		&ActionCard{Name: "Fireball", Action: FireballAction{}},
+		&ActionCard{Name: "Fireball", Action: FireballAction{}},
+		&ActionCard{Name: "Fireball", Action: FireballAction{}},
+		&ActionCard{Name: "Fireball", Action: FireballAction{}},
+		&ActionCard{Name: "Magic Bomb", Action: MagicBombAction{}},
+		&ActionCard{Name: "Magic Bomb", Action: MagicBombAction{}},
+		&ActionCard{Name: "Magic Bomb", Action: MagicBombAction{}},
 	)
+	if includeExtension {
+		cards = append(cards,
+			&ActionCard{Name: "Time Warp", Action: TimeWarpAction{}},
+			&ActionCard{Name: "Portal", Action: PortalAction{}},
+		)
+	}
 	d := &Deck{
 		Color: Blue,
 		Cards: cards,
@@ -138,21 +235,43 @@ func NewBlueDeck() *Deck {
 	return d
 }
 
-func NewPurpleDeck() *Deck {
-	// TODO: Add Throwing Knives ResourceCard{Resources: []ResourceType{WildCard, WildCard, WildCard}}
-	cards := make([]PlayerCard, 0, 16)
+func NewPurpleDeck(includeExtension bool) *Deck {
+	cards := make([]PlayerCard, 0, 42)
 	for range 3 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump, Jump}})
+	}
+	for range 7 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump, Sword}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump, Scroll}})
+	}
+	for range 7 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword}})
+	}
+	for range 5 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
+	}
+	for range 6 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll}})
+	}
+	for range 3 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
 	}
 	cards = append(cards,
 		&ActionCard{Name: "Backstab", Action: BackstabAction{}},
+		&ActionCard{Name: "Backstab", Action: BackstabAction{}},
+		&ActionCard{Name: "Backstab", Action: BackstabAction{}},
 		&ActionCard{Name: "Sprint", Action: SprintAction{}},
+		&ActionCard{Name: "Sprint", Action: SprintAction{}},
+		&ActionCard{Name: "Sprint", Action: SprintAction{}},
+		&ActionCard{Name: "Steal", Action: StealAction{}},
 		&ActionCard{Name: "Steal", Action: StealAction{}},
 		&ActionCard{Name: "Donate", Action: DonateAction{}},
 	)
+	if includeExtension {
+		cards = append(cards,
+			&ActionCard{Name: "Throwing Knives", Action: ThrowingKnivesAction{}},
+			&ActionCard{Name: "Throwing Knives", Action: ThrowingKnivesAction{}},
+		)
+	}
 	d := &Deck{
 		Color: Purple,
 		Cards: cards,
@@ -162,16 +281,45 @@ func NewPurpleDeck() *Deck {
 }
 
 func NewBlackDeck() *Deck {
-	cards := make([]PlayerCard, 0, 14)
-	for range 3 {
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword, Shield}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow, Jump}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll, Jump}})
-		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield, Arrow}})
+	cards := make([]PlayerCard, 0, 42)
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{InfiniteSword}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{InfiniteArrow}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{InfiniteShield}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{InfiniteScroll}})
+	}
+	for range 2 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{InfiniteJump}})
+	}
+	for range 5 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword}})
+	}
+	for range 5 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow}})
+	}
+	for range 5 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
+	}
+	for range 5 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll}})
+	}
+	for range 5 {
+		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump}})
 	}
 	cards = append(cards,
-		&ActionCard{Name: "Mystic Rune", Action: MysticRuneAction{}},
-		&ActionCard{Name: "Rally", Action: RallyAction{}},
+		&ActionCard{Name: "Tame Creature", Action: TameCreatureAction{}},
+		&ActionCard{Name: "True Sight", Action: TrueSightAction{}},
+		&ActionCard{Name: "Living Vines", Action: LivingVinesAction{}},
+		&ActionCard{Name: "Cleanse", Action: CleanseAction{}},
+		&ActionCard{Name: "Cleanse", Action: CleanseAction{}},
+		&ActionCard{Name: "Ancient Healing", Action: AncientHealingAction{}},
+		&ActionCard{Name: "Ancient Healing", Action: AncientHealingAction{}},
 	)
 	d := &Deck{
 		Color: Black,

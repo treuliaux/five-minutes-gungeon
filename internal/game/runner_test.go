@@ -11,8 +11,8 @@ import (
 // --- Integration Tests for Runner ---
 
 func TestRunnerFullMatchLifecycle(t *testing.T) {
-	paladin, _ := NewPlayer("Arthur", Paladin)
-	barbarian, _ := NewPlayer("Conan", Barbarian)
+	paladin, _ := NewPlayer("Arthur", Paladin, true)
+	barbarian, _ := NewPlayer("Conan", Barbarian, true)
 
 	door1 := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	boss := &BossMat{Name: "Piti Amenou", Resources: []ResourceType{Shield}}
@@ -24,7 +24,7 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 	game := &Game{
 		Players:   []*Player{paladin, barbarian},
 		Dungeon:   dungeon,
-		PlayField: *NewPlayfield(),
+		PlayField: NewPlayfield(),
 		Status:    Waiting,
 	}
 
@@ -180,14 +180,14 @@ func TestRunnerSubscriberFanOutAndUnsubscribe(t *testing.T) {
 }
 
 func TestRunnerCommandErrorPropagation(t *testing.T) {
-	paladin, _ := NewPlayer("Arthur", Paladin)
+	paladin, _ := NewPlayer("Arthur", Paladin, true)
 	cInHand := &ResourceCard{Resources: []ResourceType{Sword}}
 	cNotInHand := &ResourceCard{Resources: []ResourceType{Shield}}
 	paladin.Hand = []PlayerCard{cInHand}
 
 	game := &Game{
 		Players:   []*Player{paladin},
-		PlayField: *NewPlayfield(),
+		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
 
@@ -209,14 +209,14 @@ func TestRunnerCommandErrorPropagation(t *testing.T) {
 }
 
 func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
-	paladin, _ := NewPlayer("Paladin", Paladin)
-	barbarian, _ := NewPlayer("Barbarian", Barbarian)
-	valkyrie, _ := NewPlayer("Valkyrie", Valkyrie)
-	gladiator, _ := NewPlayer("Gladiator", Gladiator)
+	paladin, _ := NewPlayer("Paladin", Paladin, true)
+	barbarian, _ := NewPlayer("Barbarian", Barbarian, true)
+	valkyrie, _ := NewPlayer("Valkyrie", Valkyrie, true)
+	gladiator, _ := NewPlayer("Gladiator", Gladiator, true)
 
 	game := &Game{
 		Players:   []*Player{paladin, barbarian, valkyrie, gladiator},
-		PlayField: *NewPlayfield(),
+		PlayField: NewPlayfield(),
 		Status:    Waiting,
 	}
 
@@ -291,12 +291,12 @@ func TestRunnerHelperRespectsCallerContextCancellation(t *testing.T) {
 }
 
 func TestRunnerUseHeroAbility(t *testing.T) {
-	wizard, _ := NewPlayer("Gandalf", Wizard)
-	paladin, _ := NewPlayer("Arthur", Paladin)
+	wizard, _ := NewPlayer("Gandalf", Wizard, true)
+	paladin, _ := NewPlayer("Arthur", Paladin, true)
 
 	game := &Game{
 		Players:   []*Player{wizard, paladin},
-		PlayField: *NewPlayfield(),
+		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
 

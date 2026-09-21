@@ -9,17 +9,19 @@ import (
 const tickDuration = time.Second / 20
 
 type Runner struct {
-	game        *Game
-	cmd         chan Command
-	ticker      *time.Ticker
-	subscribers []chan Event
-	subLock     sync.RWMutex
+	game         *Game
+	cmd          chan Command
+	ticker       *time.Ticker
+	subscribers  []chan Event
+	subLock      sync.RWMutex
+	canSubscribe bool
 }
 
 func NewRunner(game *Game) *Runner {
 	return &Runner{
-		game: game,
-		cmd:  make(chan Command, 64),
+		game:         game,
+		cmd:          make(chan Command, 64),
+		canSubscribe: true,
 	}
 }
 
@@ -43,12 +45,18 @@ func (r *Runner) Run(ctx context.Context) error {
 		case <-r.ticker.C:
 			events, _ = r.game.Tick(tickDuration)
 		case <-ctx.Done():
+			r.subLock.Lock()
+			r.canSubscribe = false
+			r.subLock.Unlock()
 			return ctx.Err()
 		}
 		for _, event := range events {
 			r.broadcast(event)
 		}
 		if r.game.Status == Victory || r.game.Status == Defeat {
+			r.subLock.Lock()
+			r.canSubscribe = false
+			r.subLock.Unlock()
 			return nil
 		}
 	}
@@ -59,6 +67,11 @@ func (r *Runner) Subscribe() <-chan Event {
 	defer r.subLock.Unlock()
 
 	sub := make(chan Event, 64)
+	if !r.canSubscribe {
+		close(sub)
+
+		return sub
+	}
 	r.subscribers = append(r.subscribers, sub)
 
 	return sub

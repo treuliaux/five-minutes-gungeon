@@ -190,14 +190,24 @@ type ForestSpiritsAbility struct {
 
 func (ForestSpiritsAbility) isAbility() {}
 
-func (ForestSpiritsAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (f ForestSpiritsAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Druid) {
 		return nil, fmt.Errorf("player is not a Druid")
 	}
 
-	// TODO: move curse to the bottom of dungeon doors stack
+	target := f.Target
+	if target == nil {
+		var err error
+		target, err = smartDungeonCardTargeting(nil, ctx.Engine.GetActiveCurses())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if _, ok := target.(*CurseCard); !ok {
+		return nil, fmt.Errorf("target is not a curse")
+	}
 
-	return nil, nil
+	return ctx.Engine.SendDungeonCardBottomDungeon(target)
 }
 
 // Shaman

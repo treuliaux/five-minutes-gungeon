@@ -13,7 +13,10 @@ type Player struct {
 	Hand    []PlayerCard
 }
 
-func NewPlayer(name string, class HeroClass) (*Player, error) {
+func NewPlayer(name string, class HeroClass, includeExtension bool) (*Player, error) {
+	if !includeExtension && (class == Druid || class == Shaman) {
+		return nil, fmt.Errorf("druid/shaman is not available without the extension enabled")
+	}
 	hero, err := NewHeroFromHeroClass(class)
 	if err != nil {
 		return nil, err
@@ -22,19 +25,14 @@ func NewPlayer(name string, class HeroClass) (*Player, error) {
 	return &Player{
 		Name:    name,
 		Hero:    hero,
-		Deck:    hero.NewDeck(),
+		Deck:    hero.NewDeck(includeExtension),
 		Discard: NewDiscard(),
 		Hand:    make([]PlayerCard, 0),
 	}, nil
 }
 
 func (p *Player) RemoveCardFromHand(card PlayerCard) {
-	for i, c := range p.Hand {
-		if c == card {
-			p.Hand = append(p.Hand[:i], p.Hand[i+1:]...)
-			return
-		}
-	}
+	p.Hand = slices.DeleteFunc(p.Hand, func(c PlayerCard) bool { return c == card })
 }
 
 func (p *Player) DiscardCards(cards []PlayerCard) ([]Event, error) {
@@ -69,15 +67,13 @@ func (p *Player) DrawCardsFromDeck(count int) ([]Event, error) {
 		return nil, fmt.Errorf("player has no deck")
 	}
 	if p.Deck.Empty() {
-		return nil, fmt.Errorf("player deck is empty")
+		return nil, nil
 	}
 
 	var events []Event
+	count = min(count, p.Deck.Length())
 	for range count {
 		drawn := p.Deck.Draw()
-		if drawn == nil {
-			return events, fmt.Errorf("no more cards in deck")
-		}
 		p.Hand = append(p.Hand, drawn)
 		events = append(events, CardDrawnFromDeckEvent{ByPlayer: p, Card: drawn})
 	}

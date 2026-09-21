@@ -43,6 +43,38 @@ type CardPlayedEvent struct {
 
 func (CardPlayedEvent) isEvent() {}
 
+type CardRemovedEvent struct {
+	ByPlayer *Player
+	Card     PlayerCard
+}
+
+func (CardRemovedEvent) isEvent() {}
+
+type DoorCardRemovedEvent struct {
+	ByPlayer *Player
+	Card     DungeonCard
+}
+
+func (DoorCardRemovedEvent) isEvent() {}
+
+type DungeonCardSentToBottomEvent struct {
+	Card DungeonCard
+}
+
+func (DungeonCardSentToBottomEvent) isEvent() {}
+
+type CurseActivatedEvent struct {
+	Card DungeonCard
+}
+
+func (CurseActivatedEvent) isEvent() {}
+
+type CurseRemovedEvent struct {
+	Card DungeonCard
+}
+
+func (CurseRemovedEvent) isEvent() {}
+
 type ActionCardPlayedEvent struct {
 	ByPlayer *Player
 	Card     PlayerCard
@@ -109,3 +141,9 @@ type PlayerHealedEvent struct {
 }
 
 func (PlayerHealedEvent) isEvent() {}
+
+type ExtensionToggledEvent struct {
+	Enabled bool
+}
+
+func (ExtensionToggledEvent) isEvent() {}
