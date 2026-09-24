@@ -10,6 +10,7 @@ type Playfield struct {
 	Field        []PlayerCard
 	OpenedDoors  []DungeonCard
 	ActiveCurses []*CurseCard
+	Artifacts    []*ArtifactCard
 }
 
 func NewPlayfield() *Playfield {
@@ -17,6 +18,7 @@ func NewPlayfield() *Playfield {
 		Field:        make([]PlayerCard, 0, 16),
 		OpenedDoors:  make([]DungeonCard, 0, 2),
 		ActiveCurses: make([]*CurseCard, 0, 5),
+		Artifacts:    make([]*ArtifactCard, 0, 6),
 	}
 }
 
@@ -43,7 +45,7 @@ func (p *Playfield) RemovePlayerCard(card PlayerCard) ([]Event, error) {
 func (p *Playfield) RemoveDungeonCard(card DungeonCard) ([]Event, error) {
 	switch c := card.(type) {
 	case *BossMat:
-		return nil, fmt.Errorf("boss mat cannot be targeted")
+		return nil, fmt.Errorf("boss mat cannot be removed")
 	case *CurseCard:
 		if !slices.Contains(p.ActiveCurses, c) {
 			return nil, fmt.Errorf("target card is not in play")
@@ -113,17 +115,24 @@ func (p *Playfield) HasDoorsOpened() bool {
 }
 
 func (p *Playfield) HasActiveDoor(target DungeonCard) bool {
-	return slices.Contains(p.OpenedDoors, target)
+	switch t := target.(type) {
+	case *CurseCard:
+		return slices.Contains(p.ActiveCurses, t)
+	default:
+		return slices.Contains(p.OpenedDoors, target)
+	}
 }
 
 func (p *Playfield) DefeatDoor(target DungeonCard) ([]Event, error) {
 	if !p.HasActiveDoor(target) {
-		return nil, fmt.Errorf("target is not the current dungeon card")
+		return nil, fmt.Errorf("target is not an active dungeon card")
 	}
-
-	p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(dungeonCard DungeonCard) bool {
-		return dungeonCard == target
-	})
+	switch t := target.(type) {
+	case *CurseCard:
+		p.ActiveCurses = slices.DeleteFunc(p.ActiveCurses, func(c *CurseCard) bool { return c == t })
+	default:
+		p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(c DungeonCard) bool { return c == t })
+	}
 
 	return []Event{DoorDefeatedEvent{DungeonCard: target}}, nil
 }
@@ -177,24 +186,11 @@ func (p *Playfield) HasActiveEvents() bool {
 	return false
 }
 
-func (p *Playfield) ResolveEvent(eventCard *EventCard, game *Game) ([]Event, error) {
-	if game.InGameTimer-eventCard.OpenedTime < 2*time.Second {
+func (p *Playfield) ResolveEvent(ctx CardEventContext) ([]Event, error) {
+	if ctx.Card.Action == nil {
 		return nil, nil
 	}
-	ctx := CardEventContext{
-		Engine: game,
-		Card:   eventCard,
-	}
-
-	if eventCard.Action == nil {
-		return nil, nil
-	}
-	events, err := eventCard.Action.Execute(ctx)
-	if err != nil {
-		return events, err
-	}
-	defeatDoorEvents, err := game.DefeatDoor(eventCard)
-	events = append(events, defeatDoorEvents...)
+	events, err := ctx.Card.Action.Execute(ctx)
 	if err != nil {
 		return events, err
 	}
@@ -243,4 +239,57 @@ func (p *Playfield) hasAllRequiredResources() bool {
 	}
 
 	return true
+}
+
+func (p *Playfield) SetupArtifacts(deckColors []DeckColor) {
+	for _, a := range Artifacts() {
+		if !slices.Contains(deckColors, a.Color) {
+			p.Artifacts = append(p.Artifacts, a)
+		}
+	}
+}
+
+func Artifacts() []*ArtifactCard {
+	return []*ArtifactCard{
+		{
+			Color:  Green,
+			Name:   "Rainbow Herbs",
+			Action: &RainbowHerbsArtifact{},
+			Used:   false,
+		},
+		{
+			Color:  Yellow,
+			Name:   "M-jh'öilnør",
+			Action: &MJhoilnorArtifact{},
+			Used:   false,
+		},
+		{
+			Color:  Purple,
+			Name:   "Sundial Watch",
+			Action: &SundialWatchArtifact{},
+			Used:   false,
+		},
+		{
+			Color:  Red,
+			Name:   "Battle Axe",
+			Action: &BattleAxeArtifact{},
+			Used:   false,
+		},
+		{
+			Color:  Blue,
+			Name:   "The Infinity Scroll",
+			Action: &TheInfinityScrollArtifact{},
+			Used:   false,
+		},
+		{
+			Color:  Black,
+			Name:   "Curse Zapper",
+			Action: &CurseZapperArtifact{},
+			Used:   false,
+		},
+	}
+}
+
+func (p *Playfield) ArtifactCanBePlayed(artifact *ArtifactCard) bool {
+	return slices.Contains(p.Artifacts, artifact) && !artifact.Used
 }

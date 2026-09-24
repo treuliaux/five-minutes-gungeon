@@ -38,6 +38,13 @@ type ActionCard struct {
 
 func (ac *ActionCard) isPlayerCard() {}
 
+type ArtifactCard struct {
+	Color  DeckColor
+	Name   string
+	Action ArtifactAction
+	Used   bool
+}
+
 // Dungeon types
 
 type DungeonCard interface {
@@ -98,8 +105,10 @@ func (mc *MiniBossCard) Require() []ResourceType {
 }
 
 type CurseCard struct {
-	Type ChallengeKind
-	Name string
+	Type   ChallengeKind
+	Name   string
+	Effect CurseEffect
+	Cure   CurseEffect
 }
 
 func (cc *CurseCard) isDungeonCard() {}
@@ -112,7 +121,7 @@ type BossMat struct {
 	Resources            []ResourceType
 	DeckSize             int
 	AdditionalChallenges int
-	Curses               []DungeonCard
+	SpecialAbilities     []DungeonCard
 }
 
 func (bm *BossMat) isDungeonCard() {}

@@ -1,6 +1,6 @@
 module github.com/treuliaux/five-minutes-gungeon
 
-go 1.26.5
+go 1.27
 
 require (
 	github.com/gookit/goutil v0.8.0 // indirect

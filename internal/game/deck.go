@@ -42,6 +42,10 @@ func (d *Deck) PutAtop(cards ...PlayerCard) {
 	d.Cards = append(d.Cards, cards...)
 }
 
+func (d *Deck) PutBelow(cards ...PlayerCard) {
+	d.Cards = append(cards, d.Cards...)
+}
+
 func (d *Deck) Empty() bool {
 	return d.Length() == 0
 }
@@ -50,7 +54,7 @@ func (d *Deck) Length() int {
 	return len(d.Cards)
 }
 
-func NewYellowDeck(includeExtension bool) *Deck {
+func NewYellowDeck() *Deck {
 	cards := make([]PlayerCard, 0, 42)
 	for range 9 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Shield}})
@@ -78,12 +82,6 @@ func NewYellowDeck(includeExtension bool) *Deck {
 		&ActionCard{Name: "Divine Shield", Action: DivineShieldAction{}},
 		&ActionCard{Name: "Smite", Action: SmiteAction{}},
 	)
-	if includeExtension {
-		cards = append(cards,
-			&ActionCard{Name: "Mystic Rune", Action: MysticRuneAction{}},
-			&ActionCard{Name: "Rally", Action: RallyAction{}},
-		)
-	}
 	d := &Deck{
 		Color: Yellow,
 		Cards: cards,
@@ -92,7 +90,7 @@ func NewYellowDeck(includeExtension bool) *Deck {
 	return d
 }
 
-func NewRedDeck(includeExtension bool) *Deck {
+func NewRedDeck() *Deck {
 	cards := make([]PlayerCard, 0, 42)
 	for range 5 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Sword}})
@@ -130,12 +128,6 @@ func NewRedDeck(includeExtension bool) *Deck {
 		&ActionCard{Name: "Enrage", Action: EnrageAction{}},
 		&ActionCard{Name: "Enrage", Action: EnrageAction{}},
 	)
-	if includeExtension {
-		cards = append(cards,
-			&ActionCard{Name: "Crush", Action: CrushAction{}},
-			&ActionCard{Name: "Battle Rage", Action: BattleRageAction{}},
-		)
-	}
 	d := &Deck{
 		Color: Red,
 		Cards: cards,
@@ -144,7 +136,7 @@ func NewRedDeck(includeExtension bool) *Deck {
 	return d
 }
 
-func NewGreenDeck(includeExtension bool) *Deck {
+func NewGreenDeck() *Deck {
 	cards := make([]PlayerCard, 0, 42)
 	for range 2 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Arrow, Arrow}})
@@ -177,12 +169,6 @@ func NewGreenDeck(includeExtension bool) *Deck {
 		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
 		&ActionCard{Name: "Wild Card", Action: WildCardAction{}},
 	)
-	if includeExtension {
-		cards = append(cards,
-			&ActionCard{Name: "Critical Hit", Action: CriticalHitAction{}},
-			&ActionCard{Name: "Extra Quiver", Action: ExtraQuiverAction{}},
-		)
-	}
 	d := &Deck{
 		Color: Green,
 		Cards: cards,
@@ -191,7 +177,7 @@ func NewGreenDeck(includeExtension bool) *Deck {
 	return d
 }
 
-func NewBlueDeck(includeExtension bool) *Deck {
+func NewBlueDeck() *Deck {
 	cards := make([]PlayerCard, 0, 42)
 	for range 2 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Scroll, Scroll}})
@@ -221,12 +207,6 @@ func NewBlueDeck(includeExtension bool) *Deck {
 		&ActionCard{Name: "Magic Bomb", Action: MagicBombAction{}},
 		&ActionCard{Name: "Magic Bomb", Action: MagicBombAction{}},
 	)
-	if includeExtension {
-		cards = append(cards,
-			&ActionCard{Name: "Time Warp", Action: TimeWarpAction{}},
-			&ActionCard{Name: "Portal", Action: PortalAction{}},
-		)
-	}
 	d := &Deck{
 		Color: Blue,
 		Cards: cards,
@@ -235,7 +215,7 @@ func NewBlueDeck(includeExtension bool) *Deck {
 	return d
 }
 
-func NewPurpleDeck(includeExtension bool) *Deck {
+func NewPurpleDeck() *Deck {
 	cards := make([]PlayerCard, 0, 42)
 	for range 3 {
 		cards = append(cards, &ResourceCard{Resources: []ResourceType{Jump, Jump}})
@@ -266,12 +246,6 @@ func NewPurpleDeck(includeExtension bool) *Deck {
 		&ActionCard{Name: "Steal", Action: StealAction{}},
 		&ActionCard{Name: "Donate", Action: DonateAction{}},
 	)
-	if includeExtension {
-		cards = append(cards,
-			&ActionCard{Name: "Throwing Knives", Action: ThrowingKnivesAction{}},
-			&ActionCard{Name: "Throwing Knives", Action: ThrowingKnivesAction{}},
-		)
-	}
 	d := &Deck{
 		Color: Purple,
 		Cards: cards,
@@ -324,6 +298,39 @@ func NewBlackDeck() *Deck {
 	d := &Deck{
 		Color: Black,
 		Cards: cards,
+	}
+
+	return d
+}
+
+func (d *Deck) IncludeExtension() *Deck {
+	switch d.Color {
+	case Blue:
+		d.Cards = append(d.Cards,
+			&ActionCard{Name: "Time Warp", Action: TimeWarpAction{}},
+			&ActionCard{Name: "Portal", Action: PortalAction{}},
+		)
+	case Green:
+		d.Cards = append(d.Cards,
+			&ActionCard{Name: "Critical Hit", Action: CriticalHitAction{}},
+			&ActionCard{Name: "Extra Quiver", Action: ExtraQuiverAction{}},
+		)
+	case Purple:
+		d.Cards = append(d.Cards,
+			&ActionCard{Name: "Throwing Knives", Action: ThrowingKnivesAction{}},
+			&ActionCard{Name: "Throwing Knives", Action: ThrowingKnivesAction{}},
+		)
+	case Yellow:
+		d.Cards = append(d.Cards,
+			&ActionCard{Name: "Mystic Rune", Action: MysticRuneAction{}},
+			&ActionCard{Name: "Rally", Action: RallyAction{}},
+		)
+	case Red:
+		d.Cards = append(d.Cards,
+			&ActionCard{Name: "Crush", Action: CrushAction{}},
+			&ActionCard{Name: "Battle Rage", Action: BattleRageAction{}},
+		)
+	case Black:
 	}
 
 	return d

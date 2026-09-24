@@ -58,3 +58,29 @@ func (UseHeroAbilityCmd) isCommand() {}
 func (c UseHeroAbilityCmd) Reply() chan error {
 	return c.reply
 }
+
+type SubmitEventChoiceCmd struct {
+	Player       *Player
+	TargetPlayer *Player
+	Cards        []PlayerCard
+	Resource     *ResourceType
+	reply        chan error
+}
+
+func (SubmitEventChoiceCmd) isCommand() {}
+func (c SubmitEventChoiceCmd) Reply() chan error {
+	return c.reply
+}
+
+type UseArtifactCmd struct {
+	Player      *Player
+	Artifact    *ArtifactCard
+	ActionIndex ArtifactActionIndex
+	Target      DungeonCard
+	reply       chan error
+}
+
+func (UseArtifactCmd) isCommand() {}
+func (c UseArtifactCmd) Reply() chan error {
+	return c.reply
+}

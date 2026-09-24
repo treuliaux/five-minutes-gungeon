@@ -48,6 +48,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			r.subLock.Lock()
 			r.canSubscribe = false
 			r.subLock.Unlock()
+
 			return ctx.Err()
 		}
 		for _, event := range events {
@@ -57,6 +58,7 @@ func (r *Runner) Run(ctx context.Context) error {
 			r.subLock.Lock()
 			r.canSubscribe = false
 			r.subLock.Unlock()
+
 			return nil
 		}
 	}
@@ -121,6 +123,32 @@ func (r *Runner) DiscardCard(ctx context.Context, p *Player, c PlayerCard) error
 func (r *Runner) UseHeroAbility(ctx context.Context, p *Player, discards []PlayerCard, params Ability) error {
 	reply := make(chan error, 1)
 	cmd := UseHeroAbilityCmd{Player: p, DiscardCards: discards, Ability: params, reply: reply}
+
+	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+}
+
+func (r *Runner) SubmitEventChoice(ctx context.Context, p *Player, target *Player, cards []PlayerCard, res *ResourceType) error {
+	reply := make(chan error, 1)
+	cmd := SubmitEventChoiceCmd{
+		Player:       p,
+		TargetPlayer: target,
+		Cards:        cards,
+		Resource:     res,
+		reply:        reply,
+	}
+
+	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+}
+
+func (r *Runner) UseArtifact(ctx context.Context, p *Player, artifact *ArtifactCard, actionIndex ArtifactActionIndex, target DungeonCard) error {
+	reply := make(chan error, 1)
+	cmd := UseArtifactCmd{
+		Player:      p,
+		Artifact:    artifact,
+		ActionIndex: actionIndex,
+		Target:      target,
+		reply:       reply,
+	}
 
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }

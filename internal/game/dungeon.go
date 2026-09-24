@@ -11,7 +11,7 @@ type Dungeon struct {
 	Doors []DungeonCard
 }
 
-func NewDungeon(lvl int, nbPlayers int, includingExtension bool) *Dungeon {
+func NewBaseDungeon(lvl int, nbPlayers int) *Dungeon {
 	bossList := BossList()
 	if lvl > len(bossList) {
 		lvl = len(bossList)
@@ -23,13 +23,29 @@ func NewDungeon(lvl int, nbPlayers int, includingExtension bool) *Dungeon {
 
 	return &Dungeon{
 		Boss:  bossMat,
-		Doors: buildDungeonDeck(bossMat, nbPlayers, includingExtension),
+		Doors: buildDungeonDeck(bossMat, nbPlayers, false),
+	}
+}
+
+func NewExtensionDungeon(lvl int, nbPlayers int) *Dungeon {
+	bossList := BossList()
+	if lvl > len(bossList) {
+		lvl = len(bossList)
+	}
+	if lvl < 1 {
+		lvl = 1
+	}
+	bossMat := bossList[lvl-1]
+
+	return &Dungeon{
+		Boss:  bossMat,
+		Doors: buildDungeonDeck(bossMat, nbPlayers, true),
 	}
 }
 
 func (d *Dungeon) OpenDoor() DungeonCard {
 	if len(d.Doors) == 0 {
-		return d.RevealBoss()
+		return d.Boss
 	}
 	drawnCard := d.Doors[len(d.Doors)-1]
 	d.Doors = d.Doors[:len(d.Doors)-1]
@@ -45,98 +61,18 @@ func (d *Dungeon) PutDoorBelowDeck(card DungeonCard) {
 	}
 }
 
-func (d *Dungeon) RevealBoss() DungeonCard {
-	return d.Boss
-}
-
-func BossList() [7]*BossMat {
-	return [7]*BossMat{
-		{
-			Name:      "Baby Barbarian",
-			Resources: []ResourceType{Sword, Sword, Arrow, Arrow, Jump, Jump, Jump},
-			DeckSize:  20,
-			Curses: []DungeonCard{
-				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blanket"},
-				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blocks"},
-				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blocks"},
-				&CurseCard{Type: ChallengeCurse, Name: "Poisoned Milk"},
-				&CurseCard{Type: ChallengeCurse, Name: "Rattle of Time"},
-			},
-		},
-		{
-			Name:      "The Grime Reaper",
-			Resources: []ResourceType{Scroll, Scroll, Scroll, Scroll, Scroll, Scroll, Scroll, Shield, Shield, Shield},
-			DeckSize:  25,
-			Curses: []DungeonCard{
-				&CurseCard{Type: ChallengeCurse, Name: "Acid Polish"},
-				&CurseCard{Type: ChallengeCurse, Name: "Reaper Jr."},
-				&CurseCard{Type: ChallengeCurse, Name: "Waffles Waffles !"},
-				&CurseCard{Type: ChallengeCurse, Name: "Waffles Waffles !"},
-				&CurseCard{Type: ChallengeCurse, Name: "Waxed Floor"},
-			},
-		},
-		{
-			Name:      "Zola the Gorgon",
-			Resources: []ResourceType{Sword, Sword, Sword, Sword, Shield, Shield, Shield, Jump, Jump, Jump},
-			DeckSize:  30,
-			Curses: []DungeonCard{
-				&CurseCard{Type: ChallengeCurse, Name: "Corrosive Spit"},
-				&CurseCard{Type: ChallengeCurse, Name: "Cursed Cosplayers"},
-				&CurseCard{Type: ChallengeCurse, Name: "Ensnared!"},
-				&CurseCard{Type: ChallengeCurse, Name: "Gorgon's Gaze"},
-				&CurseCard{Type: ChallengeCurse, Name: "My Swords!"},
-			},
-		},
-		{
-			Name:      "A Freakin' Dragon!!!",
-			Resources: []ResourceType{Sword, Arrow, Arrow, Arrow, Arrow, Jump, Jump, Jump, Jump, Shield},
-			DeckSize:  35,
-			Curses: []DungeonCard{
-				&CurseCard{Type: ChallengeCurse, Name: "Blinding Light"},
-				&CurseCard{Type: ChallengeCurse, Name: "Endless Ambush"},
-				&CurseCard{Type: ChallengeCurse, Name: "Fire Breath"},
-				&CurseCard{Type: ChallengeCurse, Name: "Tail Swipe"},
-				&CurseCard{Type: ChallengeCurse, Name: "Tail Swipe"},
-			},
-		},
-		{
-			Name:      "The Dungeon Master",
-			Resources: []ResourceType{Sword, Sword, Sword, Arrow, Arrow, Arrow, Shield, Shield, Shield, Scroll, Scroll, Scroll},
-			DeckSize:  40,
-			Curses: []DungeonCard{
-				&CurseCard{Type: ChallengeCurse, Name: "\"Dungeon Master\""},
-				&CurseCard{Type: ChallengeCurse, Name: "A 20-Sided Boulder"},
-				&CurseCard{Type: ChallengeCurse, Name: "Clock Blocked"},
-				&CurseCard{Type: ChallengeCurse, Name: "Sheepified!"},
-				&CurseCard{Type: ChallengeCurse, Name: "The Necro-Nom-Icon"},
-			},
-		},
-		{
-			Name:                 "The K.I.C.K. 9000",
-			Resources:            []ResourceType{Sword, Sword, Sword, Sword, Arrow, Arrow, Arrow, Arrow, Shield, Shield, Jump},
-			DeckSize:             20,
-			AdditionalChallenges: 10,
-			Curses: []DungeonCard{
-				&CurseCard{Type: ChallengeCurse, Name: "A Boot-Alion of Kittens"},
-				&CurseCard{Type: ChallengeCurse, Name: "Conga-Rats!"},
-				&CurseCard{Type: ChallengeCurse, Name: "Feeding the Trolls"},
-				&CurseCard{Type: ChallengeCurse, Name: "House Rules!"},
-				&CurseCard{Type: ChallengeCurse, Name: "The Early Bird"},
-			},
-		},
-		{
-			Name:      "The Dungeon Master (Final Form)",
-			Resources: []ResourceType{Sword, Sword, Arrow, Arrow, Shield, Shield, Scroll, Scroll, Scroll, Scroll, Scroll, Jump, Jump, Jump, Jump},
-			DeckSize:  50,
-			Curses:    []DungeonCard{},
-		},
-	}
-}
-
-func buildDungeonDeck(boss *BossMat, nbPlayer int, includingExtension bool) []DungeonCard {
-	var dungeonDeck []DungeonCard
-	if includingExtension {
-		dungeonDeck = append(dungeonDeck, boss.Curses...)
+func buildDungeonDeck(boss *BossMat, nbPlayer int, includeExtension bool) []DungeonCard {
+	dungeonDeck := make([]DungeonCard, 0, boss.DeckSize+boss.AdditionalChallenges+nbPlayer*2)
+	if includeExtension {
+		bossAbilities := slices.Clone(boss.SpecialAbilities)
+		if len(bossAbilities) == 0 {
+			bosses := BossList()
+			for i := range 5 {
+				shuffleCards(bosses[i].SpecialAbilities)
+				bossAbilities = append(bossAbilities, bosses[i].SpecialAbilities[0])
+			}
+		}
+		dungeonDeck = append(dungeonDeck, bossAbilities...)
 	}
 
 	doorsList := DungeonDoorCards()
@@ -144,7 +80,18 @@ func buildDungeonDeck(boss *BossMat, nbPlayer int, includingExtension bool) []Du
 	doorsToAdd := boss.DeckSize - len(dungeonDeck)
 	dungeonDeck = append(dungeonDeck, doorsList[:doorsToAdd]...)
 
-	challengeList := DungeonChallengeCards()
+	var challengeList []DungeonCard
+	for _, c := range DungeonChallengeCards() {
+		if !includeExtension {
+			if mb, ok := c.(*MiniBossCard); ok && mb.Extension {
+				continue
+			}
+			if ev, ok := c.(*EventCard); ok && ev.Extension {
+				continue
+			}
+		}
+		challengeList = append(challengeList, c)
+	}
 	shuffleCards(challengeList)
 	if boss.AdditionalChallenges > 0 {
 		if boss.AdditionalChallenges > len(challengeList) {
@@ -160,6 +107,90 @@ func buildDungeonDeck(boss *BossMat, nbPlayer int, includingExtension bool) []Du
 	shuffleCards(dungeonDeck)
 
 	return dungeonDeck
+}
+
+func BossList() [7]*BossMat {
+	return [7]*BossMat{
+		{
+			Name:      "Baby Barbarian",
+			Resources: []ResourceType{Sword, Sword, Arrow, Arrow, Jump, Jump, Jump},
+			DeckSize:  20,
+			SpecialAbilities: []DungeonCard{
+				&EventCard{Type: ChallengeEvent, Name: "Poisoned Milk"},
+				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blanket"},
+				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blocks"},
+				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blocks"},
+				&CurseCard{Type: ChallengeCurse, Name: "Rattle of Time"},
+			},
+		},
+		{
+			Name:      "The Grime Reaper",
+			Resources: []ResourceType{Scroll, Scroll, Scroll, Scroll, Scroll, Scroll, Scroll, Shield, Shield, Shield},
+			DeckSize:  25,
+			SpecialAbilities: []DungeonCard{
+				&EventCard{Type: ChallengeEvent, Name: "Acid Polish"},
+				&EventCard{Type: ChallengeEvent, Name: "Waxed Floor"},
+				&MiniBossCard{Type: ChallengeMiniBoss, Name: "Reaper Jr.", Resources: []ResourceType{Sword, Sword, Jump, Arrow, Arrow, Arrow}, Extension: true},
+				&CurseCard{Type: ChallengeCurse, Name: "Waffles Waffles !"},
+				&CurseCard{Type: ChallengeCurse, Name: "Waffles Waffles !"},
+			},
+		},
+		{
+			Name:      "Zola the Gorgon",
+			Resources: []ResourceType{Sword, Sword, Sword, Sword, Shield, Shield, Shield, Jump, Jump, Jump},
+			DeckSize:  30,
+			SpecialAbilities: []DungeonCard{
+				&EventCard{Type: ChallengeEvent, Name: "Corrosive Spit"},
+				&EventCard{Type: ChallengeEvent, Name: "Ensnared!"},
+				&EventCard{Type: ChallengeEvent, Name: "My Swords!"},
+				&CurseCard{Type: ChallengeCurse, Name: "Cursed Cosplayers"},
+				&CurseCard{Type: ChallengeCurse, Name: "Gorgon's Gaze"},
+			},
+		},
+		{
+			Name:      "A Freakin' Dragon!!!",
+			Resources: []ResourceType{Sword, Arrow, Arrow, Arrow, Arrow, Jump, Jump, Jump, Jump, Shield},
+			DeckSize:  35,
+			SpecialAbilities: []DungeonCard{
+				&EventCard{Type: ChallengeEvent, Name: "Fire Breath"},
+				&EventCard{Type: ChallengeEvent, Name: "Tail Swipe"},
+				&EventCard{Type: ChallengeEvent, Name: "Tail Swipe"},
+				&CurseCard{Type: ChallengeCurse, Name: "Blinding Light"},
+				&CurseCard{Type: ChallengeCurse, Name: "Endless Ambush"},
+			},
+		},
+		{
+			Name:      "The Dungeon Master",
+			Resources: []ResourceType{Sword, Sword, Sword, Arrow, Arrow, Arrow, Shield, Shield, Shield, Scroll, Scroll, Scroll},
+			DeckSize:  40,
+			SpecialAbilities: []DungeonCard{
+				&EventCard{Type: ChallengeEvent, Name: "A 20-Sided Boulder"},
+				&MiniBossCard{Type: ChallengeMiniBoss, Name: "\"Dungeon Master\"", Resources: []ResourceType{Jump, Jump, Shield, Shield, Shield}, Extension: true},
+				&MiniBossCard{Type: ChallengeMiniBoss, Name: "The Necro-Nom-Icon", Resources: []ResourceType{Scroll, Scroll, Scroll, Scroll, Scroll}, Extension: true},
+				&CurseCard{Type: ChallengeCurse, Name: "Clock Blocked"},
+				&CurseCard{Type: ChallengeCurse, Name: "Sheepified!"},
+			},
+		},
+		{
+			Name:             "The Dungeon Master (Final Form)",
+			Resources:        []ResourceType{Sword, Sword, Arrow, Arrow, Shield, Shield, Scroll, Scroll, Scroll, Scroll, Scroll, Jump, Jump, Jump, Jump},
+			DeckSize:         50,
+			SpecialAbilities: []DungeonCard{},
+		},
+		{
+			Name:                 "The K.I.C.K. 9000",
+			Resources:            []ResourceType{Sword, Sword, Sword, Sword, Arrow, Arrow, Arrow, Arrow, Shield, Shield, Jump},
+			DeckSize:             20,
+			AdditionalChallenges: 10,
+			SpecialAbilities: []DungeonCard{
+				&CurseCard{Type: ChallengeCurse, Name: "A Boot-Alion of Kittens"},
+				&CurseCard{Type: ChallengeCurse, Name: "Conga-Rats!"},
+				&CurseCard{Type: ChallengeCurse, Name: "Feeding the Trolls"},
+				&CurseCard{Type: ChallengeCurse, Name: "House Rules!"},
+				&CurseCard{Type: ChallengeCurse, Name: "The Early Bird"},
+			},
+		},
+	}
 }
 
 func DungeonDoorCards() []DungeonCard {

@@ -22,22 +22,30 @@ func NewPlayer(name string, class HeroClass, includeExtension bool) (*Player, er
 		return nil, err
 	}
 
+	deck := hero.NewBaseDeck()
+	if includeExtension {
+		deck.IncludeExtension()
+	}
+
 	return &Player{
 		Name:    name,
 		Hero:    hero,
-		Deck:    hero.NewDeck(includeExtension),
+		Deck:    deck,
 		Discard: NewDiscard(),
 		Hand:    make([]PlayerCard, 0),
 	}, nil
 }
 
 func (p *Player) RemoveCardFromHand(card PlayerCard) {
-	p.Hand = slices.DeleteFunc(p.Hand, func(c PlayerCard) bool { return c == card })
+	idx := slices.Index(p.Hand, card)
+	if idx != -1 {
+		p.Hand = slices.Delete(p.Hand, idx, idx+1)
+	}
 }
 
 func (p *Player) DiscardCards(cards []PlayerCard) ([]Event, error) {
 	var events []Event
-	for _, card := range cards {
+	for _, card := range slices.Clone(cards) {
 		discardEvents, err := p.DiscardCard(card)
 		events = append(events, discardEvents...)
 		if err != nil {
@@ -49,12 +57,15 @@ func (p *Player) DiscardCards(cards []PlayerCard) ([]Event, error) {
 }
 
 func (p *Player) DiscardCard(card PlayerCard) ([]Event, error) {
-	if !slices.Contains(p.Hand, card) {
+	idx := slices.Index(p.Hand, card)
+	if idx == -1 {
 		return nil, fmt.Errorf("player does not have card in hand")
 	}
 
-	p.Hand = slices.DeleteFunc(p.Hand, func(c PlayerCard) bool { return c == card })
-	p.Discard.PutAtop(card)
+	p.Hand = slices.Delete(p.Hand, idx, idx+1)
+	if p.Discard != nil {
+		p.Discard.PutAtop(card)
+	}
 
 	return []Event{CardDiscardedEvent{ByPlayer: p, Card: card}}, nil
 }
@@ -82,14 +93,18 @@ func (p *Player) DrawCardsFromDeck(count int) ([]Event, error) {
 }
 
 func (p *Player) DrawCardsFromDiscard(count int) ([]Event, error) {
+	if count <= 0 {
+		return nil, nil
+	}
 	if p.Discard == nil {
-		return nil, fmt.Errorf("player has no discard")
+		return nil, fmt.Errorf("player has no deck")
 	}
 	if p.Discard.Empty() {
-		return nil, fmt.Errorf("player discard is empty")
+		return nil, nil
 	}
 
 	var events []Event
+	count = min(count, p.Discard.Length())
 	for range count {
 		drawn := p.Discard.Draw()
 		if drawn == nil {
@@ -135,6 +150,23 @@ func (p *Player) Heal(amount int) ([]Event, error) {
 			break
 		}
 		p.Deck.PutAtop(toHeal)
+		healed = append(healed, toHeal)
+	}
+
+	return []Event{PlayerHealedEvent{
+		Player: p,
+		Cards:  healed,
+	}}, nil
+}
+
+func (p *Player) ArtifactHeal() ([]Event, error) {
+	var healed []PlayerCard
+	for range p.Discard.Length() {
+		toHeal := p.Discard.Draw()
+		if toHeal == nil {
+			break
+		}
+		p.Deck.PutBelow(toHeal)
 		healed = append(healed, toHeal)
 	}
 

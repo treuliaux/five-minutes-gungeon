@@ -20,12 +20,12 @@ type TrickShotAbility struct {
 
 func (TrickShotAbility) isAbility() {}
 
-func (t TrickShotAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (a TrickShotAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Ranger) {
 		return nil, fmt.Errorf("player is not a Ranger")
 	}
 
-	return defeatDoorKindByAbility(ctx, t.Target, DoorPerson)
+	return defeatDoorByFilter(ctx.Engine, ctx.Player, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
 }
 
 // Huntress
@@ -41,11 +41,16 @@ func (a AnimalCompanionAbility) Execute(ctx AbilityContext) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Huntress")
 	}
 
-	if a.Target == nil {
-		return nil, fmt.Errorf("target player cannot be nil")
+	target := a.Target
+	if target == nil {
+		var err error
+		target, err = smartTargeting(nil, otherPlayers(ctx.Engine.ListPlayers(), ctx.Player))
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return ctx.Engine.DrawCardsFromDeck(a.Target, 4)
+	return target.DrawCardsFromDeck(4)
 }
 
 // Valkyrie
@@ -61,8 +66,8 @@ func (InspireAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	}
 
 	var events []Event
-	for _, player := range ctx.Engine.ListOtherPlayers(ctx.Player) {
-		drawnEvents, err := ctx.Engine.DrawCardsFromDeck(player, 2)
+	for _, player := range otherPlayers(ctx.Engine.ListPlayers(), ctx.Player) {
+		drawnEvents, err := player.DrawCardsFromDeck(2)
 		events = append(events, drawnEvents...)
 		if err != nil {
 			return events, err
@@ -80,12 +85,12 @@ type SmiteAbility struct {
 
 func (SmiteAbility) isAbility() {}
 
-func (s SmiteAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (a SmiteAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Paladin) {
 		return nil, fmt.Errorf("player is not a Paladin")
 	}
 
-	return defeatDoorKindByAbility(ctx, s.Target, DoorMonster)
+	return defeatDoorByFilter(ctx.Engine, ctx.Player, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
 }
 
 // Wizard
@@ -111,12 +116,12 @@ type TeleportAbility struct {
 
 func (TeleportAbility) isAbility() {}
 
-func (t TeleportAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (a TeleportAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Sorceress) {
 		return nil, fmt.Errorf("player is not a Sorceress")
 	}
 
-	return defeatDoorKindByAbility(ctx, t.Target, DoorObstacle)
+	return defeatDoorByFilter(ctx.Engine, ctx.Player, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
 }
 
 // Barbarian
@@ -127,12 +132,12 @@ type SlayAbility struct {
 
 func (SlayAbility) isAbility() {}
 
-func (s SlayAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (a SlayAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Barbarian) {
 		return nil, fmt.Errorf("player is not a Barbarian")
 	}
 
-	return defeatDoorKindByAbility(ctx, s.Target, DoorMonster)
+	return defeatDoorByFilter(ctx.Engine, ctx.Player, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
 }
 
 // Gladiator
@@ -143,12 +148,12 @@ type IntimidateAbility struct {
 
 func (IntimidateAbility) isAbility() {}
 
-func (i IntimidateAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (a IntimidateAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Gladiator) {
 		return nil, fmt.Errorf("player is not a Gladiator")
 	}
 
-	return defeatDoorKindByAbility(ctx, i.Target, DoorPerson)
+	return defeatDoorByFilter(ctx.Engine, ctx.Player, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
 }
 
 // Ninja
@@ -159,12 +164,12 @@ type VaultAbility struct {
 
 func (VaultAbility) isAbility() {}
 
-func (v VaultAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (a VaultAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Ninja) {
 		return nil, fmt.Errorf("player is not a Ninja")
 	}
 
-	return defeatDoorKindByAbility(ctx, v.Target, DoorObstacle)
+	return defeatDoorByFilter(ctx.Engine, ctx.Player, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
 }
 
 // Thief
@@ -179,7 +184,7 @@ func (PickpocketAbility) Execute(ctx AbilityContext) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Thief")
 	}
 
-	return ctx.Engine.DrawCardsFromDeck(ctx.Player, 5)
+	return ctx.Player.DrawCardsFromDeck(5)
 }
 
 // Druid
@@ -190,15 +195,15 @@ type ForestSpiritsAbility struct {
 
 func (ForestSpiritsAbility) isAbility() {}
 
-func (f ForestSpiritsAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (a ForestSpiritsAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Druid) {
 		return nil, fmt.Errorf("player is not a Druid")
 	}
 
-	target := f.Target
+	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartDungeonCardTargeting(nil, ctx.Engine.GetActiveCurses())
+		target, err = smartTargeting(nil, ctx.Engine.ActiveDoors(NewDoorsFilter().AddCurses()))
 		if err != nil {
 			return nil, err
 		}
@@ -218,30 +223,23 @@ type SpiritAnimalAbility struct {
 
 func (SpiritAnimalAbility) isAbility() {}
 
-func (s SpiritAnimalAbility) Execute(ctx AbilityContext) ([]Event, error) {
+func (a SpiritAnimalAbility) Execute(ctx AbilityContext) ([]Event, error) {
 	if !checkPlayerClass(ctx.Player, Shaman) {
 		return nil, fmt.Errorf("player is not a Shaman")
 	}
 
-	if s.Target == nil {
-		return nil, fmt.Errorf("target player cannot be nil")
+	target := a.Target
+	if target == nil {
+		var err error
+		target, err = smartTargeting(nil, otherPlayers(ctx.Engine.ListPlayers(), ctx.Player))
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return ctx.Engine.HealPlayer(s.Target, 3)
+	return target.Heal(3)
 }
 
 func checkPlayerClass(player *Player, class HeroClass) bool {
 	return player.Hero.Class == class
-}
-
-func defeatDoorKindByAbility(ctx AbilityContext, target DungeonCard, doorKind DoorKind) ([]Event, error) {
-	if !ctx.Engine.HasActiveDoor(target) {
-		return nil, fmt.Errorf("target not found")
-	}
-	door, ok := target.(*DoorCard)
-	if !ok || door.Type != doorKind {
-		return nil, fmt.Errorf("target is not a door of kind %v", doorKind)
-	}
-
-	return ctx.Engine.DefeatDoor(target)
 }

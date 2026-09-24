@@ -31,31 +31,31 @@ type Game struct {
 	IsTimeFrozen        bool
 	Status              Status
 	UseExtension        bool
+	PendingInteraction  PendingInteraction
 }
 
 type GameEngine interface {
-	HasActiveDoor(target DungeonCard) bool
 	DefeatDoor(target DungeonCard) ([]Event, error)
-	StopTime(player *Player) ([]Event, error)
-	DrawCardsFromDeck(player *Player, count int) ([]Event, error)
-	DrawCardsFromDiscard(player *Player, count int) ([]Event, error)
-	DrawResourceCardsFromDiscard(player *Player, resources []ResourceType) ([]Event, error)
-	ListOtherPlayers(omit *Player) []*Player
-	ListPlayers() []*Player
-	HealPlayer(player *Player, amount int) ([]Event, error)
-	PlayArbitraryCard(player *Player, card PlayerCard) ([]Event, error)
-	RemovePlayerCardFromPlayfield(card PlayerCard) ([]Event, error)
+	OpenDoor() ([]Event, error)
 	SendDungeonCardBottomDungeon(card DungeonCard) ([]Event, error)
-	GetActiveCurses() []DungeonCard
-	RemoveCurseFromPlayfield(card *CurseCard) ([]Event, error)
-	GetActiveDoorsOfType(doorKinds []DoorKind, challengeKinds []ChallengeKind, includeBossMat bool) []DungeonCard
+	StopTime(player *Player) ([]Event, error)
+
+	ListPlayers() []*Player
+	ActiveDoors(f *DoorsFilter) []DungeonCard
+	ListArtifacts() []*ArtifactCard
+
+	PlayArbitraryCard(player *Player, card PlayerCard) ([]Event, error)
+	RemoveDungeonCard(card DungeonCard) ([]Event, error)
+	RemovePlayerCard(card PlayerCard) ([]Event, error)
+	DiscardTopCardFromDungeon() ([]Event, error)
 }
 
 func NewGame() *Game {
 	return &Game{
-		PlayField:    NewPlayfield(),
-		Status:       Waiting,
-		UseExtension: true,
+		PlayField:          NewPlayfield(),
+		Status:             Waiting,
+		UseExtension:       true,
+		PendingInteraction: nil,
 	}
 }
 
@@ -74,6 +74,9 @@ func (g *Game) Tick(delta time.Duration) ([]Event, error) {
 		g.Status = Defeat
 
 		return []Event{GameLostEvent{}}, nil
+	}
+	if g.PendingInteraction != nil {
+		return nil, nil
 	}
 	events, err := g.resolveActiveEvents()
 	if err != nil {
@@ -94,7 +97,7 @@ func (g *Game) Tick(delta time.Duration) ([]Event, error) {
 
 		return events, nil
 	}
-	openDoorEvents, err := g.openDoor()
+	openDoorEvents, err := g.OpenDoor()
 	events = append(events, openDoorEvents...)
 	if err != nil {
 		return events, err
@@ -118,6 +121,10 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 		events, err = g.discardCard(cmd.Player, cmd.Card)
 	case UseHeroAbilityCmd:
 		events, err = g.useHeroAbility(cmd.Player, cmd.DiscardCards, cmd.Ability)
+	case SubmitEventChoiceCmd:
+		events, err = g.submitEventChoice(cmd.Player, cmd.TargetPlayer, cmd.Cards, cmd.Resource)
+	case UseArtifactCmd:
+		events, err = g.useArtifact(cmd.Player, cmd.Artifact, cmd.ActionIndex, cmd.Target)
 	}
 	if cmd.Reply() != nil {
 		cmd.Reply() <- err
@@ -151,14 +158,15 @@ func (g *Game) start() ([]Event, error) {
 	if len(g.Players) < 2 || len(g.Players) > 6 {
 		return nil, fmt.Errorf("game has incorrect number of players: %d", len(g.Players))
 	}
-	g.determineHandSize()
-	for _, player := range g.Players {
-		if _, err := player.DrawCardsFromDeck(g.HandSize); err != nil {
-			return nil, err
-		}
-	}
 
-	g.generateDungeon(g.UseExtension)
+	g.generateDungeon()
+	if g.UseExtension {
+		var deckColors []DeckColor
+		for _, p := range g.Players {
+			deckColors = append(deckColors, p.Hero.Color)
+		}
+		g.PlayField.SetupArtifacts(deckColors)
+	}
 	g.Status = Playing
 	g.InGameTimer = 0
 	g.LastPlayedCardTimer = 0
@@ -166,7 +174,15 @@ func (g *Game) start() ([]Event, error) {
 	var events []Event
 	events = append(events, GameStartedEvent{})
 
-	openDoorEvents, err := g.openDoor()
+	for _, player := range g.Players {
+		drawEvents, err := g.refillPlayerHand(player)
+		events = append(events, drawEvents...)
+		if err != nil {
+			return events, err
+		}
+	}
+
+	openDoorEvents, err := g.OpenDoor()
 	events = append(events, openDoorEvents...)
 	if err != nil {
 		return events, err
@@ -176,6 +192,9 @@ func (g *Game) start() ([]Event, error) {
 }
 
 func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
+	if g.PendingInteraction != nil {
+		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
+	}
 	if !p.HasCardInHand(card) {
 		return nil, fmt.Errorf("player does not have card in hand")
 	}
@@ -213,25 +232,13 @@ func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 	}
 	events = append(events, actionEvents...)
 
-	cardDrawnEvents, err2 := g.refillPlayerHand(p)
+	cardDrawnEvents, err := g.refillPlayerHand(p)
 	events = append(events, cardDrawnEvents...)
-	if err2 != nil {
-		return events, err2
+	if err != nil {
+		return events, err
 	}
 
 	return events, nil
-}
-
-func (g *Game) DrawCardsFromDeck(player *Player, count int) ([]Event, error) {
-	return player.DrawCardsFromDeck(count)
-}
-
-func (g *Game) DrawCardsFromDiscard(player *Player, count int) ([]Event, error) {
-	return player.DrawCardsFromDiscard(count)
-}
-
-func (g *Game) DrawResourceCardsFromDiscard(player *Player, resourceTypes []ResourceType) ([]Event, error) {
-	return player.DrawResourceCardsFromDiscard(resourceTypes)
 }
 
 func (g *Game) DefeatDoor(target DungeonCard) ([]Event, error) {
@@ -242,8 +249,24 @@ func (g *Game) DefeatDoor(target DungeonCard) ([]Event, error) {
 	if err != nil {
 		return events, err
 	}
+	if t, ok := target.(*CurseCard); ok {
+		if t.Cure == nil {
+			return events, nil
+		}
+		ctx := CardCurseContext{
+			Engine: g,
+			Card:   t,
+		}
+		cureEvents, err := t.Cure.Execute(ctx)
+		events = append(events, cureEvents...)
+		if err != nil {
+			return events, err
+		}
 
-	if g.IsFightingBoss {
+		return events, nil
+	}
+
+	if _, ok := target.(*BossMat); ok || g.IsFightingBoss {
 		g.Status = Victory
 		events = append(events, GameWonEvent{})
 
@@ -256,17 +279,13 @@ func (g *Game) DefeatDoor(target DungeonCard) ([]Event, error) {
 
 	events = append(events, g.clearField()...)
 
-	openDoorEvents, err2 := g.openDoor()
+	openDoorEvents, err := g.OpenDoor()
 	events = append(events, openDoorEvents...)
-	if err2 != nil {
-		return events, err2
+	if err != nil {
+		return events, err
 	}
 
 	return events, nil
-}
-
-func (g *Game) HasActiveDoor(target DungeonCard) bool {
-	return g.PlayField.HasActiveDoor(target)
 }
 
 func (g *Game) StopTime(player *Player) ([]Event, error) {
@@ -278,63 +297,104 @@ func (g *Game) StopTime(player *Player) ([]Event, error) {
 	return []Event{TimeFrozenEvent{ByPlayer: player}}, nil
 }
 
-func (g *Game) ListOtherPlayers(omit *Player) []*Player {
-	var players []*Player
-	for _, player := range g.Players {
-		if player == omit {
-			continue
-		}
-		players = append(players, player)
-	}
-
-	return players
-}
-
 func (g *Game) ListPlayers() []*Player {
 	return g.Players
 }
 
-func (g *Game) HealPlayer(p *Player, amount int) ([]Event, error) {
-	return p.Heal(amount)
+func (g *Game) ListArtifacts() []*ArtifactCard {
+	return g.PlayField.Artifacts
 }
 
-func (g *Game) GetActiveDoorsOfType(doorKinds []DoorKind, challengeKinds []ChallengeKind, includeBossMat bool) []DungeonCard {
+type DoorsFilter struct {
+	DoorKinds      []DoorKind
+	ChallengeKinds []ChallengeKind
+	IncludeBossMat bool
+}
+
+func NewDoorsFilter() *DoorsFilter {
+	return &DoorsFilter{}
+}
+func (d *DoorsFilter) AddEverything() *DoorsFilter {
+	d.IncludeBossMat = true
+	d.ChallengeKinds = []ChallengeKind{ChallengeEvent, ChallengeCurse, ChallengeMiniBoss}
+	d.DoorKinds = []DoorKind{DoorObstacle, DoorPerson, DoorMonster}
+
+	return d
+}
+func (d *DoorsFilter) AddAllDoors() *DoorsFilter {
+	d.DoorKinds = []DoorKind{DoorObstacle, DoorPerson, DoorMonster}
+
+	return d
+}
+func (d *DoorsFilter) AddDoors(doorKinds ...DoorKind) *DoorsFilter {
+	for _, dk := range doorKinds {
+		if !slices.Contains(d.DoorKinds, dk) {
+			d.DoorKinds = append(d.DoorKinds, dk)
+		}
+	}
+
+	return d
+}
+func (d *DoorsFilter) AddCurses() *DoorsFilter {
+	if !slices.Contains(d.ChallengeKinds, ChallengeCurse) {
+		d.ChallengeKinds = append(d.ChallengeKinds, ChallengeCurse)
+	}
+
+	return d
+}
+func (d *DoorsFilter) AddEvents() *DoorsFilter {
+	if !slices.Contains(d.ChallengeKinds, ChallengeEvent) {
+		d.ChallengeKinds = append(d.ChallengeKinds, ChallengeEvent)
+	}
+
+	return d
+}
+func (d *DoorsFilter) AddMiniBoss() *DoorsFilter {
+	if !slices.Contains(d.ChallengeKinds, ChallengeMiniBoss) {
+		d.ChallengeKinds = append(d.ChallengeKinds, ChallengeMiniBoss)
+	}
+
+	return d
+}
+
+func (g *Game) ActiveDoors(f *DoorsFilter) []DungeonCard {
+	if f == nil {
+		f = NewDoorsFilter().AddEverything()
+	}
 	var picked []DungeonCard
-	for _, door := range append(g.PlayField.OpenedDoors, g.GetActiveCurses()...) {
+	var playfieldHaystack []DungeonCard
+	for _, door := range g.PlayField.OpenedDoors {
+		playfieldHaystack = append(playfieldHaystack, door)
+	}
+	for _, curse := range g.PlayField.ActiveCurses {
+		playfieldHaystack = append(playfieldHaystack, curse)
+	}
+	for _, door := range playfieldHaystack {
 		switch d := door.(type) {
 		case *BossMat:
-			if includeBossMat {
+			if f.IncludeBossMat {
 				picked = append(picked, d)
 			}
 		case *CurseCard:
-			if slices.Contains(challengeKinds, ChallengeCurse) {
+			if slices.Contains(f.ChallengeKinds, ChallengeCurse) {
 				picked = append(picked, d)
 			}
 		case *EventCard:
-			if slices.Contains(challengeKinds, ChallengeEvent) {
+			if slices.Contains(f.ChallengeKinds, ChallengeEvent) {
 				picked = append(picked, d)
 			}
 		case *MiniBossCard:
-			if slices.Contains(challengeKinds, ChallengeMiniBoss) {
+			if slices.Contains(f.ChallengeKinds, ChallengeMiniBoss) {
 				picked = append(picked, d)
 			}
 		case *DoorCard:
-			if slices.Contains(doorKinds, d.Type) {
+			if slices.Contains(f.DoorKinds, d.Type) {
 				picked = append(picked, d)
 			}
 		}
 	}
 
 	return picked
-}
-
-func (g *Game) GetActiveCurses() []DungeonCard {
-	b := make([]DungeonCard, len(g.PlayField.ActiveCurses))
-	for i := range g.PlayField.ActiveCurses {
-		b[i] = g.PlayField.ActiveCurses[i]
-	}
-
-	return b
 }
 
 func (g *Game) SendDungeonCardBottomDungeon(card DungeonCard) ([]Event, error) {
@@ -349,25 +409,33 @@ func (g *Game) SendDungeonCardBottomDungeon(card DungeonCard) ([]Event, error) {
 	g.Dungeon.PutDoorBelowDeck(card)
 
 	if len(g.PlayField.OpenedDoors) == 0 {
-		openDoorEvents, err2 := g.openDoor()
+		openDoorEvents, err := g.OpenDoor()
 		events = append(events, openDoorEvents...)
-		if err2 != nil {
-			return events, err2
+		if err != nil {
+			return events, err
 		}
 	}
 
 	return append(events, DungeonCardSentToBottomEvent{Card: card}), nil
 }
 
+func (g *Game) DiscardTopCardFromDungeon() ([]Event, error) {
+	if len(g.Dungeon.Doors) == 0 {
+		return nil, nil
+	}
+
+	return []Event{DungeonCardDiscardedEvent{Card: g.Dungeon.OpenDoor()}}, nil
+}
+
 func (g *Game) PlayArbitraryCard(p *Player, card PlayerCard) ([]Event, error) {
 	return g.PlayField.AddPlayerCard(p, card)
 }
 
-func (g *Game) RemovePlayerCardFromPlayfield(card PlayerCard) ([]Event, error) {
+func (g *Game) RemovePlayerCard(card PlayerCard) ([]Event, error) {
 	return g.PlayField.RemovePlayerCard(card)
 }
 
-func (g *Game) RemoveCurseFromPlayfield(card *CurseCard) ([]Event, error) {
+func (g *Game) RemoveDungeonCard(card DungeonCard) ([]Event, error) {
 	return g.PlayField.RemoveDungeonCard(card)
 }
 
@@ -375,7 +443,7 @@ func (g *Game) discardCard(p *Player, card PlayerCard) ([]Event, error) {
 	return p.DiscardCard(card)
 }
 
-func (g *Game) openDoor() ([]Event, error) {
+func (g *Game) OpenDoor() ([]Event, error) {
 	var events []Event
 	var err error
 	loop := true
@@ -402,6 +470,9 @@ func (g *Game) openDoor() ([]Event, error) {
 }
 
 func (g *Game) useHeroAbility(player *Player, discardCards []PlayerCard, ability Ability) ([]Event, error) {
+	if g.PendingInteraction != nil {
+		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
+	}
 	discardCards = uniqueCards(discardCards)
 	if len(discardCards) != 3 {
 		return nil, fmt.Errorf("player must discard 3 different cards")
@@ -438,21 +509,54 @@ func (g *Game) useHeroAbility(player *Player, discardCards []PlayerCard, ability
 	events = append(events, HeroAbilityUsedEvent{ByPlayer: player})
 	events = append(events, abilityEvents...)
 
-	cardDrawnEvents, err2 := g.refillPlayerHand(player)
+	cardDrawnEvents, err := g.refillPlayerHand(player)
 	events = append(events, cardDrawnEvents...)
-	if err2 != nil {
-		return events, err2
+	if err != nil {
+		return events, err
 	}
 
 	return events, nil
 }
 
+func (g *Game) useArtifact(player *Player, artifact *ArtifactCard, index ArtifactActionIndex, target DungeonCard) ([]Event, error) {
+	if !g.UseExtension {
+		return nil, fmt.Errorf("extension must be enabled to use artifacts")
+	}
+	if g.PendingInteraction != nil {
+		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
+	}
+	if !g.PlayField.ArtifactCanBePlayed(artifact) {
+		return nil, fmt.Errorf("artifact cannot be played")
+	}
+
+	ctx := ArtifactActionContext{
+		Engine:       g,
+		Player:       player,
+		Artifact:     artifact,
+		ChosenAction: index,
+		Target:       target,
+	}
+	artifactEvents, err := artifact.Action.Execute(ctx)
+	if err != nil {
+		return nil, err
+	}
+	artifact.Used = true
+
+	events := []Event{ArtifactUsedEvent{ByPlayer: player}}
+
+	return append(events, artifactEvents...), nil
+}
+
 func (g *Game) refillPlayerHand(player *Player) ([]Event, error) {
+	if g.HandSize == 0 {
+		g.determineHandSize()
+	}
+
 	var events []Event
 	var err error
 	nbToDraw := g.HandSize - len(player.Hand)
 	if nbToDraw > 0 {
-		events, err = g.DrawCardsFromDeck(player, nbToDraw)
+		events, err = player.DrawCardsFromDeck(nbToDraw)
 		if err != nil {
 			return events, err
 		}
@@ -482,9 +586,14 @@ func (g *Game) determineHandSize() {
 	}
 }
 
-func (g *Game) generateDungeon(extensionEnabled bool) {
+func (g *Game) generateDungeon() {
 	if g.Dungeon == nil {
-		g.Dungeon = NewDungeon(1, len(g.Players), extensionEnabled)
+		if g.UseExtension {
+			g.Dungeon = NewExtensionDungeon(1, len(g.Players))
+
+			return
+		}
+		g.Dungeon = NewBaseDungeon(1, len(g.Players))
 	}
 }
 
@@ -494,19 +603,148 @@ func (g *Game) actionDebounce() bool {
 
 func (g *Game) resolveActiveEvents() ([]Event, error) {
 	var events []Event
-	for _, card := range g.PlayField.OpenedDoors {
+	for _, card := range slices.Clone(g.PlayField.OpenedDoors) {
 		eventCard, ok := card.(*EventCard)
-		if !ok {
+		if !ok || eventCard.Action == nil {
 			continue
 		}
-		resolveEvents, err := g.PlayField.ResolveEvent(eventCard, g)
+		if g.InGameTimer-eventCard.OpenedTime < 2*time.Second {
+			return nil, nil
+		}
+
+		ctx := CardEventContext{
+			Engine: g,
+			Card:   eventCard,
+		}
+		if interaction := eventCard.Action.Interaction(ctx); interaction != nil {
+			g.PendingInteraction = interaction
+
+			initEvents, err := interaction.Init(ctx)
+			events = append(events, initEvents...)
+			if err != nil {
+				return events, err
+			}
+
+			promptEvent := EventPromptOpenedEvent{
+				Kind:          interaction.Kind(),
+				RequiredCount: interaction.RequiredCount(),
+			}
+			return append(events, promptEvent), nil
+		}
+		resolveEvents, err := g.PlayField.ResolveEvent(ctx)
 		events = append(events, resolveEvents...)
+		if err != nil {
+			return events, err
+		}
+
+		defeatDoorEvents, err := g.DefeatDoor(eventCard)
+		events = append(events, defeatDoorEvents...)
 		if err != nil {
 			return events, err
 		}
 	}
 
 	return events, nil
+}
+
+func (g *Game) submitEventChoice(player *Player, targetPlayer *Player, cards []PlayerCard, resource *ResourceType) ([]Event, error) {
+	if g.PendingInteraction == nil {
+		return nil, fmt.Errorf("no pending player interaction")
+	}
+	ctx := CardEventContext{
+		Engine: g,
+		Card:   g.PendingInteraction.EventCard(),
+		Input:  g.PendingInteraction,
+	}
+
+	var events []Event
+	var resolveEventFunc func(CardEventContext) ([]Event, error)
+	switch i := g.PendingInteraction.(type) {
+	case *TeamChoicePlayerInteraction:
+		if targetPlayer == nil {
+			return nil, fmt.Errorf("expected target player")
+		}
+		i.CollectedChoices[player] = targetPlayer
+		delete(i.PendingPlayers, player)
+		events = append(events, PlayerEventChoiceSubmittedEvent{Player: player})
+		if len(i.PendingPlayers) != 0 {
+			return events, nil
+		}
+		resolveEventFunc = i.OnComplete
+
+	case *PlayerDonatesHandInteraction:
+		if targetPlayer == nil {
+			return nil, fmt.Errorf("expected target player")
+		}
+		i.CollectedChoices[player] = targetPlayer
+		delete(i.PendingPlayers, player)
+		events = append(events, PlayerEventChoiceSubmittedEvent{Player: player})
+		if len(i.PendingPlayers) != 0 {
+			return events, nil
+		}
+		resolveEventFunc = i.OnComplete
+
+	case *PlayerDiscardCardsInteraction:
+		cards := uniqueCards(cards)
+		expectedCount := min(i.RequiredCount(), len(player.Hand))
+		if len(cards) != expectedCount {
+			return nil, fmt.Errorf("expected %d cards to discard, got %d", expectedCount, len(cards))
+		}
+		for _, c := range cards {
+			if !player.HasCardInHand(c) {
+				return nil, fmt.Errorf("player does not have card in hand")
+			}
+		}
+		i.CollectedChoices[player] = cards
+		delete(i.PendingPlayers, player)
+		events = append(events, PlayerEventChoiceSubmittedEvent{Player: player})
+		if len(i.PendingPlayers) != 0 {
+			return events, nil
+		}
+		resolveEventFunc = i.OnComplete
+
+	case *TeamChoiceResourceInteraction:
+		if resource == nil {
+			return nil, fmt.Errorf("expected resource")
+		}
+		i.CollectedChoices[player] = *resource
+		delete(i.PendingPlayers, player)
+		events = append(events, PlayerEventChoiceSubmittedEvent{Player: player})
+		if len(i.PendingPlayers) != 0 {
+			return events, nil
+		}
+		resolveEventFunc = i.OnComplete
+
+	default:
+		return nil, fmt.Errorf("unexpected interaction type: %v", i)
+	}
+
+	return g.finalizeEventInteraction(ctx, resolveEventFunc)
+}
+
+func (g *Game) finalizeEventInteraction(ctx CardEventContext, onComplete func(CardEventContext) ([]Event, error)) ([]Event, error) {
+	eventCard := g.PendingInteraction.EventCard()
+	g.PendingInteraction = nil
+
+	actionEvents, err := onComplete(ctx)
+	if err != nil {
+		return actionEvents, err
+	}
+
+	for _, p := range g.Players {
+		drawEvents, err := g.refillPlayerHand(p)
+		actionEvents = append(actionEvents, drawEvents...)
+		if err != nil {
+			return actionEvents, err
+		}
+	}
+
+	defeatEvents, err := g.DefeatDoor(eventCard)
+	if err != nil {
+		return append(actionEvents, defeatEvents...), err
+	}
+
+	return append(actionEvents, defeatEvents...), nil
 }
 
 func uniqueCards[T comparable](inputSlice []T) []T {
