@@ -183,8 +183,8 @@ type HandStolenEvent struct {
 func (HandStolenEvent) isEvent() {}
 
 type EventPromptOpenedEvent struct {
-	Kind          InteractionKind
-	RequiredCount int
+	Kind           InteractionKind
+	RequiredCounts map[*Player]int
 }
 
 func (EventPromptOpenedEvent) isEvent() {}
@@ -194,3 +194,18 @@ type PlayerEventChoiceSubmittedEvent struct {
 }
 
 func (PlayerEventChoiceSubmittedEvent) isEvent() {}
+
+type HeroMatFlippedEvent struct {
+	Player *Player
+	From   *Hero
+	To     *Hero
+}
+
+func (HeroMatFlippedEvent) isEvent() {}
+
+type PlayerHandVoidedEvent struct {
+	Player      *Player
+	VoidedCards []PlayerCard
+}
+
+func (PlayerHandVoidedEvent) isEvent() {}

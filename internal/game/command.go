@@ -36,14 +36,14 @@ func (c PlayCardCmd) Reply() chan error {
 	return c.reply
 }
 
-type DiscardCardCmd struct {
+type DiscardCardsCmd struct {
 	Player *Player
-	Card   PlayerCard
+	Cards  []PlayerCard
 	reply  chan error
 }
 
-func (DiscardCardCmd) isCommand() {}
-func (c DiscardCardCmd) Reply() chan error {
+func (DiscardCardsCmd) isCommand() {}
+func (c DiscardCardsCmd) Reply() chan error {
 	return c.reply
 }
 
@@ -59,7 +59,7 @@ func (c UseHeroAbilityCmd) Reply() chan error {
 	return c.reply
 }
 
-type SubmitEventChoiceCmd struct {
+type SubmitPromptChoiceCmd struct {
 	Player       *Player
 	TargetPlayer *Player
 	Cards        []PlayerCard
@@ -67,8 +67,8 @@ type SubmitEventChoiceCmd struct {
 	reply        chan error
 }
 
-func (SubmitEventChoiceCmd) isCommand() {}
-func (c SubmitEventChoiceCmd) Reply() chan error {
+func (SubmitPromptChoiceCmd) isCommand() {}
+func (c SubmitPromptChoiceCmd) Reply() chan error {
 	return c.reply
 }
 

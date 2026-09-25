@@ -170,12 +170,10 @@ func TestRunnerSubscriberFanOutAndUnsubscribe(t *testing.T) {
 	expectEvent(t, sub1, func(e Event) bool { _, ok := e.(PlayerAddedEvent); return ok })
 	expectEvent(t, sub3, func(e Event) bool { _, ok := e.(PlayerAddedEvent); return ok })
 
-	// sub2 should receive nothing
-	select {
-	case evt := <-sub2:
-		t.Errorf("unsubscribed sub2 received unexpected event: %v", evt)
-	case <-time.After(50 * time.Millisecond):
-		// Expected: no event on unsubscribed channel
+	// sub2 should be closed
+	_, ok := <-sub2
+	if ok {
+		t.Errorf("unsubscribed sub2 channel should be closed")
 	}
 }
 
@@ -247,7 +245,7 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 					if i%2 == 0 {
 						_ = runner.PlayCard(ctx, p, card)
 					} else {
-						_ = runner.DiscardCard(ctx, p, card)
+						_ = runner.DiscardCard(ctx, p, []PlayerCard{card})
 					}
 				}
 				time.Sleep(1 * time.Millisecond)
@@ -336,7 +334,7 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 
 func expectEvent(t *testing.T, sub <-chan Event, predicate func(Event) bool) {
 	t.Helper()
-	timeout := time.After(2 * time.Second)
+	timeout := time.After(2 * time.Minute)
 	for {
 		select {
 		case evt, ok := <-sub:

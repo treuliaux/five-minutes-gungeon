@@ -3,7 +3,6 @@ package game
 import (
 	"fmt"
 	"slices"
-	"time"
 )
 
 type Playfield struct {
@@ -42,7 +41,7 @@ func (p *Playfield) RemovePlayerCard(card PlayerCard) ([]Event, error) {
 	}}, nil
 }
 
-func (p *Playfield) RemoveDungeonCard(card DungeonCard) ([]Event, error) {
+func (p *Playfield) RemoveDungeonCard(game *Game, card DungeonCard) ([]Event, error) {
 	switch c := card.(type) {
 	case *BossMat:
 		return nil, fmt.Errorf("boss mat cannot be removed")
@@ -51,8 +50,19 @@ func (p *Playfield) RemoveDungeonCard(card DungeonCard) ([]Event, error) {
 			return nil, fmt.Errorf("target card is not in play")
 		}
 		p.ActiveCurses = slices.DeleteFunc(p.ActiveCurses, func(e *CurseCard) bool { return e == c })
+		var events []Event
+		if c.Cure != nil {
+			cureEvents, err := c.Cure(&CardCurseContext{
+				engine: game,
+				Card:   c,
+			})
+			events = append(events, cureEvents...)
+			if err != nil {
+				return events, err
+			}
+		}
 
-		return []Event{CurseRemovedEvent{Card: c}}, nil
+		return append([]Event{CurseRemovedEvent{Card: c}}, events...), nil
 	case *DoorCard, *MiniBossCard:
 		if !slices.Contains(p.OpenedDoors, c) {
 			return nil, fmt.Errorf("target card is not in play")
@@ -64,7 +74,6 @@ func (p *Playfield) RemoveDungeonCard(card DungeonCard) ([]Event, error) {
 		if !slices.Contains(p.OpenedDoors, card) {
 			return nil, fmt.Errorf("target card is not in play")
 		}
-		c.OpenedTime = 2 * gameDuration
 		p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(e DungeonCard) bool { return e == c })
 
 		return []Event{DoorCardRemovedEvent{Card: c}}, nil
@@ -73,12 +82,23 @@ func (p *Playfield) RemoveDungeonCard(card DungeonCard) ([]Event, error) {
 	}
 }
 
-func (p *Playfield) AddDungeonCard(card DungeonCard, inGameTimer time.Duration) ([]Event, error) {
+func (p *Playfield) AddDungeonCard(card DungeonCard, g *Game) ([]Event, error) {
 	switch c := card.(type) {
 	case *CurseCard:
 		p.ActiveCurses = append(p.ActiveCurses, c)
+		var events []Event
+		if c.Apply != nil {
+			applyEvents, err := c.Apply(&CardCurseContext{
+				engine: g,
+				Card:   c,
+			})
+			events = append(events, applyEvents...)
+			if err != nil {
+				return events, err
+			}
+		}
 
-		return []Event{DoorOpenedEvent{DungeonCard: c}, CurseActivatedEvent{Card: c}}, nil
+		return append([]Event{DoorOpenedEvent{DungeonCard: c}, CurseActivatedEvent{Card: c}}, events...), nil
 	case *DoorCard, *MiniBossCard, *BossMat:
 		if p.IsDoorsFull() {
 			return nil, fmt.Errorf("cannot add more than two dungeon cards")
@@ -90,7 +110,7 @@ func (p *Playfield) AddDungeonCard(card DungeonCard, inGameTimer time.Duration) 
 		if p.IsDoorsFull() {
 			return nil, fmt.Errorf("cannot add more than two dungeon cards")
 		}
-		c.OpenedTime = inGameTimer
+		c.OpenedTime = g.InGameTimer
 		p.OpenedDoors = append(p.OpenedDoors, c)
 
 		return []Event{DoorOpenedEvent{DungeonCard: c}}, nil
@@ -115,24 +135,14 @@ func (p *Playfield) HasDoorsOpened() bool {
 }
 
 func (p *Playfield) HasActiveDoor(target DungeonCard) bool {
-	switch t := target.(type) {
-	case *CurseCard:
-		return slices.Contains(p.ActiveCurses, t)
-	default:
-		return slices.Contains(p.OpenedDoors, target)
-	}
+	return slices.Contains(p.OpenedDoors, target)
 }
 
 func (p *Playfield) DefeatDoor(target DungeonCard) ([]Event, error) {
 	if !p.HasActiveDoor(target) {
 		return nil, fmt.Errorf("target is not an active dungeon card")
 	}
-	switch t := target.(type) {
-	case *CurseCard:
-		p.ActiveCurses = slices.DeleteFunc(p.ActiveCurses, func(c *CurseCard) bool { return c == t })
-	default:
-		p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(c DungeonCard) bool { return c == t })
-	}
+	p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(c DungeonCard) bool { return c == target })
 
 	return []Event{DoorDefeatedEvent{DungeonCard: target}}, nil
 }
@@ -186,11 +196,16 @@ func (p *Playfield) HasActiveEvents() bool {
 	return false
 }
 
-func (p *Playfield) ResolveEvent(ctx CardEventContext) ([]Event, error) {
-	if ctx.Card.Action == nil {
+func (p *Playfield) ResolveEvent(ctx *CardEventContext) ([]Event, error) {
+	eventCard, ok := ctx.Card.(*EventCard)
+	if !ok {
+		return nil, fmt.Errorf("expected event card")
+	}
+
+	if eventCard.Action == nil {
 		return nil, nil
 	}
-	events, err := ctx.Card.Action.Execute(ctx)
+	events, err := eventCard.Action.Execute(ctx)
 	if err != nil {
 		return events, err
 	}
@@ -217,7 +232,7 @@ func (p *Playfield) hasAllRequiredResources() bool {
 	for requiredResource, count := range totalRequired {
 		if IsBaseResource(requiredResource) {
 			hasInfiniteVersionPlayed := false
-			for playedResource, _ := range totalPlayed {
+			for playedResource := range totalPlayed {
 				if IsInfiniteVersionOf(playedResource, requiredResource) {
 					hasInfiniteVersionPlayed = true
 					break

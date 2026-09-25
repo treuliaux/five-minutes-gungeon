@@ -7,13 +7,7 @@ import (
 
 type CardAction interface {
 	isCardAction()
-	Execute(ctx CardActionContext) ([]Event, error)
-}
-
-type CardActionContext struct {
-	Engine GameEngine
-	Player *Player
-	Card   PlayerCard
+	Execute(ctx Context) ([]Event, error)
 }
 
 type SnipeAction struct {
@@ -21,23 +15,33 @@ type SnipeAction struct {
 }
 
 func (SnipeAction) isCardAction() {}
-func (a SnipeAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
+func (a SnipeAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
 }
 
 type WildCardAction struct {
 }
 
 func (WildCardAction) isCardAction() {}
-func (a WildCardAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a WildCardAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	var events []Event
 	var err error
-	events, err = ctx.Engine.PlayArbitraryCard(ctx.Player, &ResourceCard{Resources: []ResourceType{WildCard}})
+	events, err = ctx.Engine().PlayArbitraryCard(actCtx.Player, &ResourceCard{Resources: []ResourceType{WildCard}})
 	if err != nil {
 		return events, err
 	}
 	var removeEvents []Event
-	removeEvents, err = ctx.Engine.RemovePlayerCard(ctx.Card)
+	removeEvents, err = ctx.Engine().RemovePlayerCard(actCtx.Card)
 	events = append(events, removeEvents...)
 	if err != nil {
 		return events, err
@@ -51,11 +55,16 @@ type HealingHerbsAction struct {
 }
 
 func (HealingHerbsAction) isCardAction() {}
-func (a HealingHerbsAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a HealingHerbsAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartTargeting(ctx.Card, otherPlayers(ctx.Engine.ListPlayers(), ctx.Player))
+		target, err = smartTargeting(actCtx.Card, otherPlayers(ctx.Engine().ListPlayers(), actCtx.Player))
 		if err != nil {
 			return nil, err
 		}
@@ -73,16 +82,21 @@ type CriticalHitAction struct {
 }
 
 func (CriticalHitAction) isCardAction() {}
-func (a CriticalHitAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
+func (a CriticalHitAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
 }
 
 type ExtraQuiverAction struct {
 }
 
 func (ExtraQuiverAction) isCardAction() {}
-func (a ExtraQuiverAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return makePlayersDrawFromDeck(ctx.Engine.ListPlayers(), 2)
+func (a ExtraQuiverAction) Execute(ctx Context) ([]Event, error) {
+	return makePlayersDrawFromDeck(ctx.Engine().ListPlayers(), 2)
 }
 
 // Valkyrie / Paladin
@@ -92,20 +106,30 @@ type SmiteAction struct {
 }
 
 func (SmiteAction) isCardAction() {}
-func (a SmiteAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
+func (a SmiteAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
 }
 
 type DivineShieldAction struct {
 }
 
 func (DivineShieldAction) isCardAction() {}
-func (a DivineShieldAction) Execute(ctx CardActionContext) ([]Event, error) {
-	events, err := ctx.Engine.StopTime(ctx.Player)
+func (a DivineShieldAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	events, err := ctx.Engine().StopTime(actCtx.Player)
 	if err != nil {
 		return nil, err
 	}
-	drawEvents, err := makePlayersDrawFromDeck(ctx.Engine.ListPlayers(), 1)
+	drawEvents, err := makePlayersDrawFromDeck(ctx.Engine().ListPlayers(), 1)
 	events = append(events, drawEvents...)
 	if err != nil {
 		return events, err
@@ -119,8 +143,13 @@ type HolyHandGrenadeAction struct {
 }
 
 func (HolyHandGrenadeAction) isCardAction() {}
-func (a HolyHandGrenadeAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddEverything())
+func (a HolyHandGrenadeAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddEverything())
 }
 
 type HealAction struct {
@@ -128,11 +157,16 @@ type HealAction struct {
 }
 
 func (HealAction) isCardAction() {}
-func (a HealAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a HealAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartTargeting(ctx.Card, otherPlayers(ctx.Engine.ListPlayers(), ctx.Player))
+		target, err = smartTargeting(actCtx.Card, otherPlayers(ctx.Engine().ListPlayers(), actCtx.Player))
 		if err != nil {
 			return nil, err
 		}
@@ -145,18 +179,18 @@ type HealthPotionAction struct {
 }
 
 func (HealthPotionAction) isCardAction() {}
-func (a HealthPotionAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return makePlayersDrawFromDiscard(ctx.Engine.ListPlayers(), 3)
+func (a HealthPotionAction) Execute(ctx Context) ([]Event, error) {
+	return makePlayersDrawFromDiscard(ctx.Engine().ListPlayers(), 3)
 }
 
 type MysticRuneAction struct {
 }
 
 func (MysticRuneAction) isCardAction() {}
-func (a MysticRuneAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a MysticRuneAction) Execute(ctx Context) ([]Event, error) {
 	var events []Event
-	for _, player := range ctx.Engine.ListPlayers() {
-		drawEvents, err := player.DrawCardsFromDeck(len(ctx.Engine.ActiveDoors(NewDoorsFilter().AddCurses())))
+	for _, player := range ctx.Engine().ListPlayers() {
+		drawEvents, err := player.DrawCardsFromDeck(len(ctx.Engine().ActiveDoors(NewDoorsFilter().AddCurses())))
 		events = append(events, drawEvents...)
 		if err != nil {
 			return events, err
@@ -170,9 +204,9 @@ type RallyAction struct {
 }
 
 func (RallyAction) isCardAction() {}
-func (a RallyAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a RallyAction) Execute(ctx Context) ([]Event, error) {
 	var events []Event
-	for _, player := range ctx.Engine.ListPlayers() {
+	for _, player := range ctx.Engine().ListPlayers() {
 		drawEvents, err := player.DrawResourceCardsFromDiscard([]ResourceType{Sword, Shield})
 		events = append(events, drawEvents...)
 		if err != nil {
@@ -188,23 +222,33 @@ type FireballAction struct {
 }
 
 func (FireballAction) isCardAction() {}
-func (a FireballAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
+func (a FireballAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
 }
 
 type MagicBombAction struct {
 }
 
 func (MagicBombAction) isCardAction() {}
-func (a MagicBombAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a MagicBombAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	var events []Event
 	var err error
-	events, err = ctx.Engine.PlayArbitraryCard(ctx.Player, &ResourceCard{Resources: []ResourceType{Sword, Shield, Arrow, Scroll, Jump}})
+	events, err = ctx.Engine().PlayArbitraryCard(actCtx.Player, &ResourceCard{Resources: []ResourceType{Sword, Shield, Arrow, Scroll, Jump}})
 	if err != nil {
 		return events, err
 	}
 	var removeEvents []Event
-	removeEvents, err = ctx.Engine.RemovePlayerCard(ctx.Card)
+	removeEvents, err = ctx.Engine().RemovePlayerCard(actCtx.Card)
 	events = append(events, removeEvents...)
 	if err != nil {
 		return events, err
@@ -218,24 +262,29 @@ type CancelAction struct {
 }
 
 func (CancelAction) isCardAction() {}
-func (a CancelAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a CancelAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartTargeting(ctx.Card, ctx.Engine.ActiveDoors(NewDoorsFilter().AddEvents()))
+		target, err = smartTargeting(actCtx.Card, ctx.Engine().ActiveDoors(NewDoorsFilter().AddEvents()))
 		if err != nil {
 			return nil, err
 		}
 	}
-	actionEvents, err := defeatDoorByFilter(ctx.Engine, ctx.Card, target, NewDoorsFilter().AddEvents())
+	actionEvents, err := defeatDoorByFilter(ctx.Engine(), actCtx.Card, target, NewDoorsFilter().AddEvents())
 	if err != nil {
 		return actionEvents, err
 	}
 
 	return append([]Event{EventCounteredEvent{
-		ByPlayer:  ctx.Player,
+		ByPlayer:  actCtx.Player,
 		EventCard: target,
-		WithCard:  ctx.Card,
+		WithCard:  actCtx.Card,
 	}}, actionEvents...), nil
 }
 
@@ -244,11 +293,16 @@ type PortalAction struct {
 }
 
 func (PortalAction) isCardAction() {}
-func (a PortalAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a PortalAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartTargeting(ctx.Card, ctx.Engine.ActiveDoors(NewDoorsFilter().AddAllDoors().AddMiniBoss()))
+		target, err = smartTargeting(actCtx.Card, ctx.Engine().ActiveDoors(NewDoorsFilter().AddAllDoors().AddMiniBoss()))
 		if err != nil {
 			return nil, err
 		}
@@ -257,7 +311,7 @@ func (a PortalAction) Execute(ctx CardActionContext) ([]Event, error) {
 	case *EventCard, *CurseCard, *BossMat:
 		return nil, fmt.Errorf("curses, events, and boss mat cannot be targeted")
 	default:
-		return ctx.Engine.SendDungeonCardBottomDungeon(target)
+		return ctx.Engine().SendDungeonCardBottomDungeon(target)
 	}
 }
 
@@ -266,8 +320,13 @@ type TimeWarpAction struct {
 
 func (TimeWarpAction) isCardAction() {}
 
-func (TimeWarpAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return ctx.Engine.StopTime(ctx.Player)
+func (TimeWarpAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return ctx.Engine().StopTime(actCtx.Player)
 }
 
 type MightyLeapAction struct {
@@ -275,8 +334,13 @@ type MightyLeapAction struct {
 }
 
 func (MightyLeapAction) isCardAction() {}
-func (a MightyLeapAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
+func (a MightyLeapAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
 }
 
 type EnrageAction struct {
@@ -284,8 +348,13 @@ type EnrageAction struct {
 }
 
 func (EnrageAction) isCardAction() {}
-func (a EnrageAction) Execute(ctx CardActionContext) ([]Event, error) {
-	targets, err := smartTwoPlayersTargeting(ctx, a.Targets)
+func (a EnrageAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	targets, err := smartTwoPlayersTargeting(actCtx, a.Targets)
 	if err != nil {
 		return nil, err
 	}
@@ -298,8 +367,13 @@ type CrushAction struct {
 }
 
 func (CrushAction) isCardAction() {}
-func (a CrushAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddMiniBoss())
+func (a CrushAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddMiniBoss())
 }
 
 type BattleRageAction struct {
@@ -307,11 +381,16 @@ type BattleRageAction struct {
 }
 
 func (BattleRageAction) isCardAction() {}
-func (a BattleRageAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a BattleRageAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartTargeting(ctx.Card, ctx.Engine.ActiveDoors(NewDoorsFilter().AddCurses()))
+		target, err = smartTargeting(actCtx.Card, ctx.Engine().ActiveDoors(NewDoorsFilter().AddCurses()))
 		if err != nil {
 			return nil, err
 		}
@@ -320,7 +399,7 @@ func (a BattleRageAction) Execute(ctx CardActionContext) ([]Event, error) {
 		return nil, fmt.Errorf("target is not a curse")
 	}
 
-	return ctx.Engine.SendDungeonCardBottomDungeon(target)
+	return ctx.Engine().SendDungeonCardBottomDungeon(target)
 }
 
 type BackstabAction struct {
@@ -328,8 +407,13 @@ type BackstabAction struct {
 }
 
 func (BackstabAction) isCardAction() {}
-func (a BackstabAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
+func (a BackstabAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
 }
 
 type SprintAction struct {
@@ -337,8 +421,13 @@ type SprintAction struct {
 }
 
 func (SprintAction) isCardAction() {}
-func (a SprintAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
+func (a SprintAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
 }
 
 type StealAction struct {
@@ -346,21 +435,26 @@ type StealAction struct {
 }
 
 func (StealAction) isCardAction() {}
-func (a StealAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a StealAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartTargeting(ctx.Card, otherPlayers(ctx.Engine.ListPlayers(), ctx.Player))
+		target, err = smartTargeting(actCtx.Card, otherPlayers(ctx.Engine().ListPlayers(), actCtx.Player))
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	stolenCards := slices.Clone(target.Hand)
-	ctx.Player.Hand = append(ctx.Player.Hand, target.Hand...)
+	actCtx.Player.Hand = append(actCtx.Player.Hand, target.Hand...)
 	target.Hand = make([]PlayerCard, 0)
 
-	return []Event{HandStolenEvent{From: target, To: ctx.Player, Cards: stolenCards}}, nil
+	return []Event{HandStolenEvent{From: target, To: actCtx.Player, Cards: stolenCards}}, nil
 }
 
 type DonateAction struct {
@@ -368,36 +462,46 @@ type DonateAction struct {
 }
 
 func (DonateAction) isCardAction() {}
-func (a DonateAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a DonateAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartTargeting(ctx.Card, otherPlayers(ctx.Engine.ListPlayers(), ctx.Player))
+		target, err = smartTargeting(actCtx.Card, otherPlayers(ctx.Engine().ListPlayers(), actCtx.Player))
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	transferredCards := slices.Clone(ctx.Player.Hand)
-	target.Hand = append(target.Hand, ctx.Player.Hand...)
-	ctx.Player.Hand = make([]PlayerCard, 0)
+	transferredCards := slices.Clone(actCtx.Player.Hand)
+	target.Hand = append(target.Hand, actCtx.Player.Hand...)
+	actCtx.Player.Hand = make([]PlayerCard, 0)
 
-	return []Event{HandDonatedEvent{From: ctx.Player, To: target, Cards: transferredCards}}, nil
+	return []Event{HandDonatedEvent{From: actCtx.Player, To: target, Cards: transferredCards}}, nil
 }
 
 type ThrowingKnivesAction struct {
 }
 
 func (ThrowingKnivesAction) isCardAction() {}
-func (a ThrowingKnivesAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a ThrowingKnivesAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	var events []Event
 	var err error
-	events, err = ctx.Engine.PlayArbitraryCard(ctx.Player, &ResourceCard{Resources: []ResourceType{WildCard, WildCard, WildCard}})
+	events, err = ctx.Engine().PlayArbitraryCard(actCtx.Player, &ResourceCard{Resources: []ResourceType{WildCard, WildCard, WildCard}})
 	if err != nil {
 		return events, err
 	}
 	var removeEvents []Event
-	removeEvents, err = ctx.Engine.RemovePlayerCard(ctx.Card)
+	removeEvents, err = ctx.Engine().RemovePlayerCard(actCtx.Card)
 	events = append(events, removeEvents...)
 	if err != nil {
 		return events, err
@@ -411,8 +515,13 @@ type TameCreatureAction struct {
 }
 
 func (TameCreatureAction) isCardAction() {}
-func (a TameCreatureAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
+func (a TameCreatureAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
 }
 
 type TrueSightAction struct {
@@ -420,8 +529,13 @@ type TrueSightAction struct {
 }
 
 func (TrueSightAction) isCardAction() {}
-func (a TrueSightAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
+func (a TrueSightAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
 }
 
 type LivingVinesAction struct {
@@ -429,8 +543,13 @@ type LivingVinesAction struct {
 }
 
 func (LivingVinesAction) isCardAction() {}
-func (a LivingVinesAction) Execute(ctx CardActionContext) ([]Event, error) {
-	return defeatDoorByFilter(ctx.Engine, ctx.Card, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
+func (a LivingVinesAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	return defeatDoorByFilter(ctx.Engine(), actCtx.Card, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
 }
 
 type CleanseAction struct {
@@ -438,11 +557,16 @@ type CleanseAction struct {
 }
 
 func (CleanseAction) isCardAction() {}
-func (a CleanseAction) Execute(ctx CardActionContext) ([]Event, error) {
+func (a CleanseAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	target := a.Target
 	if target == nil {
 		var err error
-		target, err = smartTargeting(ctx.Card, ctx.Engine.ActiveDoors(NewDoorsFilter().AddCurses()))
+		target, err = smartTargeting(actCtx.Card, ctx.Engine().ActiveDoors(NewDoorsFilter().AddCurses()))
 		if err != nil {
 			return nil, err
 		}
@@ -452,7 +576,7 @@ func (a CleanseAction) Execute(ctx CardActionContext) ([]Event, error) {
 		return nil, fmt.Errorf("target is not a curse")
 	}
 
-	return ctx.Engine.RemoveDungeonCard(targetCurse)
+	return ctx.Engine().RemoveDungeonCard(targetCurse)
 }
 
 type AncientHealingAction struct {
@@ -460,8 +584,13 @@ type AncientHealingAction struct {
 }
 
 func (AncientHealingAction) isCardAction() {}
-func (a AncientHealingAction) Execute(ctx CardActionContext) ([]Event, error) {
-	targets, err := smartTwoPlayersTargeting(ctx, a.Targets)
+func (a AncientHealingAction) Execute(ctx Context) ([]Event, error) {
+	actCtx, ok := ctx.(*CardActionContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	targets, err := smartTwoPlayersTargeting(actCtx, a.Targets)
 	if err != nil {
 		return nil, err
 	}

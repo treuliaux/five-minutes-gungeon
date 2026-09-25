@@ -25,8 +25,8 @@ func TestAmbushEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "Ambush!", Action: AmbushEvent{}}
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 	}
 
@@ -71,8 +71,8 @@ func TestDungeonErrorInYourFavorEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "Dungeon Error in Your Favor", Action: DungeonErrorInYourFavorEvent{}}
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 	}
 
@@ -107,8 +107,8 @@ func TestSuddenIllnessEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 	}
 
@@ -117,11 +117,11 @@ func TestSuddenIllnessEvent(t *testing.T) {
 		t.Fatalf("SuddenIllnessEvent failed: %v", err)
 	}
 
-	if len(p1.Hand) != 0 || p1.Discard.Length() != 2 {
-		t.Errorf("expected P1 hand to be empty and discard to have 2 cards, got hand: %d, discard: %d", len(p1.Hand), p1.Discard.Length())
+	if len(p1.Hand) != 5 || p1.Discard.Length() != 2 {
+		t.Errorf("expected P1 hand to be refiled to 5 cards and discard to have 2 cards, got hand: %d, discard: %d", len(p1.Hand), p1.Discard.Length())
 	}
-	if len(p2.Hand) != 0 || p2.Discard.Length() != 1 {
-		t.Errorf("expected P2 hand to be empty and discard to have 1 card, got hand: %d, discard: %d", len(p2.Hand), p2.Discard.Length())
+	if len(p2.Hand) != 5 || p2.Discard.Length() != 1 {
+		t.Errorf("expected P2 hand to be refiled to 5 cards to have 1 card, got hand: %d, discard: %d", len(p2.Hand), p2.Discard.Length())
 	}
 }
 
@@ -140,8 +140,8 @@ func TestCrowdFundingEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "Crowd Funding", Action: CrowdFundingEvent{}}
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 	}
 
@@ -150,8 +150,8 @@ func TestCrowdFundingEvent(t *testing.T) {
 		t.Fatalf("CrowdFundingEvent failed: %v", err)
 	}
 
-	if len(p1.Hand) != 0 || len(p2.Hand) != 0 {
-		t.Errorf("expected all players to discard hands, got P1: %d, P2: %d", len(p1.Hand), len(p2.Hand))
+	if len(p1.Hand) != 5 || len(p2.Hand) != 5 {
+		t.Errorf("expected all players to discard hands and then refiled to 5 cards, got P1: %d, P2: %d", len(p1.Hand), len(p2.Hand))
 	}
 }
 
@@ -172,14 +172,14 @@ func TestYetMoreSpikesEvent(t *testing.T) {
 
 	eventCard := &EventCard{Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}}
 	interaction := &TeamChoicePlayerInteraction{
-		eventCard:        eventCard,
+		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p1, p2: p1}, // Voted P1
 		OnComplete:       YetMoreSpikesEvent{}.Execute,
 	}
 
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 		Input:  interaction,
 	}
@@ -190,8 +190,8 @@ func TestYetMoreSpikesEvent(t *testing.T) {
 	}
 
 	// P1 was targeted -> discarded entire hand
-	if len(p1.Hand) != 0 || p1.Discard.Length() != 2 {
-		t.Errorf("expected P1 hand to be empty and discard length 2, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
+	if len(p1.Hand) != 5 || p1.Discard.Length() != 2 {
+		t.Errorf("expected P1 hand to be refiled to 5 cards and discard length 5, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
 	}
 	// P2 was not targeted -> kept their hand
 	if len(p2.Hand) != 1 {
@@ -219,14 +219,14 @@ func TestGimmeAHandEvent(t *testing.T) {
 
 	eventCard := &EventCard{Name: "Gimme a Hand!", Action: GimmeAHandEvent{}}
 	interaction := &TeamChoicePlayerInteraction{
-		eventCard:        eventCard,
+		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p1, p2: p1, p3: p1}, // Target P1
 		OnComplete:       GimmeAHandEvent{}.Execute,
 	}
 
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 		Input:  interaction,
 	}
@@ -268,14 +268,14 @@ func TestLockedDoorEvent(t *testing.T) {
 
 	eventCard := &EventCard{Name: "Locked Door!", Action: LockedDoorEvent{}}
 	interaction := &TeamChoiceResourceInteraction{
-		eventCard:        eventCard,
+		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]ResourceType{p1: Sword, p2: Sword}, // Voted Sword
 		OnComplete:       LockedDoorEvent{}.Execute,
 	}
 
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 		Input:  interaction,
 	}
@@ -314,15 +314,15 @@ func TestABooBooEvent(t *testing.T) {
 
 	eventCard := &EventCard{Name: "A Boo-Boo", Action: ABooBooEvent{}}
 	interaction := &PlayerDiscardCardsInteraction{
-		eventCard:        eventCard,
-		requiredCount:    1,
+		card:             eventCard,
+		requiredCounts:   map[*Player]int{p1: 1, p2: 1},
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player][]PlayerCard{p1: {c1}, p2: {c3}},
 		OnComplete:       ABooBooEvent{}.Execute,
 	}
 
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 		Input:  interaction,
 	}
@@ -332,13 +332,19 @@ func TestABooBooEvent(t *testing.T) {
 		t.Fatalf("ABooBooEvent failed: %v", err)
 	}
 
-	// P1 discarded c1, keeps c2
-	if len(p1.Hand) != 1 || p1.Hand[0] != c2 {
-		t.Errorf("expected P1 hand to contain [c2], got %v", p1.Hand)
+	// P1 discarded c1 (in discard), hand refilled to 5 and retains c2
+	if p1.Discard.Length() != 1 {
+		t.Errorf("expected P1 discard to have 1 card, got %d", p1.Discard.Length())
 	}
-	// P2 discarded c3, has 0 cards
-	if len(p2.Hand) != 0 {
-		t.Errorf("expected P2 hand to be empty, got %v", p2.Hand)
+	if len(p1.Hand) != 5 || !p1.HasCardInHand(c2) {
+		t.Errorf("expected P1 hand to be refilled to 5 cards and retain c2, got %v", p1.Hand)
+	}
+	// P2 discarded c3 (in discard), hand refilled to 5
+	if p2.Discard.Length() != 1 {
+		t.Errorf("expected P2 discard to have 1 card, got %d", p2.Discard.Length())
+	}
+	if len(p2.Hand) != 5 {
+		t.Errorf("expected P2 hand to be refilled to 5 cards, got %d", len(p2.Hand))
 	}
 }
 
@@ -362,15 +368,15 @@ func TestTrapDoorEvent(t *testing.T) {
 
 	eventCard := &EventCard{Name: "Trap Door", Action: TrapDoorEvent{}}
 	interaction := &PlayerDiscardCardsInteraction{
-		eventCard:        eventCard,
-		requiredCount:    3,
+		card:             eventCard,
+		requiredCounts:   map[*Player]int{p1: 3, p2: 3},
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player][]PlayerCard{p1: {c1, c2, c3}, p2: {c1, c2}},
 		OnComplete:       TrapDoorEvent{}.Execute,
 	}
 
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 		Input:  interaction,
 	}
@@ -380,13 +386,19 @@ func TestTrapDoorEvent(t *testing.T) {
 		t.Fatalf("TrapDoorEvent failed: %v", err)
 	}
 
-	// P1 discarded 3 cards (c1, c2, c3), kept c4
-	if len(p1.Hand) != 1 || p1.Hand[0] != c4 {
-		t.Errorf("expected P1 hand to contain [c4], got %v", p1.Hand)
+	// P1 discarded 3 cards (c1, c2, c3), kept c4 and refilled to 5
+	if p1.Discard.Length() != 3 {
+		t.Errorf("expected P1 discard to have 3 cards, got %d", p1.Discard.Length())
 	}
-	// P2 had 2 cards and discarded both
-	if len(p2.Hand) != 0 {
-		t.Errorf("expected P2 hand to be empty, got %v", p2.Hand)
+	if len(p1.Hand) != 5 || !p1.HasCardInHand(c4) {
+		t.Errorf("expected P1 hand to be refilled to 5 cards and retain c4, got %v", p1.Hand)
+	}
+	// P2 had 2 cards and discarded both, refilled to 5
+	if p2.Discard.Length() != 2 {
+		t.Errorf("expected P2 discard to have 2 cards, got %d", p2.Discard.Length())
+	}
+	if len(p2.Hand) != 5 {
+		t.Errorf("expected P2 hand to be refilled to 5 cards, got %d", len(p2.Hand))
 	}
 }
 
@@ -410,14 +422,14 @@ func TestConfusionEvent(t *testing.T) {
 	eventCard := &EventCard{Name: "Confusion", Action: ConfusionEvent{}}
 	// P1 passes hand to P2, P2 passes hand to P1
 	interaction := &PlayerDonatesHandInteraction{
-		eventCard:        eventCard,
+		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p2, p2: p1},
 		OnComplete:       ConfusionEvent{}.Execute,
 	}
 
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 		Input:  interaction,
 	}
@@ -460,7 +472,7 @@ func TestAnUngodlyAmountOfPorcupinesEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "An Ungodly Amount of Porcupines", Action: AnUngodlyAmountOfPorcupinesEvent{}}
-	ctx := CardEventContext{Engine: game, Card: eventCard}
+	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	// Interaction returns the interaction descriptor, Init triggers the 3-card draw phase
 	interaction := eventCard.Action.Interaction(ctx)
@@ -509,23 +521,23 @@ func TestPoisonedMilkEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "Poisoned Milk", Action: PoisonedMilkEvent{}}
-	ctx := CardEventContext{Engine: game, Card: eventCard}
+	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
 	if err != nil {
 		t.Fatalf("PoisonedMilkEvent failed: %v", err)
 	}
 
-	// P1 and P2 (tied for largest hand) should discard entire hand
-	if len(p1.Hand) != 0 || p1.Discard.Length() != 4 {
-		t.Errorf("expected P1 hand to be discarded, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
+	// P1 and P2 (tied for largest hand) should discard entire hand and refill up to 4
+	if len(p1.Hand) != 4 || p1.Discard.Length() != 4 {
+		t.Errorf("expected P1 hand to be discarded and refilled to 4, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
 	}
-	if len(p2.Hand) != 0 || p2.Discard.Length() != 4 {
-		t.Errorf("expected P2 hand to be discarded, got hand %d, discard %d", len(p2.Hand), p2.Discard.Length())
+	if len(p2.Hand) != 4 || p2.Discard.Length() != 4 {
+		t.Errorf("expected P2 hand to be discarded and refilled to 4, got hand %d, discard %d", len(p2.Hand), p2.Discard.Length())
 	}
-	// P3 (smaller hand) should keep their 2 cards
-	if len(p3.Hand) != 2 {
-		t.Errorf("expected P3 to keep hand of 2 cards, got %d", len(p3.Hand))
+	// P3 (smaller hand) should keep their 2 cards without discard
+	if len(p3.Hand) != 2 || p3.Discard.Length() != 0 {
+		t.Errorf("expected P3 to keep hand of 2 cards without discard, got hand %d, discard %d", len(p3.Hand), p3.Discard.Length())
 	}
 }
 
@@ -546,18 +558,18 @@ func TestAcidPolishEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "Acid Polish", Action: AcidPolishEvent{}}
-	ctx := CardEventContext{Engine: game, Card: eventCard}
+	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
 	if err != nil {
 		t.Fatalf("AcidPolishEvent failed: %v", err)
 	}
 
-	if len(p1.Hand) != 0 || p1.Discard.Length() != 2 {
-		t.Errorf("expected P1 (held Shield) to discard entire hand, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
+	if len(p1.Hand) != 5 || p1.Discard.Length() != 2 {
+		t.Errorf("expected P1 (held Shield) to discard entire hand and refill to 5, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
 	}
-	if len(p2.Hand) != 2 {
-		t.Errorf("expected P2 (no Shield) to keep hand, got %d", len(p2.Hand))
+	if len(p2.Hand) != 2 || p2.Discard.Length() != 0 {
+		t.Errorf("expected P2 (no Shield) to keep hand of 2, got hand %d, discard %d", len(p2.Hand), p2.Discard.Length())
 	}
 }
 
@@ -576,96 +588,111 @@ func TestWaxedFloorEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "Waxed Floor", Action: WaxedFloorEvent{}}
-	ctx := CardEventContext{Engine: game, Card: eventCard}
+	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
 	if err != nil {
 		t.Fatalf("WaxedFloorEvent failed: %v", err)
 	}
 
-	if len(p1.Hand) != 0 || p1.Discard.Length() != 6 {
-		t.Errorf("expected P1 (6 cards) to discard entire hand, got hand %d", len(p1.Hand))
+	if len(p1.Hand) != 5 || p1.Discard.Length() != 6 {
+		t.Errorf("expected P1 (6 cards) to discard entire hand and refill to 5, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
 	}
-	if len(p2.Hand) != 5 {
-		t.Errorf("expected P2 (5 cards) to keep hand, got %d", len(p2.Hand))
+	if len(p2.Hand) != 5 || p2.Discard.Length() != 0 {
+		t.Errorf("expected P2 (5 cards) to keep hand of 5, got hand %d, discard %d", len(p2.Hand), p2.Discard.Length())
 	}
 }
 
 func TestCorrosiveSpitEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
+	p2, _ := NewPlayer("P2", Ranger, true)
 	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
 	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
 
 	p1.Hand = []PlayerCard{shieldCard, swordCard}
+	p2.Hand = []PlayerCard{swordCard}
 
 	game := &Game{
-		Players:   []*Player{p1},
+		Players:   []*Player{p1, p2},
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
 
 	eventCard := &EventCard{Name: "Corrosive Spit", Action: CorrosiveSpitEvent{}}
-	ctx := CardEventContext{Engine: game, Card: eventCard}
+	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
 	if err != nil {
 		t.Fatalf("CorrosiveSpitEvent failed: %v", err)
 	}
 
-	if len(p1.Hand) != 1 || p1.Hand[0] != swordCard {
-		t.Errorf("expected P1 to keep only swordCard, got %v", p1.Hand)
+	if p1.Discard.Length() != 1 {
+		t.Errorf("expected P1 discard to have 1 card, got %d", p1.Discard.Length())
+	}
+	if len(p1.Hand) != 5 || !p1.HasCardInHand(swordCard) {
+		t.Errorf("expected P1 to keep swordCard and refill to 5, got %v", p1.Hand)
 	}
 }
 
 func TestEnsnaredEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Ranger, true)
+	p2, _ := NewPlayer("P2", Paladin, true)
 	jumpCard := &ResourceCard{Resources: []ResourceType{Jump}}
 	arrowCard := &ResourceCard{Resources: []ResourceType{Arrow}}
 
 	p1.Hand = []PlayerCard{jumpCard, arrowCard}
+	p2.Hand = []PlayerCard{arrowCard}
 
 	game := &Game{
-		Players:   []*Player{p1},
+		Players:   []*Player{p1, p2},
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
 
 	eventCard := &EventCard{Name: "Ensnared!", Action: EnsnaredEvent{}}
-	ctx := CardEventContext{Engine: game, Card: eventCard}
+	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
 	if err != nil {
 		t.Fatalf("EnsnaredEvent failed: %v", err)
 	}
 
-	if len(p1.Hand) != 1 || p1.Hand[0] != arrowCard {
-		t.Errorf("expected P1 to keep only arrowCard, got %v", p1.Hand)
+	if p1.Discard.Length() != 1 {
+		t.Errorf("expected P1 discard to have 1 card, got %d", p1.Discard.Length())
+	}
+	if len(p1.Hand) != 5 || !p1.HasCardInHand(arrowCard) {
+		t.Errorf("expected P1 to keep arrowCard and refill to 5, got %v", p1.Hand)
 	}
 }
 
 func TestMySwordsEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Barbarian, true)
+	p2, _ := NewPlayer("P2", Ranger, true)
 	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
 	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
 
 	p1.Hand = []PlayerCard{swordCard, shieldCard}
+	p2.Hand = []PlayerCard{shieldCard}
 
 	game := &Game{
-		Players:   []*Player{p1},
+		Players:   []*Player{p1, p2},
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
 
 	eventCard := &EventCard{Name: "My Swords!", Action: MySwordsEvent{}}
-	ctx := CardEventContext{Engine: game, Card: eventCard}
+	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
 	if err != nil {
 		t.Fatalf("MySwordsEvent failed: %v", err)
 	}
 
-	if len(p1.Hand) != 1 || p1.Hand[0] != shieldCard {
-		t.Errorf("expected P1 to keep only shieldCard, got %v", p1.Hand)
+	if p1.Discard.Length() != 1 {
+		t.Errorf("expected P1 discard to have 1 card, got %d", p1.Discard.Length())
+	}
+	if len(p1.Hand) != 5 || !p1.HasCardInHand(shieldCard) {
+		t.Errorf("expected P1 to keep shieldCard and refill to 5, got %v", p1.Hand)
 	}
 }
 
@@ -686,14 +713,14 @@ func TestFireBreathEvent(t *testing.T) {
 	eventCard := &EventCard{Name: "Fire Breath", Action: FireBreathEvent{}}
 	// Team chooses P1 to spare
 	interaction := &TeamChoicePlayerInteraction{
-		eventCard:        eventCard,
+		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p1, p2: p1},
 		OnComplete:       FireBreathEvent{}.Execute,
 	}
 
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 		Input:  interaction,
 	}
@@ -704,12 +731,12 @@ func TestFireBreathEvent(t *testing.T) {
 	}
 
 	// P1 spared -> keeps hand
-	if len(p1.Hand) != 2 {
-		t.Errorf("expected P1 to keep hand, got %d", len(p1.Hand))
+	if len(p1.Hand) != 2 || p1.Discard.Length() != 0 {
+		t.Errorf("expected P1 to keep hand of 2 without discard, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
 	}
-	// P2 not spared -> discards hand
-	if len(p2.Hand) != 0 || p2.Discard.Length() != 2 {
-		t.Errorf("expected P2 to discard entire hand, got hand %d", len(p2.Hand))
+	// P2 not spared -> discards hand and refills to 5
+	if len(p2.Hand) != 5 || p2.Discard.Length() != 2 {
+		t.Errorf("expected P2 to discard entire hand (2 cards) and refill to 5, got hand %d, discard %d", len(p2.Hand), p2.Discard.Length())
 	}
 }
 
@@ -730,14 +757,14 @@ func TestTailSwipeEvent(t *testing.T) {
 
 	eventCard := &EventCard{Name: "Tail Swipe", Action: TailSwipeEvent{}}
 	interaction := &PlayerDonatesHandInteraction{
-		eventCard:        eventCard,
+		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p2, p2: p1},
 		OnComplete:       TailSwipeEvent{}.Execute,
 	}
 
-	ctx := CardEventContext{
-		Engine: game,
+	ctx := &CardEventContext{
+		engine: game,
 		Card:   eventCard,
 		Input:  interaction,
 	}
@@ -770,15 +797,18 @@ func TestATwentySidedBoulderEvent(t *testing.T) {
 	}
 
 	eventCard := &EventCard{Name: "A 20-Sided Boulder", Action: ATwentySidedBoulderEvent{}}
-	ctx := CardEventContext{Engine: game, Card: eventCard}
+	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
 	if err != nil {
 		t.Fatalf("ATwentySidedBoulderEvent failed: %v", err)
 	}
 
-	if len(p1.Hand) != 0 || len(p2.Hand) != 0 {
-		t.Errorf("expected all hands to be discarded, got P1: %d, P2: %d", len(p1.Hand), len(p2.Hand))
+	if p1.Discard.Length() != 2 || len(p1.Hand) != 5 {
+		t.Errorf("expected P1 to discard 2 cards and refill to 5, got hand: %d, discard: %d", len(p1.Hand), p1.Discard.Length())
+	}
+	if p2.Discard.Length() != 1 || len(p2.Hand) != 5 {
+		t.Errorf("expected P2 to discard 1 card and refill to 5, got hand: %d, discard: %d", len(p2.Hand), p2.Discard.Length())
 	}
 }
 
@@ -806,7 +836,7 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
 	// Tick before 2 seconds elapsed -> event should NOT resolve yet
 	game.InGameTimer = time.Second * 1
@@ -828,9 +858,12 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 		t.Fatalf("tick after 2s failed: %v", err)
 	}
 
-	// Hands should be discarded
-	if len(p1.Hand) != 0 || len(p2.Hand) != 0 {
-		t.Errorf("expected hands to be discarded on resolution, got P1: %d, P2: %d", len(p1.Hand), len(p2.Hand))
+	// Hands should be discarded and refilled up to hand size (2)
+	if p1.Discard.Length() != 2 || len(p1.Hand) != 2 {
+		t.Errorf("expected P1 to discard 2 and refill to 2, got hand %d, discard %d", len(p1.Hand), p1.Discard.Length())
+	}
+	if p2.Discard.Length() != 1 || len(p2.Hand) != 2 {
+		t.Errorf("expected P2 to discard 1 and refill to 2, got hand %d, discard %d", len(p2.Hand), p2.Discard.Length())
 	}
 
 	// Event card defeated and next door opened
@@ -872,7 +905,7 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
 	// Advance timer to trigger prompt opening
 	game.InGameTimer = time.Second * 3
@@ -900,7 +933,7 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	}
 
 	// Player 1 submits choice (votes P1) -> partial submission
-	events, err = game.Apply(SubmitEventChoiceCmd{
+	events, err = game.Apply(SubmitPromptChoiceCmd{
 		Player:       p1,
 		TargetPlayer: p1,
 	})
@@ -916,7 +949,7 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	}
 
 	// Player 2 submits choice (votes P1) -> interaction finishes
-	events, err = game.Apply(SubmitEventChoiceCmd{
+	events, err = game.Apply(SubmitPromptChoiceCmd{
 		Player:       p2,
 		TargetPlayer: p1,
 	})
@@ -971,7 +1004,7 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
 	// Trigger prompt opening
 	game.InGameTimer = time.Second * 3
@@ -985,7 +1018,7 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 
 	// P1 submits invalid card (not in hand) -> rejected
 	notInHand := &ResourceCard{Resources: []ResourceType{Scroll}}
-	_, err = game.Apply(SubmitEventChoiceCmd{
+	_, err = game.Apply(SubmitPromptChoiceCmd{
 		Player: p1,
 		Cards:  []PlayerCard{notInHand},
 	})
@@ -994,7 +1027,7 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 	}
 
 	// P1 submits valid card (c1)
-	_, err = game.Apply(SubmitEventChoiceCmd{
+	_, err = game.Apply(SubmitPromptChoiceCmd{
 		Player: p1,
 		Cards:  []PlayerCard{c1},
 	})
@@ -1003,7 +1036,7 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 	}
 
 	// P2 submits valid card (c3)
-	_, err = game.Apply(SubmitEventChoiceCmd{
+	_, err = game.Apply(SubmitPromptChoiceCmd{
 		Player: p2,
 		Cards:  []PlayerCard{c3},
 	})
@@ -1051,7 +1084,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
 	// Trigger prompt
 	game.InGameTimer = time.Second * 3
@@ -1059,7 +1092,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 
 	res := Sword
 	// P1 votes Sword
-	_, err := game.Apply(SubmitEventChoiceCmd{
+	_, err := game.Apply(SubmitPromptChoiceCmd{
 		Player:   p1,
 		Resource: &res,
 	})
@@ -1068,7 +1101,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 	}
 
 	// P2 votes Sword -> finishes interaction
-	_, err = game.Apply(SubmitEventChoiceCmd{
+	_, err = game.Apply(SubmitPromptChoiceCmd{
 		Player:   p2,
 		Resource: &res,
 	})
@@ -1111,7 +1144,7 @@ func TestEventResolutionCycle_CanceledByCancelAction(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
 	// Before 2 seconds elapses, Wizard plays Cancel card
 	events, err := game.Apply(PlayCardCmd{Player: wizard, Card: cancelCard})
@@ -1155,7 +1188,7 @@ func TestEventResolutionCycle_RunnerIntegration(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
 	runner := NewRunner(game)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1186,11 +1219,11 @@ func TestEventResolutionCycle_RunnerIntegration(t *testing.T) {
 	}
 
 	// Submit event choices through Runner
-	err := runner.SubmitEventChoice(ctx, p1, p2, nil, nil) // P1 votes P2
+	err := runner.SubmitPromptChoice(ctx, p1, p2, nil, nil) // P1 votes P2
 	if err != nil {
 		t.Fatalf("P1 SubmitEventChoice failed: %v", err)
 	}
-	err = runner.SubmitEventChoice(ctx, p2, p2, nil, nil) // P2 votes P2
+	err = runner.SubmitPromptChoice(ctx, p2, p2, nil, nil) // P2 votes P2
 	if err != nil {
 		t.Fatalf("P2 SubmitEventChoice failed: %v", err)
 	}
@@ -1239,7 +1272,7 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
 	// Tick after 2s triggers event resolution -> runs Init() which draws 3 cards per player
 	game.InGameTimer = 3 * time.Second
@@ -1273,7 +1306,7 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 
 	// Discard choices submitted
 	p1CardsToDiscard := slices.Clone(p1.Hand)
-	_, err = game.Apply(SubmitEventChoiceCmd{
+	_, err = game.Apply(SubmitPromptChoiceCmd{
 		Player: p1,
 		Cards:  p1CardsToDiscard,
 	})
@@ -1282,7 +1315,7 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 	}
 
 	p2CardsToDiscard := slices.Clone(p2.Hand)
-	events, err = game.Apply(SubmitEventChoiceCmd{
+	events, err = game.Apply(SubmitPromptChoiceCmd{
 		Player: p2,
 		Cards:  p2CardsToDiscard,
 	})

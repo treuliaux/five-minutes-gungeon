@@ -40,12 +40,12 @@ func smartTargeting[T any](source any, candidates []T) (T, error) {
 	}
 }
 
-func smartTwoPlayersTargeting(ctx CardActionContext, targets []*Player) ([]*Player, error) {
+func smartTwoPlayersTargeting(ctx *CardActionContext, targets []*Player) ([]*Player, error) {
 	if len(targets) > 2 {
 		return nil, fmt.Errorf("cannot target more than 2 players")
 	}
 	if len(targets) == 0 {
-		candidates := ctx.Engine.ListPlayers()
+		candidates := ctx.Engine().ListPlayers()
 		switch len(candidates) {
 		case 0:
 			return nil, fmt.Errorf("no valid target player")

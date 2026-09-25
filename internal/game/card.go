@@ -107,8 +107,9 @@ func (mc *MiniBossCard) Require() []ResourceType {
 type CurseCard struct {
 	Type   ChallengeKind
 	Name   string
-	Effect CurseEffect
-	Cure   CurseEffect
+	Apply  CurseHook
+	Cure   CurseHook
+	Effect GameCurseEffect
 }
 
 func (cc *CurseCard) isDungeonCard() {}

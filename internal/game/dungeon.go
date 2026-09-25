@@ -3,7 +3,6 @@ package game
 import (
 	"math/rand/v2"
 	"slices"
-	"time"
 )
 
 type Dungeon struct {
@@ -116,11 +115,11 @@ func BossList() [7]*BossMat {
 			Resources: []ResourceType{Sword, Sword, Arrow, Arrow, Jump, Jump, Jump},
 			DeckSize:  20,
 			SpecialAbilities: []DungeonCard{
-				&EventCard{Type: ChallengeEvent, Name: "Poisoned Milk"},
-				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blanket"},
-				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blocks"},
-				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blocks"},
-				&CurseCard{Type: ChallengeCurse, Name: "Rattle of Time"},
+				&EventCard{Type: ChallengeEvent, Name: "Poisoned Milk", Action: &PoisonedMilkEvent{}, Extension: true},
+				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blanket", Effect: PlayersCanOnlyUseOneHandToPlay},
+				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blocks", Effect: HandSizeLimitedToThree},
+				&CurseCard{Type: ChallengeCurse, Name: "Cursed Blocks", Effect: HandSizeLimitedToThree},
+				&CurseCard{Type: ChallengeCurse, Name: "Rattle of Time", Effect: TimeCannotBeStopped},
 			},
 		},
 		{
@@ -128,11 +127,11 @@ func BossList() [7]*BossMat {
 			Resources: []ResourceType{Scroll, Scroll, Scroll, Scroll, Scroll, Scroll, Scroll, Shield, Shield, Shield},
 			DeckSize:  25,
 			SpecialAbilities: []DungeonCard{
-				&EventCard{Type: ChallengeEvent, Name: "Acid Polish"},
-				&EventCard{Type: ChallengeEvent, Name: "Waxed Floor"},
-				&MiniBossCard{Type: ChallengeMiniBoss, Name: "Reaper Jr.", Resources: []ResourceType{Sword, Sword, Jump, Arrow, Arrow, Arrow}, Extension: true},
-				&CurseCard{Type: ChallengeCurse, Name: "Waffles Waffles !"},
-				&CurseCard{Type: ChallengeCurse, Name: "Waffles Waffles !"},
+				&EventCard{Type: ChallengeEvent, Name: "Acid Polish", Action: &AcidPolishEvent{}},
+				&EventCard{Type: ChallengeEvent, Name: "Waxed Floor", Action: &WaxedFloorEvent{}},
+				&MiniBossCard{Type: ChallengeMiniBoss, Name: "Reaper Jr.", Resources: []ResourceType{Sword, Sword, Jump, Arrow, Arrow, Arrow}},
+				&CurseCard{Type: ChallengeCurse, Name: "Waffles Waffles !", Effect: PlayersMustOnlySayWaffles},
+				&CurseCard{Type: ChallengeCurse, Name: "Waffles Waffles !", Effect: PlayersMustOnlySayWaffles},
 			},
 		},
 		{
@@ -140,11 +139,26 @@ func BossList() [7]*BossMat {
 			Resources: []ResourceType{Sword, Sword, Sword, Sword, Shield, Shield, Shield, Jump, Jump, Jump},
 			DeckSize:  30,
 			SpecialAbilities: []DungeonCard{
-				&EventCard{Type: ChallengeEvent, Name: "Corrosive Spit"},
-				&EventCard{Type: ChallengeEvent, Name: "Ensnared!"},
-				&EventCard{Type: ChallengeEvent, Name: "My Swords!"},
-				&CurseCard{Type: ChallengeCurse, Name: "Cursed Cosplayers"},
-				&CurseCard{Type: ChallengeCurse, Name: "Gorgon's Gaze"},
+				&EventCard{Type: ChallengeEvent, Name: "Corrosive Spit", Action: &CorrosiveSpitEvent{}},
+				&EventCard{Type: ChallengeEvent, Name: "Ensnared!", Action: &EnsnaredEvent{}},
+				&EventCard{Type: ChallengeEvent, Name: "My Swords!", Action: &MySwordsEvent{}},
+				&CurseCard{Type: ChallengeCurse, Name: "Cursed Cosplayers", Effect: FlippedHeroMat,
+					Apply: func(ctx Context) ([]Event, error) {
+						var events []Event
+						for _, p := range ctx.Engine().ListPlayers() {
+							events = append(events, p.FlipHeroMat()...)
+						}
+						return events, nil
+					},
+					Cure: func(ctx Context) ([]Event, error) {
+						var events []Event
+						for _, p := range ctx.Engine().ListPlayers() {
+							events = append(events, p.FlipHeroMat()...)
+						}
+						return events, nil
+					},
+				},
+				&CurseCard{Type: ChallengeCurse, Name: "Gorgon's Gaze", Effect: AbilitiesCannotBePlayed},
 			},
 		},
 		{
@@ -152,11 +166,11 @@ func BossList() [7]*BossMat {
 			Resources: []ResourceType{Sword, Arrow, Arrow, Arrow, Arrow, Jump, Jump, Jump, Jump, Shield},
 			DeckSize:  35,
 			SpecialAbilities: []DungeonCard{
-				&EventCard{Type: ChallengeEvent, Name: "Fire Breath"},
-				&EventCard{Type: ChallengeEvent, Name: "Tail Swipe"},
-				&EventCard{Type: ChallengeEvent, Name: "Tail Swipe"},
-				&CurseCard{Type: ChallengeCurse, Name: "Blinding Light"},
-				&CurseCard{Type: ChallengeCurse, Name: "Endless Ambush"},
+				&EventCard{Type: ChallengeEvent, Name: "Fire Breath", Action: &FireBreathEvent{}},
+				&EventCard{Type: ChallengeEvent, Name: "Tail Swipe", Action: &TailSwipeEvent{}},
+				&EventCard{Type: ChallengeEvent, Name: "Tail Swipe", Action: &TailSwipeEvent{}},
+				&CurseCard{Type: ChallengeCurse, Name: "Blinding Light", Effect: HandsHidden},
+				&CurseCard{Type: ChallengeCurse, Name: "Endless Ambush", Effect: DoorsOpenInPairs},
 			},
 		},
 		{
@@ -164,11 +178,11 @@ func BossList() [7]*BossMat {
 			Resources: []ResourceType{Sword, Sword, Sword, Arrow, Arrow, Arrow, Shield, Shield, Shield, Scroll, Scroll, Scroll},
 			DeckSize:  40,
 			SpecialAbilities: []DungeonCard{
-				&EventCard{Type: ChallengeEvent, Name: "A 20-Sided Boulder"},
+				&EventCard{Type: ChallengeEvent, Name: "A 20-Sided Boulder", Action: &ATwentySidedBoulderEvent{}},
 				&MiniBossCard{Type: ChallengeMiniBoss, Name: "\"Dungeon Master\"", Resources: []ResourceType{Jump, Jump, Shield, Shield, Shield}, Extension: true},
 				&MiniBossCard{Type: ChallengeMiniBoss, Name: "The Necro-Nom-Icon", Resources: []ResourceType{Scroll, Scroll, Scroll, Scroll, Scroll}, Extension: true},
-				&CurseCard{Type: ChallengeCurse, Name: "Clock Blocked"},
-				&CurseCard{Type: ChallengeCurse, Name: "Sheepified!"},
+				&CurseCard{Type: ChallengeCurse, Name: "Clock Blocked", Effect: TimeCannotBeStopped},
+				&CurseCard{Type: ChallengeCurse, Name: "Sheepified!", Effect: ActionsCannotBePlayed},
 			},
 		},
 		{
@@ -183,11 +197,17 @@ func BossList() [7]*BossMat {
 			DeckSize:             20,
 			AdditionalChallenges: 10,
 			SpecialAbilities: []DungeonCard{
-				&CurseCard{Type: ChallengeCurse, Name: "A Boot-Alion of Kittens"},
-				&CurseCard{Type: ChallengeCurse, Name: "Conga-Rats!"},
-				&CurseCard{Type: ChallengeCurse, Name: "Feeding the Trolls"},
-				&CurseCard{Type: ChallengeCurse, Name: "House Rules!"},
-				&CurseCard{Type: ChallengeCurse, Name: "The Early Bird"},
+				&CurseCard{Type: ChallengeCurse, Name: "A Boot-Alion of Kittens", Effect: PlayersMustOnlySayMeow},
+				&CurseCard{Type: ChallengeCurse, Name: "Conga-Rats!", Effect: ThreeDiscardsWhenTimeStops,
+					Cure: func(ctx Context) ([]Event, error) {
+						ctx.Engine().ClearStopTimeCurse()
+
+						return nil, nil
+					},
+				},
+				&EventCard{Type: ChallengeEvent, Name: "Feeding the Trolls"},
+				&CurseCard{Type: ChallengeCurse, Name: "House Rules!", Effect: PlayersHandFacingAway},
+				&EventCard{Type: ChallengeEvent, Name: "The Early Bird"},
 			},
 		},
 	}
@@ -536,81 +556,70 @@ func DungeonChallengeCards() []DungeonCard {
 			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Yet More Spikes!",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "Yet More Spikes!",
+			Action:    &YetMoreSpikesEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Gimme a Hand!",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "Gimme a Hand!",
+			Action:    &GimmeAHandEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Sudden Illness",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "Sudden Illness",
+			Action:    &SuddenIllnessEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "A Boo-Boo",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "A Boo-Boo",
+			Action:    &ABooBooEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Dungeon Error in Your Favor",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "Dungeon Error in Your Favor",
+			Action:    &DungeonErrorInYourFavorEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "An Ungodly Amount of Porcupines",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "An Ungodly Amount of Porcupines",
+			Action:    &AnUngodlyAmountOfPorcupinesEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Locked Door!",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "Locked Door!",
+			Action:    &LockedDoorEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Confusion",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "Confusion",
+			Action:    &ConfusionEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Ambush!",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "Ambush!",
+			Action:    &AmbushEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Trap Door",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  false,
+			Type:      ChallengeEvent,
+			Name:      "Trap Door",
+			Action:    &TrapDoorEvent{},
+			Extension: false,
 		},
 		&EventCard{
-			Type:       ChallengeEvent,
-			Name:       "Crowd Funding",
-			Action:     nil,
-			OpenedTime: 2 * 5 * time.Minute,
-			Extension:  true,
+			Type:      ChallengeEvent,
+			Name:      "Crowd Funding",
+			Action:    &CrowdFundingEvent{},
+			Extension: true,
 		},
 		&MiniBossCard{
 			Type:      ChallengeMiniBoss,

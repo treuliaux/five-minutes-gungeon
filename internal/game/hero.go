@@ -28,35 +28,35 @@ type Hero struct {
 func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
 	switch class {
 	case Sorceress:
-		return newSorceress(), nil
+		return NewSorceress(), nil
 	case Wizard:
-		return newWizard(), nil
+		return NewWizard(), nil
 	case Huntress:
-		return newHuntress(), nil
+		return NewHuntress(), nil
 	case Ranger:
-		return newRanger(), nil
+		return NewRanger(), nil
 	case Ninja:
-		return newNinja(), nil
+		return NewNinja(), nil
 	case Thief:
-		return newThief(), nil
+		return NewThief(), nil
 	case Paladin:
-		return newPaladin(), nil
+		return NewPaladin(), nil
 	case Valkyrie:
-		return newValkyrie(), nil
+		return NewValkyrie(), nil
 	case Barbarian:
-		return newBarbarian(), nil
+		return NewBarbarian(), nil
 	case Gladiator:
-		return newGladiator(), nil
+		return NewGladiator(), nil
 	case Druid:
-		return newDruid(), nil
+		return NewDruid(), nil
 	case Shaman:
-		return newShaman(), nil
+		return NewShaman(), nil
 	default:
 		return nil, fmt.Errorf("unknown hero class: %d", class)
 	}
 }
 
-func newSorceress() *Hero {
+func NewSorceress() *Hero {
 	return &Hero{
 		Color: Blue,
 		Class: Sorceress,
@@ -64,7 +64,7 @@ func newSorceress() *Hero {
 	}
 }
 
-func newWizard() *Hero {
+func NewWizard() *Hero {
 	return &Hero{
 		Color: Blue,
 		Class: Wizard,
@@ -72,7 +72,7 @@ func newWizard() *Hero {
 	}
 }
 
-func newHuntress() *Hero {
+func NewHuntress() *Hero {
 	return &Hero{
 		Color: Green,
 		Class: Huntress,
@@ -80,7 +80,7 @@ func newHuntress() *Hero {
 	}
 }
 
-func newRanger() *Hero {
+func NewRanger() *Hero {
 	return &Hero{
 		Color: Green,
 		Class: Ranger,
@@ -88,7 +88,7 @@ func newRanger() *Hero {
 	}
 }
 
-func newNinja() *Hero {
+func NewNinja() *Hero {
 	return &Hero{
 		Color: Purple,
 		Class: Ninja,
@@ -96,7 +96,7 @@ func newNinja() *Hero {
 	}
 }
 
-func newThief() *Hero {
+func NewThief() *Hero {
 	return &Hero{
 		Color: Purple,
 		Class: Thief,
@@ -104,7 +104,7 @@ func newThief() *Hero {
 	}
 }
 
-func newPaladin() *Hero {
+func NewPaladin() *Hero {
 	return &Hero{
 		Color: Yellow,
 		Class: Paladin,
@@ -112,7 +112,7 @@ func newPaladin() *Hero {
 	}
 }
 
-func newValkyrie() *Hero {
+func NewValkyrie() *Hero {
 	return &Hero{
 		Color: Yellow,
 		Class: Valkyrie,
@@ -120,7 +120,7 @@ func newValkyrie() *Hero {
 	}
 }
 
-func newBarbarian() *Hero {
+func NewBarbarian() *Hero {
 	return &Hero{
 		Color: Red,
 		Class: Barbarian,
@@ -128,7 +128,7 @@ func newBarbarian() *Hero {
 	}
 }
 
-func newGladiator() *Hero {
+func NewGladiator() *Hero {
 	return &Hero{
 		Color: Red,
 		Class: Gladiator,
@@ -136,7 +136,7 @@ func newGladiator() *Hero {
 	}
 }
 
-func newDruid() *Hero {
+func NewDruid() *Hero {
 	return &Hero{
 		Color: Black,
 		Class: Druid,
@@ -144,7 +144,7 @@ func newDruid() *Hero {
 	}
 }
 
-func newShaman() *Hero {
+func NewShaman() *Hero {
 	return &Hero{
 		Color: Black,
 		Class: Shaman,
@@ -187,4 +187,35 @@ func (h *Hero) NewBaseDeck() *Deck {
 	}
 
 	return nil
+}
+
+func (h *Hero) Flip() *Hero {
+	switch h.Class {
+	case Sorceress:
+		return NewWizard()
+	case Wizard:
+		return NewSorceress()
+	case Huntress:
+		return NewRanger()
+	case Ranger:
+		return NewHuntress()
+	case Ninja:
+		return NewThief()
+	case Thief:
+		return NewNinja()
+	case Paladin:
+		return NewValkyrie()
+	case Valkyrie:
+		return NewPaladin()
+	case Barbarian:
+		return NewGladiator()
+	case Gladiator:
+		return NewBarbarian()
+	case Druid:
+		return NewShaman()
+	case Shaman:
+		return NewDruid()
+	}
+
+	panic("unreachable")
 }

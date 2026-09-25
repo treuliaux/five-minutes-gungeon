@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 )
@@ -9,32 +10,31 @@ import (
 const tickDuration = time.Second / 20
 
 type Runner struct {
-	game         *Game
-	cmd          chan Command
-	ticker       *time.Ticker
-	subscribers  []chan Event
-	subLock      sync.RWMutex
-	canSubscribe bool
+	game              *Game
+	cmd               chan Command
+	done              chan struct{}
+	ticker            *time.Ticker
+	subscribers       []*Subscriber
+	subscriptionsLock sync.RWMutex
+	canSubscribe      bool
 }
 
 func NewRunner(game *Game) *Runner {
 	return &Runner{
 		game:         game,
 		cmd:          make(chan Command, 64),
+		done:         make(chan struct{}),
 		canSubscribe: true,
 	}
 }
 
 func (r *Runner) Run(ctx context.Context) error {
 	r.ticker = time.NewTicker(tickDuration)
-	defer r.ticker.Stop()
 	defer func() {
-		r.subLock.Lock()
-		defer r.subLock.Unlock()
-
-		for _, sub := range r.subscribers {
-			close(sub)
-		}
+		close(r.done)
+		r.drainCommandsChanel()
+		r.closeAndClearSubscribers()
+		r.ticker.Stop()
 	}()
 
 	var events []Event
@@ -45,9 +45,9 @@ func (r *Runner) Run(ctx context.Context) error {
 		case <-r.ticker.C:
 			events, _ = r.game.Tick(tickDuration)
 		case <-ctx.Done():
-			r.subLock.Lock()
+			r.subscriptionsLock.Lock()
 			r.canSubscribe = false
-			r.subLock.Unlock()
+			r.subscriptionsLock.Unlock()
 
 			return ctx.Err()
 		}
@@ -55,9 +55,9 @@ func (r *Runner) Run(ctx context.Context) error {
 			r.broadcast(event)
 		}
 		if r.game.Status == Victory || r.game.Status == Defeat {
-			r.subLock.Lock()
+			r.subscriptionsLock.Lock()
 			r.canSubscribe = false
-			r.subLock.Unlock()
+			r.subscriptionsLock.Unlock()
 
 			return nil
 		}
@@ -65,27 +65,32 @@ func (r *Runner) Run(ctx context.Context) error {
 }
 
 func (r *Runner) Subscribe() <-chan Event {
-	r.subLock.Lock()
-	defer r.subLock.Unlock()
+	r.subscriptionsLock.Lock()
+	defer r.subscriptionsLock.Unlock()
 
-	sub := make(chan Event, 64)
+	sub := NewSubscriber()
 	if !r.canSubscribe {
-		close(sub)
+		sub.CloseImmediately()
 
-		return sub
+		return sub.Out
 	}
 	r.subscribers = append(r.subscribers, sub)
 
-	return sub
+	return sub.Out
 }
 
 func (r *Runner) Unsubscribe(sub <-chan Event) {
-	r.subLock.Lock()
-	defer r.subLock.Unlock()
+	r.subscriptionsLock.Lock()
+	defer r.subscriptionsLock.Unlock()
 
 	for i, s := range r.subscribers {
-		if s == sub {
+		if s.Out == sub {
+			s.CloseImmediately()
+			r.subscribers[i] = nil
 			r.subscribers = append(r.subscribers[:i], r.subscribers[i+1:]...)
+			if len(r.subscribers) == 0 {
+				r.subscribers = nil
+			}
 
 			return
 		}
@@ -113,9 +118,9 @@ func (r *Runner) PlayCard(ctx context.Context, p *Player, c PlayerCard) error {
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }
 
-func (r *Runner) DiscardCard(ctx context.Context, p *Player, c PlayerCard) error {
+func (r *Runner) DiscardCard(ctx context.Context, p *Player, c []PlayerCard) error {
 	reply := make(chan error, 1)
-	cmd := DiscardCardCmd{Player: p, Card: c, reply: reply}
+	cmd := DiscardCardsCmd{Player: p, Cards: c, reply: reply}
 
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }
@@ -127,9 +132,9 @@ func (r *Runner) UseHeroAbility(ctx context.Context, p *Player, discards []Playe
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }
 
-func (r *Runner) SubmitEventChoice(ctx context.Context, p *Player, target *Player, cards []PlayerCard, res *ResourceType) error {
+func (r *Runner) SubmitPromptChoice(ctx context.Context, p *Player, target *Player, cards []PlayerCard, res *ResourceType) error {
 	reply := make(chan error, 1)
-	cmd := SubmitEventChoiceCmd{
+	cmd := SubmitPromptChoiceCmd{
 		Player:       p,
 		TargetPlayer: target,
 		Cards:        cards,
@@ -154,28 +159,64 @@ func (r *Runner) UseArtifact(ctx context.Context, p *Player, artifact *ArtifactC
 }
 
 func (r *Runner) broadcast(event Event) {
-	r.subLock.RLock()
-	for _, sub := range r.subscribers {
-		select {
-		case sub <- event:
-		default:
-			// Buffer full: drop non-critical event, log warning, or disconnect slow consumer
-		}
+	r.subscriptionsLock.RLock()
+	defer r.subscriptionsLock.RUnlock()
+	for _, sub := range slices.Clone(r.subscribers) {
+		sub.In <- event
 	}
-	r.subLock.RUnlock()
 }
 
-// Waiting for channels' processing won't block if the runner (or context) has ended.
-func guardedCmdCallAndReply(ctx context.Context, r *Runner, cmd Command, reply chan error) error {
+func guardedCmdCallAndReply(ctx context.Context, r *Runner, command Command, reply chan error) error {
 	select {
-	case r.cmd <- cmd:
+	case <-r.done:
+		return &GameTerminatedError{Command: command}
+	default:
+	}
+
+	select {
+	case r.cmd <- command:
+	case <-r.done:
+		return &GameTerminatedError{Command: command}
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+
 	select {
 	case err := <-reply:
 		return err
+	case <-r.done:
+		return &GameTerminatedError{Command: command}
 	case <-ctx.Done():
 		return ctx.Err()
+	}
+}
+
+func (r *Runner) closeAndClearSubscribers() {
+	r.subscriptionsLock.Lock()
+	defer r.subscriptionsLock.Unlock()
+
+	var wg sync.WaitGroup
+	for _, sub := range r.subscribers {
+		sub.CloseGracefully()
+		wg.Add(1)
+		go func(s *Subscriber) {
+			defer wg.Done()
+			<-s.Done
+		}(sub)
+	}
+	wg.Wait()
+	r.subscribers = nil
+}
+
+func (r *Runner) drainCommandsChanel() {
+	for {
+		select {
+		case cmd := <-r.cmd:
+			if cmd.Reply() != nil {
+				cmd.Reply() <- &GameTerminatedError{Command: cmd}
+			}
+		default:
+			return
+		}
 	}
 }

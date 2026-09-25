@@ -30,7 +30,7 @@ func TestActionCardHolyHandGrenade(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, 0)
+	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
 
 	// 1. Play HHG auto-targets the single active door
 	events, err := game.Apply(PlayCardCmd{Player: paladin, Card: hhgCard})
@@ -232,9 +232,10 @@ func TestActionCardMysticRune(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(&CurseCard{
-		Type: ChallengeCurse,
-		Name: "Tourbillon de Wazaa",
-	}, 0)
+		Type:   ChallengeCurse,
+		Name:   "Tourbillon de Wazaa",
+		Effect: TimeCannotBeStopped,
+	}, game)
 
 	events, err := game.Apply(PlayCardCmd{Player: p1, Card: runeCard})
 	if err != nil {
@@ -336,7 +337,7 @@ func TestActionCardFailedPlayKeepsCardInHand(t *testing.T) {
 		},
 		Status: Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, 0)
+	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
 
 	// Snipe should fail because no Person door is active
 	_, err := game.Apply(PlayCardCmd{Player: ranger, Card: snipeCard})
@@ -380,7 +381,7 @@ func TestActionCardPersistsOnPlayfieldUntilRoomCleared(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, 0)
+	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
 
 	// 1. Play Heal Action: door is NOT defeated yet, healCard must be on playfield
 	_, err := game.Apply(PlayCardCmd{Player: p1, Card: healCard})
@@ -455,7 +456,7 @@ func TestActionCardTimeWarp(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, 0)
+	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
 
 	events, err := game.Apply(PlayCardCmd{Player: wizard, Card: timeWarpCard})
 	if err != nil {
@@ -499,7 +500,7 @@ func TestActionCardSnipeAndDefeatDoorKinds(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(personDoor, 0)
+	_, _ = game.PlayField.AddDungeonCard(personDoor, game)
 
 	events, err := game.Apply(PlayCardCmd{Player: ranger, Card: snipeCard})
 	if err != nil {
@@ -579,7 +580,7 @@ func TestActionCardWildCard(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(door, 0)
+	_, _ = game.PlayField.AddDungeonCard(door, game)
 
 	events, err := game.Apply(PlayCardCmd{Player: ranger, Card: wildCard})
 	if err != nil {
@@ -625,7 +626,7 @@ func TestActionCardMagicBomb(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(door, 0)
+	_, _ = game.PlayField.AddDungeonCard(door, game)
 
 	_, err := game.Apply(PlayCardCmd{Player: wizard, Card: magicBombCard})
 	if err != nil {
@@ -661,7 +662,7 @@ func TestActionCardThrowingKnives(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(door, 0)
+	_, _ = game.PlayField.AddDungeonCard(door, game)
 
 	_, err := game.Apply(PlayCardCmd{Player: ninja, Card: knivesCard})
 	if err != nil {
@@ -709,7 +710,7 @@ func TestActionCardMonsterDefeatActions(t *testing.T) {
 				PlayField: NewPlayfield(),
 				Status:    Playing,
 			}
-			_, _ = game.PlayField.AddDungeonCard(monsterDoor, 0)
+			_, _ = game.PlayField.AddDungeonCard(monsterDoor, game)
 
 			_, err := game.Apply(PlayCardCmd{Player: player, Card: card})
 			if err != nil {
@@ -750,7 +751,7 @@ func TestActionCardObstacleDefeatActions(t *testing.T) {
 				PlayField: NewPlayfield(),
 				Status:    Playing,
 			}
-			_, _ = game.PlayField.AddDungeonCard(obstacleDoor, 0)
+			_, _ = game.PlayField.AddDungeonCard(obstacleDoor, game)
 
 			_, err := game.Apply(PlayCardCmd{Player: player, Card: card})
 			if err != nil {
@@ -791,7 +792,7 @@ func TestActionCardPersonDefeatActions(t *testing.T) {
 				PlayField: NewPlayfield(),
 				Status:    Playing,
 			}
-			_, _ = game.PlayField.AddDungeonCard(personDoor, 0)
+			_, _ = game.PlayField.AddDungeonCard(personDoor, game)
 
 			_, err := game.Apply(PlayCardCmd{Player: player, Card: card})
 			if err != nil {
@@ -830,7 +831,7 @@ func TestActionCardMiniBossDefeatActions(t *testing.T) {
 				PlayField: NewPlayfield(),
 				Status:    Playing,
 			}
-			_, _ = game.PlayField.AddDungeonCard(miniBoss, 0)
+			_, _ = game.PlayField.AddDungeonCard(miniBoss, game)
 
 			_, err := game.Apply(PlayCardCmd{Player: barbarian, Card: card})
 			if err != nil {
@@ -860,7 +861,7 @@ func TestActionCardCancelEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventDoor, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventDoor, game)
 
 	_, err := game.Apply(PlayCardCmd{Player: wizard, Card: cancelCard})
 	if err != nil {
@@ -1023,7 +1024,11 @@ func TestActionCardBattleRage(t *testing.T) {
 	barbarian.Hand = []PlayerCard{battleRageCard}
 	barbarian.Deck = &Deck{Cards: []PlayerCard{drawCard}}
 
-	curse := &CurseCard{Name: "Curse of Doom", Type: ChallengeCurse}
+	curse := &CurseCard{
+		Type:   ChallengeCurse,
+		Name:   "Curse of Doom",
+		Effect: AbilitiesCannotBePlayed,
+	}
 	nextDoor := &DoorCard{Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
@@ -1033,7 +1038,7 @@ func TestActionCardBattleRage(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, 0)
+	_, _ = game.PlayField.AddDungeonCard(curse, game)
 
 	_, err := game.Apply(PlayCardCmd{Player: barbarian, Card: battleRageCard})
 	if err != nil {
@@ -1052,7 +1057,11 @@ func TestActionCardCleanse(t *testing.T) {
 	paladin.Hand = []PlayerCard{cleanseCard}
 	paladin.Deck = &Deck{Cards: []PlayerCard{drawCard}}
 
-	curse := &CurseCard{Name: "Curse of Weakness", Type: ChallengeCurse}
+	curse := &CurseCard{
+		Type:   ChallengeCurse,
+		Name:   "Curse of Weakness",
+		Effect: AbilitiesCannotBePlayed,
+	}
 	nextDoor := &DoorCard{Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
@@ -1062,7 +1071,7 @@ func TestActionCardCleanse(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, 0)
+	_, _ = game.PlayField.AddDungeonCard(curse, game)
 
 	_, err := game.Apply(PlayCardCmd{Player: paladin, Card: cleanseCard})
 	if err != nil {
@@ -1096,7 +1105,7 @@ func TestActionCardPortal(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
-	_, _ = game.PlayField.AddDungeonCard(door1, 0)
+	_, _ = game.PlayField.AddDungeonCard(door1, game)
 
 	_, err := game.Apply(PlayCardCmd{Player: wizard, Card: portalCard})
 	if err != nil {

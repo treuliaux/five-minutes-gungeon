@@ -7,26 +7,20 @@ import (
 
 type EventAction interface {
 	isCardEvent()
-	Execute(ctx CardEventContext) ([]Event, error)
-	Interaction(ctx CardEventContext) PendingInteraction
-}
-
-type CardEventContext struct {
-	Engine GameEngine
-	Card   *EventCard
-	Input  PendingInteraction
+	Execute(ctx Context) ([]Event, error)
+	Interaction(ctx *CardEventContext) PendingInteraction
 }
 
 type AmbushEvent struct {
 }
 
 func (AmbushEvent) isCardEvent() {}
-func (e AmbushEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	events, err := ctx.Engine.OpenDoor()
+func (e AmbushEvent) Execute(ctx Context) ([]Event, error) {
+	events, err := ctx.Engine().OpenDoor()
 	if err != nil {
 		return events, err
 	}
-	secondDoorEvents, err := ctx.Engine.OpenDoor()
+	secondDoorEvents, err := ctx.Engine().OpenDoor()
 	events = append(events, secondDoorEvents...)
 	if err != nil {
 		return events, err
@@ -34,7 +28,7 @@ func (e AmbushEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e AmbushEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e AmbushEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -42,10 +36,10 @@ type DungeonErrorInYourFavorEvent struct {
 }
 
 func (DungeonErrorInYourFavorEvent) isCardEvent() {}
-func (e DungeonErrorInYourFavorEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e DungeonErrorInYourFavorEvent) Execute(ctx Context) ([]Event, error) {
 	var events []Event
 
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		drawEvents, err := p.DrawCardsFromDeck(5)
 		events = append(events, drawEvents...)
 		if err != nil {
@@ -55,7 +49,7 @@ func (e DungeonErrorInYourFavorEvent) Execute(ctx CardEventContext) ([]Event, er
 
 	return events, nil
 }
-func (e DungeonErrorInYourFavorEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e DungeonErrorInYourFavorEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -63,12 +57,17 @@ type SuddenIllnessEvent struct {
 }
 
 func (SuddenIllnessEvent) isCardEvent() {}
-func (e SuddenIllnessEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e SuddenIllnessEvent) Execute(ctx Context) ([]Event, error) {
 	var events []Event
 
-	for _, p := range ctx.Engine.ListPlayers() {
-		drawEvents, err := p.DiscardCards(p.Hand)
-		events = append(events, drawEvents...)
+	for _, p := range ctx.Engine().ListPlayers() {
+		discardEvents, err := p.DiscardCards(p.Hand)
+		events = append(events, discardEvents...)
+		if err != nil {
+			return events, err
+		}
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
 		if err != nil {
 			return events, err
 		}
@@ -76,7 +75,7 @@ func (e SuddenIllnessEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e SuddenIllnessEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e SuddenIllnessEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -84,10 +83,15 @@ type CrowdFundingEvent struct {
 }
 
 func (CrowdFundingEvent) isCardEvent() {}
-func (e CrowdFundingEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e CrowdFundingEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
 	var events []Event
-	if ctx.Input != nil {
-		input, ok := ctx.Input.(*TeamChoiceArtifactInteraction)
+	if evtCtx.Input != nil {
+		input, ok := evtCtx.Input.(*TeamChoiceArtifactInteraction)
 		if !ok {
 			return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 		}
@@ -97,16 +101,21 @@ func (e CrowdFundingEvent) Execute(ctx CardEventContext) ([]Event, error) {
 			return nil, err
 		}
 
-		if !slices.Contains(ctx.Engine.ListArtifacts(), target) {
+		if !slices.Contains(ctx.Engine().ListArtifacts(), target) {
 			return nil, fmt.Errorf("artifact is not in play")
 		}
 		target.Used = false
 		events = append(events, ArtifactReEnabledEvent{Artifact: target})
 	}
 
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		discardEvents, err := p.DiscardCards(p.Hand)
 		events = append(events, discardEvents...)
+		if err != nil {
+			return events, err
+		}
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
 		if err != nil {
 			return events, err
 		}
@@ -114,16 +123,16 @@ func (e CrowdFundingEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e CrowdFundingEvent) Interaction(ctx CardEventContext) PendingInteraction {
-	artifacts := ctx.Engine.ListArtifacts()
+func (e CrowdFundingEvent) Interaction(ctx *CardEventContext) PendingInteraction {
+	artifacts := ctx.Engine().ListArtifacts()
 	if len(artifacts) == 0 {
 		return nil
 	}
 
 	return &TeamChoiceArtifactInteraction{
-		eventCard:        ctx.Card,
+		card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player]*ArtifactCard, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player]*ArtifactCard, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -132,8 +141,13 @@ type GimmeAHandEvent struct {
 }
 
 func (GimmeAHandEvent) isCardEvent() {}
-func (e GimmeAHandEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*TeamChoicePlayerInteraction)
+func (e GimmeAHandEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*TeamChoicePlayerInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
@@ -144,7 +158,7 @@ func (e GimmeAHandEvent) Execute(ctx CardEventContext) ([]Event, error) {
 	}
 
 	var events []Event
-	for _, p := range otherPlayers(ctx.Engine.ListPlayers(), target) {
+	for _, p := range otherPlayers(ctx.Engine().ListPlayers(), target) {
 		transferredCards := slices.Clone(p.Hand)
 		target.Hand = append(target.Hand, p.Hand...)
 		p.Hand = make([]PlayerCard, 0)
@@ -154,11 +168,11 @@ func (e GimmeAHandEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e GimmeAHandEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e GimmeAHandEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &TeamChoicePlayerInteraction{
-		eventCard:        ctx.Card,
+		card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -167,8 +181,13 @@ type YetMoreSpikesEvent struct {
 }
 
 func (YetMoreSpikesEvent) isCardEvent() {}
-func (e YetMoreSpikesEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*TeamChoicePlayerInteraction)
+func (e YetMoreSpikesEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*TeamChoicePlayerInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
@@ -182,14 +201,19 @@ func (e YetMoreSpikesEvent) Execute(ctx CardEventContext) ([]Event, error) {
 	if err != nil {
 		return events, err
 	}
+	refillEvents, err := ctx.Engine().RefillPlayerHand(target)
+	events = append(events, refillEvents...)
+	if err != nil {
+		return events, err
+	}
 
 	return events, nil
 }
-func (e YetMoreSpikesEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e YetMoreSpikesEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &TeamChoicePlayerInteraction{
-		eventCard:        ctx.Card,
+		card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -198,8 +222,13 @@ type ABooBooEvent struct {
 }
 
 func (ABooBooEvent) isCardEvent() {}
-func (e ABooBooEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*PlayerDiscardCardsInteraction)
+func (e ABooBooEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*PlayerDiscardCardsInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
@@ -211,17 +240,31 @@ func (e ABooBooEvent) Execute(ctx CardEventContext) ([]Event, error) {
 		if err != nil {
 			return events, err
 		}
-
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
+		if err != nil {
+			return events, err
+		}
 	}
 
 	return events, nil
 }
-func (e ABooBooEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e ABooBooEvent) Interaction(ctx *CardEventContext) PendingInteraction {
+	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
+	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
+	for _, p := range ctx.Engine().ListPlayers() {
+		pendingPlayers[p] = true
+		requiredCounts[p] = 1
+	}
+
+	if len(pendingPlayers) == 0 {
+		return nil
+	}
 	return &PlayerDiscardCardsInteraction{
-		eventCard:        ctx.Card,
-		requiredCount:    1,
+		card:             ctx.Card,
+		requiredCounts:   requiredCounts,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -230,8 +273,13 @@ type TrapDoorEvent struct {
 }
 
 func (TrapDoorEvent) isCardEvent() {}
-func (e TrapDoorEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*PlayerDiscardCardsInteraction)
+func (e TrapDoorEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*PlayerDiscardCardsInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
@@ -243,17 +291,32 @@ func (e TrapDoorEvent) Execute(ctx CardEventContext) ([]Event, error) {
 		if err != nil {
 			return events, err
 		}
-
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
+		if err != nil {
+			return events, err
+		}
 	}
 
 	return events, nil
 }
-func (e TrapDoorEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e TrapDoorEvent) Interaction(ctx *CardEventContext) PendingInteraction {
+	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
+	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
+	for _, p := range ctx.Engine().ListPlayers() {
+		pendingPlayers[p] = true
+		requiredCounts[p] = 3
+	}
+
+	if len(pendingPlayers) == 0 {
+		return nil
+	}
+
 	return &PlayerDiscardCardsInteraction{
-		eventCard:        ctx.Card,
-		requiredCount:    3,
-		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine.ListPlayers())),
+		card:             ctx.Card,
+		requiredCounts:   requiredCounts,
+		PendingPlayers:   pendingPlayers,
+		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -262,19 +325,24 @@ type ConfusionEvent struct {
 }
 
 func (ConfusionEvent) isCardEvent() {}
-func (e ConfusionEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*PlayerDonatesHandInteraction)
+func (e ConfusionEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*PlayerDonatesHandInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
 
 	return allPlayerDonateHands(input), nil
 }
-func (e ConfusionEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e ConfusionEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &PlayerDonatesHandInteraction{
-		eventCard:        ctx.Card,
+		card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -283,8 +351,13 @@ type LockedDoorEvent struct {
 }
 
 func (LockedDoorEvent) isCardEvent() {}
-func (e LockedDoorEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*TeamChoiceResourceInteraction)
+func (e LockedDoorEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*TeamChoiceResourceInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
@@ -295,7 +368,7 @@ func (e LockedDoorEvent) Execute(ctx CardEventContext) ([]Event, error) {
 	}
 
 	var events []Event
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		discardEvents, err := discardAllResourceCardsContaining(p, target)
 		events = append(events, discardEvents...)
 		if err != nil {
@@ -305,11 +378,11 @@ func (e LockedDoorEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e LockedDoorEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e LockedDoorEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &TeamChoiceResourceInteraction{
-		eventCard:        ctx.Card,
+		card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player]ResourceType, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player]ResourceType, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -318,8 +391,13 @@ type AnUngodlyAmountOfPorcupinesEvent struct {
 }
 
 func (AnUngodlyAmountOfPorcupinesEvent) isCardEvent() {}
-func (e AnUngodlyAmountOfPorcupinesEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*PlayerDiscardCardsInteraction)
+func (e AnUngodlyAmountOfPorcupinesEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*PlayerDiscardCardsInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
@@ -331,21 +409,36 @@ func (e AnUngodlyAmountOfPorcupinesEvent) Execute(ctx CardEventContext) ([]Event
 		if err != nil {
 			return events, err
 		}
-
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
+		if err != nil {
+			return events, err
+		}
 	}
 
 	return events, nil
 }
-func (e AnUngodlyAmountOfPorcupinesEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e AnUngodlyAmountOfPorcupinesEvent) Interaction(ctx *CardEventContext) PendingInteraction {
+	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
+	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
+	for _, p := range ctx.Engine().ListPlayers() {
+		pendingPlayers[p] = true
+		requiredCounts[p] = 3
+	}
+
+	if len(pendingPlayers) == 0 {
+		return nil
+	}
+
 	return &PlayerDiscardCardsInteraction{
-		eventCard:        ctx.Card,
-		requiredCount:    3,
+		card:             ctx.Card,
+		requiredCounts:   requiredCounts,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
-		init: func(ctx CardEventContext) ([]Event, error) {
+		init: func(ctx Context) ([]Event, error) {
 			var events []Event
-			for _, p := range ctx.Engine.ListPlayers() {
+			for _, p := range ctx.Engine().ListPlayers() {
 				drawCards, err := p.DrawCardsFromDeck(3)
 				events = append(events, drawCards...)
 				if err != nil {
@@ -362,10 +455,10 @@ type PoisonedMilkEvent struct {
 }
 
 func (PoisonedMilkEvent) isCardEvent() {}
-func (e PoisonedMilkEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e PoisonedMilkEvent) Execute(ctx Context) ([]Event, error) {
 	handSizes := make(map[int][]*Player, 6)
 	biggestHandSize := 0
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		handSizes[len(p.Hand)] = append(handSizes[len(p.Hand)], p)
 		biggestHandSize = max(len(p.Hand), biggestHandSize)
 	}
@@ -377,11 +470,16 @@ func (e PoisonedMilkEvent) Execute(ctx CardEventContext) ([]Event, error) {
 		if err != nil {
 			return events, err
 		}
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
+		if err != nil {
+			return events, err
+		}
 	}
 
 	return events, nil
 }
-func (e PoisonedMilkEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e PoisonedMilkEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -389,14 +487,19 @@ type AcidPolishEvent struct {
 }
 
 func (AcidPolishEvent) isCardEvent() {}
-func (e AcidPolishEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e AcidPolishEvent) Execute(ctx Context) ([]Event, error) {
 	var events []Event
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		for _, card := range slices.Clone(p.Hand) {
 			if c, ok := card.(*ResourceCard); ok {
 				if slices.Contains(c.Resources, Shield) {
 					discardEvents, err := p.DiscardCards(p.Hand)
 					events = append(events, discardEvents...)
+					if err != nil {
+						return events, err
+					}
+					refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+					events = append(events, refillEvents...)
 					if err != nil {
 						return events, err
 					}
@@ -408,7 +511,7 @@ func (e AcidPolishEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e AcidPolishEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e AcidPolishEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -416,12 +519,17 @@ type WaxedFloorEvent struct {
 }
 
 func (WaxedFloorEvent) isCardEvent() {}
-func (e WaxedFloorEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e WaxedFloorEvent) Execute(ctx Context) ([]Event, error) {
 	var events []Event
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		if len(p.Hand) > 5 {
 			discardEvents, err := p.DiscardCards(p.Hand)
 			events = append(events, discardEvents...)
+			if err != nil {
+				return events, err
+			}
+			refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+			events = append(events, refillEvents...)
 			if err != nil {
 				return events, err
 			}
@@ -430,7 +538,7 @@ func (e WaxedFloorEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e WaxedFloorEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e WaxedFloorEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -438,11 +546,16 @@ type CorrosiveSpitEvent struct {
 }
 
 func (CorrosiveSpitEvent) isCardEvent() {}
-func (e CorrosiveSpitEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e CorrosiveSpitEvent) Execute(ctx Context) ([]Event, error) {
 	var events []Event
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		discardEvents, err := discardAllResourceCardsContaining(p, Shield)
 		events = append(events, discardEvents...)
+		if err != nil {
+			return events, err
+		}
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
 		if err != nil {
 			return events, err
 		}
@@ -450,7 +563,7 @@ func (e CorrosiveSpitEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e CorrosiveSpitEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e CorrosiveSpitEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -458,11 +571,16 @@ type EnsnaredEvent struct {
 }
 
 func (EnsnaredEvent) isCardEvent() {}
-func (e EnsnaredEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e EnsnaredEvent) Execute(ctx Context) ([]Event, error) {
 	var events []Event
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		discardEvents, err := discardAllResourceCardsContaining(p, Jump)
 		events = append(events, discardEvents...)
+		if err != nil {
+			return events, err
+		}
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
 		if err != nil {
 			return events, err
 		}
@@ -470,7 +588,7 @@ func (e EnsnaredEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e EnsnaredEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e EnsnaredEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -478,11 +596,16 @@ type MySwordsEvent struct {
 }
 
 func (MySwordsEvent) isCardEvent() {}
-func (e MySwordsEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e MySwordsEvent) Execute(ctx Context) ([]Event, error) {
 	var events []Event
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		discardEvents, err := discardAllResourceCardsContaining(p, Sword)
 		events = append(events, discardEvents...)
+		if err != nil {
+			return events, err
+		}
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
 		if err != nil {
 			return events, err
 		}
@@ -490,7 +613,7 @@ func (e MySwordsEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e MySwordsEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e MySwordsEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -498,8 +621,13 @@ type FireBreathEvent struct {
 }
 
 func (FireBreathEvent) isCardEvent() {}
-func (e FireBreathEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*TeamChoicePlayerInteraction)
+func (e FireBreathEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*TeamChoicePlayerInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
@@ -510,9 +638,14 @@ func (e FireBreathEvent) Execute(ctx CardEventContext) ([]Event, error) {
 	}
 
 	var events []Event
-	for _, p := range otherPlayers(ctx.Engine.ListPlayers(), target) {
+	for _, p := range otherPlayers(ctx.Engine().ListPlayers(), target) {
 		discardEvents, err := p.DiscardCards(p.Hand)
 		events = append(events, discardEvents...)
+		if err != nil {
+			return events, err
+		}
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
 		if err != nil {
 			return events, err
 		}
@@ -520,11 +653,11 @@ func (e FireBreathEvent) Execute(ctx CardEventContext) ([]Event, error) {
 
 	return events, nil
 }
-func (e FireBreathEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e FireBreathEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &TeamChoicePlayerInteraction{
-		eventCard:        ctx.Card,
+		card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -533,19 +666,24 @@ type TailSwipeEvent struct {
 }
 
 func (TailSwipeEvent) isCardEvent() {}
-func (e TailSwipeEvent) Execute(ctx CardEventContext) ([]Event, error) {
-	input, ok := ctx.Input.(*PlayerDonatesHandInteraction)
+func (e TailSwipeEvent) Execute(ctx Context) ([]Event, error) {
+	evtCtx, ok := ctx.(*CardEventContext)
+	if !ok {
+		return nil, fmt.Errorf("invalid context provided")
+	}
+
+	input, ok := evtCtx.Input.(*PlayerDonatesHandInteraction)
 	if !ok {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
 
 	return allPlayerDonateHands(input), nil
 }
-func (e TailSwipeEvent) Interaction(ctx CardEventContext) PendingInteraction {
+func (e TailSwipeEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &PlayerDonatesHandInteraction{
-		eventCard:        ctx.Card,
+		card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
-		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine.ListPlayers())),
+		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
 	}
 }
@@ -554,11 +692,16 @@ type ATwentySidedBoulderEvent struct {
 }
 
 func (ATwentySidedBoulderEvent) isCardEvent() {}
-func (e ATwentySidedBoulderEvent) Execute(ctx CardEventContext) ([]Event, error) {
+func (e ATwentySidedBoulderEvent) Execute(ctx Context) ([]Event, error) {
 	var events []Event
-	for _, p := range ctx.Engine.ListPlayers() {
+	for _, p := range ctx.Engine().ListPlayers() {
 		drawEvents, err := p.DiscardCards(p.Hand)
 		events = append(events, drawEvents...)
+		if err != nil {
+			return events, err
+		}
+		refillEvents, err := ctx.Engine().RefillPlayerHand(p)
+		events = append(events, refillEvents...)
 		if err != nil {
 			return events, err
 		}
@@ -566,7 +709,7 @@ func (e ATwentySidedBoulderEvent) Execute(ctx CardEventContext) ([]Event, error)
 
 	return events, nil
 }
-func (e ATwentySidedBoulderEvent) Interaction(_ CardEventContext) PendingInteraction {
+func (e ATwentySidedBoulderEvent) Interaction(_ *CardEventContext) PendingInteraction {
 	return nil
 }
 
@@ -604,9 +747,9 @@ func allPlayerDonateHands(input *PlayerDonatesHandInteraction) []Event {
 	return events
 }
 
-func populatePendingPlayers(ctx CardEventContext) map[*Player]bool {
-	pendingPlayers := make(map[*Player]bool, len(ctx.Engine.ListPlayers()))
-	for _, p := range ctx.Engine.ListPlayers() {
+func populatePendingPlayers(ctx *CardEventContext) map[*Player]bool {
+	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
+	for _, p := range ctx.Engine().ListPlayers() {
 		pendingPlayers[p] = true
 	}
 

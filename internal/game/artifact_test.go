@@ -95,7 +95,7 @@ func TestBattleAxeArtifact_DefeatMonster(t *testing.T) {
 		Status:       Playing,
 		UseExtension: true,
 	}
-	_, _ = game.PlayField.AddDungeonCard(monster, 0)
+	_, _ = game.PlayField.AddDungeonCard(monster, game)
 
 	axe := &ArtifactCard{Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{axe}
@@ -162,7 +162,7 @@ func TestBattleAxeArtifact_AutoTargetMonster(t *testing.T) {
 		Status:       Playing,
 		UseExtension: true,
 	}
-	_, _ = game.PlayField.AddDungeonCard(monster, 0)
+	_, _ = game.PlayField.AddDungeonCard(monster, game)
 
 	axe := &ArtifactCard{Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{axe}
@@ -247,7 +247,7 @@ func TestTheInfinityScrollArtifact_DefeatMiniBoss(t *testing.T) {
 		Status:       Playing,
 		UseExtension: true,
 	}
-	_, _ = game.PlayField.AddDungeonCard(miniBoss, 0)
+	_, _ = game.PlayField.AddDungeonCard(miniBoss, game)
 
 	scroll := &ArtifactCard{Color: Blue, Name: "The Infinity Scroll", Action: &TheInfinityScrollArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{scroll}
@@ -286,7 +286,7 @@ func TestTheInfinityScrollArtifact_CounterEvent(t *testing.T) {
 		Status:       Playing,
 		UseExtension: true,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, 0)
+	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
 	scroll := &ArtifactCard{Color: Blue, Name: "The Infinity Scroll", Action: &TheInfinityScrollArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{scroll}
@@ -489,8 +489,16 @@ func TestSundialWatchArtifact(t *testing.T) {
 
 func TestCurseZapperArtifact(t *testing.T) {
 	p1, _ := NewPlayer("Arthur", Paladin, true)
-	curse1 := &CurseCard{Name: "Curse of Weakness"}
-	curse2 := &CurseCard{Name: "Curse of Sloth"}
+	curse1 := &CurseCard{
+		Type:   ChallengeCurse,
+		Name:   "Curse of Weakness",
+		Effect: TimeCannotBeStopped,
+	}
+	curse2 := &CurseCard{
+		Type:   ChallengeCurse,
+		Name:   "Curse of Sloth",
+		Effect: TimeCannotBeStopped,
+	}
 
 	game := &Game{
 		Players:      []*Player{p1},
@@ -549,11 +557,11 @@ func TestGameUseArtifact_GuardsAndValidation(t *testing.T) {
 
 	// 2. Error when PendingInteraction is active
 	gamePending := &Game{
-		Players:             []*Player{p1},
-		PlayField:           NewPlayfield(),
-		Status:              Playing,
-		UseExtension:        true,
-		PendingInteraction:  &PlayerDiscardCardsInteraction{},
+		Players:            []*Player{p1},
+		PlayField:          NewPlayfield(),
+		Status:             Playing,
+		UseExtension:       true,
+		PendingInteraction: &PlayerDiscardCardsInteraction{},
 	}
 	gamePending.PlayField.Artifacts = []*ArtifactCard{axe}
 	_, err = gamePending.Apply(UseArtifactCmd{

@@ -175,3 +175,28 @@ func (p *Player) ArtifactHeal() ([]Event, error) {
 		Cards:  healed,
 	}}, nil
 }
+
+func (p *Player) FlipHeroMat() []Event {
+	oldHero := p.Hero
+	p.Hero = p.Hero.Flip()
+
+	return []Event{HeroMatFlippedEvent{
+		Player: p,
+		From:   oldHero,
+		To:     p.Hero,
+	}}
+}
+
+func (p *Player) VoidHand(effect GameCurseEffect, game *Game) ([]Event, error) {
+	voidedCards := slices.Clone(p.Hand)
+	p.Hand = make([]PlayerCard, 0)
+	events := []Event{PlayerHandVoidedEvent{Player: p, VoidedCards: voidedCards}}
+
+	refillEvents, err := game.RefillPlayerHand(p)
+	events = append(events, refillEvents...)
+	if err != nil {
+		return events, err
+	}
+
+	return events, &CurseRuleViolatedError{Curse: effect, ByPlayer: p}
+}
