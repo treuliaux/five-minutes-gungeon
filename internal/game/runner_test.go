@@ -235,20 +235,29 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 		t.Fatalf("failed to start game: %v", err)
 	}
 
-	// Concurrently send commands from multiple goroutines
+	// Concurrently send commands and query snapshots from multiple goroutines
 	var wg sync.WaitGroup
 	players := []*Player{paladin, barbarian, valkyrie, gladiator}
 
+	// Add artifact
+	artAxe := &ArtifactCard{Id: 1, Color: Red, Name: "Battle Axe", MultiAction: true, Action: BattleAxeArtifact{}}
+	game.PlayField.Artifacts = []*ArtifactCard{artAxe}
+
+	// Goroutines for players sending card plays, discards, and abilities
 	for _, p := range players {
 		wg.Go(func() {
-			for i := range 20 {
-				// Try playing or discarding cards concurrently
+			for i := range 30 {
 				if len(p.Hand) > 0 {
 					card := p.Hand[0]
-					if i%2 == 0 {
+					switch i % 4 {
+					case 0:
 						_ = runner.PlayCardSimple(ctx, p.Id, card.ID())
-					} else {
+					case 1:
 						_ = runner.DiscardCards(ctx, p.Id, []CardID{card.ID()})
+					case 2:
+						_ = runner.UseHeroAbilitySimple(ctx, p.Id, []CardID{card.ID()})
+					case 3:
+						_ = runner.UseArtifact(ctx, p.Id, artAxe.Id, SecondArtifactAction, 0)
 					}
 				}
 				time.Sleep(1 * time.Millisecond)
@@ -256,8 +265,326 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 		})
 	}
 
+	// Concurrent snapshot query goroutines
+	for range 4 {
+		wg.Go(func() {
+			for range 20 {
+				snap, err := runner.Snapshot(ctx)
+				if err == nil {
+					if snap.Status != Playing && snap.Status != Waiting && snap.Status != Victory && snap.Status != Defeat {
+						t.Errorf("unexpected snapshot status: %v", snap.Status)
+					}
+				}
+				time.Sleep(2 * time.Millisecond)
+			}
+		})
+	}
+
 	wg.Wait()
 	cancel()
+}
+
+func TestRunnerUseArtifact(t *testing.T) {
+	p1, _ := NewPlayer("Arthur", Paladin, true)
+	doorMonster := &DoorCard{Id: 100, Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	nextDoor := &DoorCard{Id: 101, Type: DoorObstacle, Name: "Wall", Resources: []ResourceType{Jump}}
+
+	dungeon := &Dungeon{
+		Boss:  &BossMat{Id: 999, Name: "Boss"},
+		Doors: []DungeonCard{nextDoor},
+	}
+
+	artAxe := &ArtifactCard{
+		Id:          1,
+		Color:       Red,
+		Name:        "Battle Axe",
+		Action:      BattleAxeArtifact{},
+		MultiAction: true,
+	}
+
+	game := &Game{
+		Players:      []*Player{p1},
+		Dungeon:      dungeon,
+		PlayField:    NewPlayfield(),
+		Status:       Playing,
+		UseExtension: true,
+	}
+	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	game.PlayField.Artifacts = []*ArtifactCard{artAxe}
+	registerCardsInTestGame(game)
+
+	runner := NewRunner(game)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	sub := runner.Subscribe()
+
+	go func() {
+		_ = runner.Run(ctx)
+	}()
+
+	// Use Battle Axe First Action (defeat monster)
+	err := runner.UseArtifact(ctx, p1.Id, artAxe.Id, FirstArtifactAction, doorMonster.ID())
+	if err != nil {
+		t.Fatalf("failed to use artifact via runner: %v", err)
+	}
+
+	expectEvent(t, sub, func(e Event) bool {
+		evt, ok := e.(DoorDefeatedEvent)
+		return ok && evt.CardID == doorMonster.ID()
+	})
+
+	if game.PlayField.HasActiveDoor(doorMonster) {
+		t.Error("expected doorMonster to be defeated")
+	}
+}
+
+func TestRunnerPlayCardTargeting(t *testing.T) {
+	p1, _ := NewPlayer("Robin", Ranger, true)
+	p2, _ := NewPlayer("Arthur", Paladin, true)
+
+	snipeCard := &ActionCard{Id: 501, Name: "Snipe", Action: SnipeAction{}}
+	p1.Hand = []PlayerCard{snipeCard}
+	p1.Deck = &Deck{Cards: []PlayerCard{&ResourceCard{Id: 502, Resources: []ResourceType{Sword}}}}
+
+	doorPerson1 := &DoorCard{Id: 101, Type: DoorPerson, Name: "Guard 1"}
+	doorPerson2 := &DoorCard{Id: 102, Type: DoorPerson, Name: "Guard 2"}
+
+	game := &Game{
+		Players:   []*Player{p1, p2},
+		PlayField: NewPlayfield(),
+		Status:    Playing,
+	}
+	game.PlayField.OpenedDoors = []DungeonCard{doorPerson1, doorPerson2}
+	registerCardsInTestGame(game)
+
+	runner := NewRunner(game)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	sub := runner.Subscribe()
+
+	go func() {
+		_ = runner.Run(ctx)
+	}()
+
+	// Play Snipe explicitly targeting doorPerson2
+	err := runner.PlayCardWithCardTarget(ctx, p1.Id, snipeCard.ID(), doorPerson2.ID())
+	if err != nil {
+		t.Fatalf("failed to play Snipe with target: %v", err)
+	}
+
+	expectEvent(t, sub, func(e Event) bool {
+		evt, ok := e.(DoorDefeatedEvent)
+		return ok && evt.CardID == doorPerson2.ID()
+	})
+
+	if game.PlayField.HasActiveDoor(doorPerson2) {
+		t.Error("expected doorPerson2 to be defeated")
+	}
+	if !game.PlayField.HasActiveDoor(doorPerson1) {
+		t.Error("expected doorPerson1 to remain active")
+	}
+}
+
+func TestRunnerSubmitPromptChoice(t *testing.T) {
+	p1, _ := NewPlayer("Arthur", Paladin, true)
+	p2, _ := NewPlayer("Conan", Barbarian, true)
+
+	c1 := &ResourceCard{Id: 101, Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: 102, Resources: []ResourceType{Shield}}
+	p1.Hand = []PlayerCard{c1, c2}
+
+	eventCard := &EventCard{Id: 901, Name: "A Boo-Boo", Action: ABooBooEvent{}}
+	interaction := &PlayerDiscardCardsInteraction{
+		Kind:             InteractionPlayerDiscardCards,
+		Card:             eventCard,
+		requiredCounts:   map[*Player]int{p1: 1},
+		PendingPlayers:   map[*Player]bool{p1: true},
+		CollectedChoices: make(map[*Player][]PlayerCard),
+		OnComplete:       ABooBooEvent{}.Execute,
+	}
+
+	nextDoor := &DoorCard{Id: 902, Type: DoorMonster, Name: "Goblin"}
+	dungeon := &Dungeon{
+		Boss:  &BossMat{Id: 999, Name: "Boss"},
+		Doors: []DungeonCard{nextDoor},
+	}
+
+	game := &Game{
+		Players:            []*Player{p1, p2},
+		Dungeon:            dungeon,
+		PlayField:          NewPlayfield(),
+		Status:             Playing,
+		PendingInteraction: interaction,
+	}
+	game.PlayField.OpenedDoors = []DungeonCard{eventCard}
+	registerCardsInTestGame(game)
+
+	runner := NewRunner(game)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	sub := runner.Subscribe()
+
+	go func() {
+		_ = runner.Run(ctx)
+	}()
+
+	// Submit discard prompt choice
+	err := runner.SubmitPromptChoice(ctx, p1.Id, "", []CardID{c1.ID()}, nil)
+	if err != nil {
+		t.Fatalf("failed to submit prompt choice via runner: %v", err)
+	}
+
+	expectEvent(t, sub, func(e Event) bool {
+		evt, ok := e.(CardDiscardedEvent)
+		return ok && evt.ByPlayerID == p1.Id && evt.CardID == c1.ID()
+	})
+
+	if game.PendingInteraction != nil {
+		t.Error("expected pending interaction to be cleared")
+	}
+	if p1.HasCardInHand(c1) {
+		t.Error("expected c1 to be discarded from hand")
+	}
+}
+
+func TestRunnerSnapshotQuery(t *testing.T) {
+	paladin, _ := NewPlayer("Arthur", Paladin, true)
+	c1 := &ResourceCard{Id: 101, Resources: []ResourceType{Sword}}
+	paladin.Hand = []PlayerCard{c1}
+
+	door := &DoorCard{Id: 201, Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	boss := &BossMat{Id: 202, Name: "Boss"}
+
+	game := &Game{
+		Players:   []*Player{paladin},
+		Dungeon:   &Dungeon{Boss: boss, Doors: []DungeonCard{}},
+		PlayField: NewPlayfield(),
+		Status:    Playing,
+	}
+	game.PlayField.OpenedDoors = []DungeonCard{door}
+	registerCardsInTestGame(game)
+
+	runner := NewRunner(game)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	go func() {
+		_ = runner.Run(ctx)
+	}()
+
+	snapshot, err := runner.Snapshot(ctx)
+	if err != nil {
+		t.Fatalf("failed to get snapshot via runner: %v", err)
+	}
+
+	if snapshot.Status != Playing {
+		t.Errorf("expected Playing, got %v", snapshot.Status)
+	}
+	if len(snapshot.Players) != 1 || snapshot.Players[0].Id != paladin.Id {
+		t.Errorf("unexpected players in snapshot: %+v", snapshot.Players)
+	}
+	if len(snapshot.OpenedDoors) != 1 || snapshot.OpenedDoors[0].Id != door.ID() {
+		t.Errorf("unexpected opened doors in snapshot: %+v", snapshot.OpenedDoors)
+	}
+	if snapshot.Boss == nil || snapshot.Boss.Id != boss.ID() {
+		t.Errorf("unexpected boss in snapshot: %+v", snapshot.Boss)
+	}
+}
+
+func TestRunnerInvalidIDsErrorHandling(t *testing.T) {
+	p1, _ := NewPlayer("Arthur", Paladin, true)
+	c1 := &ResourceCard{Id: 101, Resources: []ResourceType{Sword}}
+	p1.Hand = []PlayerCard{c1}
+
+	game := &Game{
+		Players:      []*Player{p1},
+		PlayField:    NewPlayfield(),
+		Status:       Playing,
+		UseExtension: true,
+	}
+	registerCardsInTestGame(game)
+
+	runner := NewRunner(game)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	go func() {
+		_ = runner.Run(ctx)
+	}()
+
+	// 1. Invalid player ID in PlayCard
+	err := runner.PlayCardSimple(ctx, "UnknownPlayer", c1.ID())
+	if err == nil || err.Error() != "player 'UnknownPlayer' not found" {
+		t.Errorf("expected player not found error, got: %v", err)
+	}
+
+	// 2. Invalid card ID in DiscardCards
+	err = runner.DiscardCards(ctx, p1.Id, []CardID{9999})
+	if err == nil || err.Error() != "card with id '9999' not found" {
+		t.Errorf("expected card not found error, got: %v", err)
+	}
+
+	// 3. Invalid player ID in UseHeroAbility
+	err = runner.UseHeroAbilitySimple(ctx, "UnknownPlayer", []CardID{c1.ID()})
+	if err == nil || err.Error() != "player 'UnknownPlayer' not found" {
+		t.Errorf("expected player not found error, got: %v", err)
+	}
+
+	// 4. Invalid artifact ID in UseArtifact
+	err = runner.UseArtifact(ctx, p1.Id, 9999, FirstArtifactAction, 0)
+	if err == nil || err.Error() != "artifact with id '9999' not found" {
+		t.Errorf("expected artifact not found error, got: %v", err)
+	}
+}
+
+func TestRunnerCommandsOnTerminatedRunner(t *testing.T) {
+	game := NewGame()
+	runner := NewRunner(game)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- runner.Run(ctx)
+	}()
+
+	time.Sleep(20 * time.Millisecond)
+	cancel()
+	<-errCh
+
+	// Any command after termination should return GameTerminatedError
+	err := runner.PlayCardSimple(context.Background(), "Arthur", 1)
+	var termErr *GameTerminatedError
+	if !errors.As(err, &termErr) {
+		t.Errorf("expected GameTerminatedError for PlayCard, got: %v", err)
+	}
+
+	err = runner.DiscardCards(context.Background(), "Arthur", []CardID{1})
+	if !errors.As(err, &termErr) {
+		t.Errorf("expected GameTerminatedError for DiscardCards, got: %v", err)
+	}
+
+	err = runner.UseHeroAbilitySimple(context.Background(), "Arthur", []CardID{1})
+	if !errors.As(err, &termErr) {
+		t.Errorf("expected GameTerminatedError for UseHeroAbility, got: %v", err)
+	}
+
+	err = runner.UseArtifact(context.Background(), "Arthur", 1, FirstArtifactAction, 0)
+	if !errors.As(err, &termErr) {
+		t.Errorf("expected GameTerminatedError for UseArtifact, got: %v", err)
+	}
+
+	err = runner.SubmitPromptChoice(context.Background(), "Arthur", "", []CardID{1}, nil)
+	if !errors.As(err, &termErr) {
+		t.Errorf("expected GameTerminatedError for SubmitPromptChoice, got: %v", err)
+	}
+
+	_, err = runner.Snapshot(context.Background())
+	if !errors.As(err, &termErr) {
+		t.Errorf("expected GameTerminatedError for Snapshot, got: %v", err)
+	}
 }
 
 func TestRunnerHelperRespectsCallerContextCancellation(t *testing.T) {
