@@ -138,6 +138,10 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 		events, err = g.submitPromptChoice(cmd)
 	case UseArtifactCmd:
 		events, err = g.useArtifact(cmd)
+	case GetSnapshotCmd:
+		cmd.reply <- NewGameSnapshot(g)
+
+		return nil, nil
 	}
 	if cmd.Reply() != nil {
 		cmd.Reply() <- err
@@ -703,9 +707,10 @@ func (g *Game) resolveActiveEvents() ([]Event, error) {
 				return events, err
 			}
 
+			dto := PendingInteractionToDTO(interaction)
 			promptEvent := EventPromptOpenedEvent{
-				Kind:           interaction.Kind(),
-				RequiredCounts: interaction.RequiredCounts(),
+				Kind:           dto.Kind,
+				RequiredCounts: dto.RequiredCounts,
 			}
 			return append(events, promptEvent), nil
 		}
@@ -747,6 +752,7 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 
 	var events []Event
 	var resolveEventFunc func(Context) ([]Event, error)
+	var eventCard DungeonCard
 	switch i := g.PendingInteraction.(type) {
 	case *TeamChoicePlayerInteraction:
 		if targetPlayer == nil {
@@ -758,6 +764,7 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 		if len(i.PendingPlayers) != 0 {
 			return events, nil
 		}
+		eventCard = i.Card
 		resolveEventFunc = i.OnComplete
 
 	case *PlayerDonatesHandInteraction:
@@ -770,11 +777,12 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 		if len(i.PendingPlayers) != 0 {
 			return events, nil
 		}
+		eventCard = i.Card
 		resolveEventFunc = i.OnComplete
 
 	case *PlayerDiscardCardsInteraction:
 		cards := uniqueCards(cards)
-		expectedCount := min(i.RequiredCounts()[p.Id], len(p.Hand))
+		expectedCount := min(i.requiredCounts[p], len(p.Hand))
 		if len(cards) != expectedCount {
 			return nil, fmt.Errorf("expected %d cards to discard, got %d", expectedCount, len(cards))
 		}
@@ -789,6 +797,7 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 		if len(i.PendingPlayers) != 0 {
 			return events, nil
 		}
+		eventCard = i.Card
 		resolveEventFunc = i.OnComplete
 
 	case *TeamChoiceResourceInteraction:
@@ -801,6 +810,7 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 		if len(i.PendingPlayers) != 0 {
 			return events, nil
 		}
+		eventCard = i.Card
 		resolveEventFunc = i.OnComplete
 
 	default:
@@ -809,7 +819,7 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 
 	ctx := &CardEventContext{
 		engine: g,
-		Card:   g.PendingInteraction.Card(),
+		Card:   eventCard,
 		Input:  g.PendingInteraction,
 	}
 
@@ -817,9 +827,6 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 }
 
 func (g *Game) finalizeEventInteraction(ctx *CardEventContext, onComplete func(Context) ([]Event, error)) ([]Event, error) {
-	eventCard := g.PendingInteraction.Card()
-	g.PendingInteraction = nil
-
 	actionEvents, err := onComplete(ctx)
 	if err != nil {
 		return actionEvents, err
@@ -833,10 +840,11 @@ func (g *Game) finalizeEventInteraction(ctx *CardEventContext, onComplete func(C
 		}
 	}
 
-	defeatEvents, err := g.DefeatDoor(eventCard)
+	defeatEvents, err := g.DefeatDoor(ctx.Card)
 	if err != nil {
 		return append(actionEvents, defeatEvents...), err
 	}
+	g.PendingInteraction = nil
 
 	return append(actionEvents, defeatEvents...), nil
 }

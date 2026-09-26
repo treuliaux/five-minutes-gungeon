@@ -8,6 +8,7 @@ import (
 type InteractionKind string
 
 const (
+	InteractionNoInteraction      InteractionKind = ""
 	InteractionTeamChoicePlayer   InteractionKind = "TeamChoicePlayer"
 	InteractionTeamChoiceResource InteractionKind = "TeamChoiceResource"
 	InteractionTeamChoiceArtifact InteractionKind = "TeamChoiceArtifact"
@@ -17,26 +18,19 @@ const (
 
 type PendingInteraction interface {
 	isInteraction()
-	Kind() InteractionKind
-	RequiredCounts() map[PlayerID]int
-	Card() DungeonCard
 	Init(ctx Context) ([]Event, error)
 }
 
 type TeamChoicePlayerInteraction struct {
-	card             DungeonCard
+	Kind             InteractionKind
+	Card             DungeonCard
 	PendingPlayers   map[*Player]bool
 	CollectedChoices map[*Player]*Player
 	OnComplete       func(ctx Context) ([]Event, error)
 	init             func(ctx Context) ([]Event, error)
 }
 
-func (TeamChoicePlayerInteraction) isInteraction()                   {}
-func (TeamChoicePlayerInteraction) Kind() InteractionKind            { return InteractionTeamChoicePlayer }
-func (TeamChoicePlayerInteraction) RequiredCounts() map[PlayerID]int { return nil }
-func (i TeamChoicePlayerInteraction) Card() DungeonCard {
-	return i.card
-}
+func (TeamChoicePlayerInteraction) isInteraction() {}
 func (i TeamChoicePlayerInteraction) Init(ctx Context) ([]Event, error) {
 	if i.init == nil {
 		return nil, nil
@@ -48,18 +42,16 @@ func (i TeamChoicePlayerInteraction) Target() (*Player, error) {
 }
 
 type PlayerDiscardCardsInteraction struct {
-	card             DungeonCard
-	requiredCounts   map[PlayerID]int
+	Kind             InteractionKind
+	Card             DungeonCard
+	requiredCounts   map[*Player]int
 	PendingPlayers   map[*Player]bool
 	CollectedChoices map[*Player][]PlayerCard
 	OnComplete       func(ctx Context) ([]Event, error)
 	init             func(ctx Context) ([]Event, error)
 }
 
-func (PlayerDiscardCardsInteraction) isInteraction()                     {}
-func (PlayerDiscardCardsInteraction) Kind() InteractionKind              { return InteractionPlayerDiscardCards }
-func (i PlayerDiscardCardsInteraction) RequiredCounts() map[PlayerID]int { return i.requiredCounts }
-func (i PlayerDiscardCardsInteraction) Card() DungeonCard                { return i.card }
+func (PlayerDiscardCardsInteraction) isInteraction() {}
 func (i PlayerDiscardCardsInteraction) Init(ctx Context) ([]Event, error) {
 	if i.init == nil {
 		return nil, nil
@@ -69,17 +61,15 @@ func (i PlayerDiscardCardsInteraction) Init(ctx Context) ([]Event, error) {
 }
 
 type TeamChoiceResourceInteraction struct {
-	card             DungeonCard
+	Kind             InteractionKind
+	Card             DungeonCard
 	PendingPlayers   map[*Player]bool
 	CollectedChoices map[*Player]ResourceType
 	OnComplete       func(ctx Context) ([]Event, error)
 	init             func(ctx Context) ([]Event, error)
 }
 
-func (TeamChoiceResourceInteraction) isInteraction()                   {}
-func (TeamChoiceResourceInteraction) Kind() InteractionKind            { return InteractionTeamChoiceResource }
-func (TeamChoiceResourceInteraction) RequiredCounts() map[PlayerID]int { return nil }
-func (i TeamChoiceResourceInteraction) Card() DungeonCard              { return i.card }
+func (TeamChoiceResourceInteraction) isInteraction() {}
 func (i TeamChoiceResourceInteraction) Init(ctx Context) ([]Event, error) {
 	if i.init == nil {
 		return nil, nil
@@ -92,19 +82,15 @@ func (i TeamChoiceResourceInteraction) Target() (ResourceType, error) {
 }
 
 type PlayerDonatesHandInteraction struct {
-	card             DungeonCard
+	Kind             InteractionKind
+	Card             DungeonCard
 	PendingPlayers   map[*Player]bool
 	CollectedChoices map[*Player]*Player
 	OnComplete       func(ctx Context) ([]Event, error)
 	init             func(ctx Context) ([]Event, error)
 }
 
-func (PlayerDonatesHandInteraction) isInteraction()                   {}
-func (PlayerDonatesHandInteraction) Kind() InteractionKind            { return InteractionPlayerDonatesHand }
-func (PlayerDonatesHandInteraction) RequiredCounts() map[PlayerID]int { return nil }
-func (i PlayerDonatesHandInteraction) Card() DungeonCard {
-	return i.card
-}
+func (PlayerDonatesHandInteraction) isInteraction() {}
 func (i PlayerDonatesHandInteraction) Init(ctx Context) ([]Event, error) {
 	if i.init == nil {
 		return nil, nil
@@ -114,19 +100,15 @@ func (i PlayerDonatesHandInteraction) Init(ctx Context) ([]Event, error) {
 }
 
 type TeamChoiceArtifactInteraction struct {
-	card             DungeonCard
+	Kind             InteractionKind
+	Card             DungeonCard
 	PendingPlayers   map[*Player]bool
 	CollectedChoices map[*Player]*ArtifactCard
 	OnComplete       func(ctx Context) ([]Event, error)
 	init             func(ctx Context) ([]Event, error)
 }
 
-func (TeamChoiceArtifactInteraction) isInteraction()                   {}
-func (TeamChoiceArtifactInteraction) Kind() InteractionKind            { return InteractionTeamChoiceArtifact }
-func (TeamChoiceArtifactInteraction) RequiredCounts() map[PlayerID]int { return nil }
-func (i TeamChoiceArtifactInteraction) Card() DungeonCard {
-	return i.card
-}
+func (TeamChoiceArtifactInteraction) isInteraction() {}
 func (i TeamChoiceArtifactInteraction) Init(ctx Context) ([]Event, error) {
 	if i.init == nil {
 		return nil, nil

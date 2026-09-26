@@ -177,7 +177,7 @@ func TestYetMoreSpikesEvent(t *testing.T) {
 
 	eventCard := &EventCard{Id: nextCardId(), Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}}
 	interaction := &TeamChoicePlayerInteraction{
-		card:             eventCard,
+		Card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p1, p2: p1}, // Voted P1
 		OnComplete:       YetMoreSpikesEvent{}.Execute,
@@ -225,7 +225,7 @@ func TestGimmeAHandEvent(t *testing.T) {
 
 	eventCard := &EventCard{Id: nextCardId(), Name: "Gimme a Hand!", Action: GimmeAHandEvent{}}
 	interaction := &TeamChoicePlayerInteraction{
-		card:             eventCard,
+		Card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p1, p2: p1, p3: p1}, // Target P1
 		OnComplete:       GimmeAHandEvent{}.Execute,
@@ -275,7 +275,7 @@ func TestLockedDoorEvent(t *testing.T) {
 
 	eventCard := &EventCard{Id: nextCardId(), Name: "Locked Door!", Action: LockedDoorEvent{}}
 	interaction := &TeamChoiceResourceInteraction{
-		card:             eventCard,
+		Card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]ResourceType{p1: Sword, p2: Sword}, // Voted Sword
 		OnComplete:       LockedDoorEvent{}.Execute,
@@ -322,8 +322,8 @@ func TestABooBooEvent(t *testing.T) {
 
 	eventCard := &EventCard{Id: nextCardId(), Name: "A Boo-Boo", Action: ABooBooEvent{}}
 	interaction := &PlayerDiscardCardsInteraction{
-		card:             eventCard,
-		requiredCounts:   map[PlayerID]int{p1.Id: 1, p2.Id: 1},
+		Card:             eventCard,
+		requiredCounts:   map[*Player]int{p1: 1, p2: 1},
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player][]PlayerCard{p1: {c1}, p2: {c3}},
 		OnComplete:       ABooBooEvent{}.Execute,
@@ -377,8 +377,8 @@ func TestTrapDoorEvent(t *testing.T) {
 
 	eventCard := &EventCard{Id: nextCardId(), Name: "Trap Door", Action: TrapDoorEvent{}}
 	interaction := &PlayerDiscardCardsInteraction{
-		card:             eventCard,
-		requiredCounts:   map[PlayerID]int{p1.Id: 3, p2.Id: 3},
+		Card:             eventCard,
+		requiredCounts:   map[*Player]int{p1: 3, p2: 3},
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player][]PlayerCard{p1: {c1, c2, c3}, p2: {c1, c2}},
 		OnComplete:       TrapDoorEvent{}.Execute,
@@ -432,7 +432,7 @@ func TestConfusionEvent(t *testing.T) {
 	eventCard := &EventCard{Id: nextCardId(), Name: "Confusion", Action: ConfusionEvent{}}
 	// P1 passes hand to P2, P2 passes hand to P1
 	interaction := &PlayerDonatesHandInteraction{
-		card:             eventCard,
+		Card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p2, p2: p1},
 		OnComplete:       ConfusionEvent{}.Execute,
@@ -731,7 +731,7 @@ func TestFireBreathEvent(t *testing.T) {
 	eventCard := &EventCard{Id: nextCardId(), Name: "Fire Breath", Action: FireBreathEvent{}}
 	// Team chooses P1 to spare
 	interaction := &TeamChoicePlayerInteraction{
-		card:             eventCard,
+		Card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p1, p2: p1},
 		OnComplete:       FireBreathEvent{}.Execute,
@@ -776,7 +776,7 @@ func TestTailSwipeEvent(t *testing.T) {
 
 	eventCard := &EventCard{Id: nextCardId(), Name: "Tail Swipe", Action: TailSwipeEvent{}}
 	interaction := &PlayerDonatesHandInteraction{
-		card:             eventCard,
+		Card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player]*Player{p1: p2, p2: p1},
 		OnComplete:       TailSwipeEvent{}.Execute,

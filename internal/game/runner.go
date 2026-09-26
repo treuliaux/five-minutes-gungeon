@@ -200,6 +200,28 @@ func (r *Runner) UseArtifact(ctx context.Context, actorID PlayerID, artifactID A
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }
 
+func (r *Runner) Snapshot(ctx context.Context) (GameSnapshotDTO, error) {
+	reply := make(chan GameSnapshotDTO, 1)
+	cmd := GetSnapshotCmd{reply: reply}
+
+	select {
+	case r.cmd <- cmd:
+	case <-r.done:
+		return GameSnapshotDTO{}, &GameTerminatedError{Command: cmd}
+	case <-ctx.Done():
+		return GameSnapshotDTO{}, ctx.Err()
+	}
+
+	select {
+	case snapshot := <-reply:
+		return snapshot, nil
+	case <-r.done:
+		return GameSnapshotDTO{}, &GameTerminatedError{Command: cmd}
+	case <-ctx.Done():
+		return GameSnapshotDTO{}, ctx.Err()
+	}
+}
+
 func (r *Runner) broadcast(event Event) {
 	r.subscriptionsLock.RLock()
 	defer r.subscriptionsLock.RUnlock()

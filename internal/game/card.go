@@ -30,6 +30,12 @@ type PlayerCard interface {
 	isPlayerCard()
 	ID() CardID
 }
+type PlayerCardKind int
+
+const (
+	PlayerCardResource PlayerCardKind = iota
+	PlayerCardAction
+)
 
 type ResourceCard struct {
 	Id        CardID
@@ -42,10 +48,11 @@ func (rc *ResourceCard) ID() CardID {
 }
 
 type ActionCard struct {
-	Id        CardID
-	Name      string
-	Action    CardAction
-	Extension bool
+	Id          CardID
+	Name        string
+	Description string
+	Action      CardAction
+	Extension   bool
 }
 
 func (ac *ActionCard) isPlayerCard() {}
@@ -54,11 +61,13 @@ func (ac *ActionCard) ID() CardID {
 }
 
 type ArtifactCard struct {
-	Id     ArtifactID
-	Color  DeckColor
-	Name   string
-	Action ArtifactAction
-	Used   bool
+	Id          ArtifactID
+	Color       DeckColor
+	Name        string
+	Description string
+	Action      ArtifactAction
+	MultiAction bool
+	Used        bool
 }
 
 func (ac *ArtifactCard) ID() ArtifactID {
@@ -73,20 +82,32 @@ type DungeonCard interface {
 	ID() CardID
 }
 
+type DungeonCardKind int
+
+const (
+	CardMonster DungeonCardKind = iota
+	CardObstacle
+	CardPerson
+	CardMiniBoss
+	CardEvent
+	CardCurse
+	CardBoss
+)
+
 type DoorKind int
 
 const (
-	DoorMonster DoorKind = iota
-	DoorObstacle
-	DoorPerson
+	DoorMonster  = DoorKind(CardMonster)
+	DoorObstacle = DoorKind(CardObstacle)
+	DoorPerson   = DoorKind(CardPerson)
 )
 
 type ChallengeKind int
 
 const (
-	ChallengeMiniBoss ChallengeKind = iota
-	ChallengeEvent
-	ChallengeCurse
+	ChallengeMiniBoss = ChallengeKind(CardMiniBoss)
+	ChallengeEvent    = ChallengeKind(CardEvent)
+	ChallengeCurse    = ChallengeKind(CardCurse)
 )
 
 type DoorCard struct {
@@ -105,12 +126,13 @@ func (dc *DoorCard) ID() CardID {
 }
 
 type EventCard struct {
-	Id         CardID
-	Type       ChallengeKind
-	Name       string
-	Action     EventAction
-	OpenedTime time.Duration
-	Extension  bool
+	Id          CardID
+	Type        ChallengeKind
+	Name        string
+	Description string
+	Action      EventAction
+	OpenedTime  time.Duration
+	Extension   bool
 }
 
 func (ec *EventCard) isDungeonCard() {}
@@ -138,12 +160,13 @@ func (mc *MiniBossCard) ID() CardID {
 }
 
 type CurseCard struct {
-	Id     CardID
-	Type   ChallengeKind
-	Name   string
-	Apply  CurseHook
-	Cure   CurseHook
-	Effect GameCurseEffect
+	Id          CardID
+	Type        ChallengeKind
+	Name        string
+	Description string
+	Apply       CurseHook
+	Cure        CurseHook
+	Effect      GameCurseEffect
 }
 
 func (cc *CurseCard) isDungeonCard() {}

@@ -87,3 +87,12 @@ func (UseArtifactCmd) isCommand() {}
 func (c UseArtifactCmd) Reply() chan error {
 	return c.reply
 }
+
+type GetSnapshotCmd struct {
+	reply chan GameSnapshotDTO
+}
+
+func (GetSnapshotCmd) isCommand() {}
+func (c GetSnapshotCmd) Reply() chan error {
+	return nil
+}

@@ -130,7 +130,8 @@ func (e CrowdFundingEvent) Interaction(ctx *CardEventContext) PendingInteraction
 	}
 
 	return &TeamChoiceArtifactInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionTeamChoiceArtifact,
+		Card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player]*ArtifactCard, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
@@ -170,7 +171,8 @@ func (e GimmeAHandEvent) Execute(ctx Context) ([]Event, error) {
 }
 func (e GimmeAHandEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &TeamChoicePlayerInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionTeamChoicePlayer,
+		Card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
@@ -211,7 +213,8 @@ func (e YetMoreSpikesEvent) Execute(ctx Context) ([]Event, error) {
 }
 func (e YetMoreSpikesEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &TeamChoicePlayerInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionTeamChoicePlayer,
+		Card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
@@ -250,11 +253,11 @@ func (e ABooBooEvent) Execute(ctx Context) ([]Event, error) {
 	return events, nil
 }
 func (e ABooBooEvent) Interaction(ctx *CardEventContext) PendingInteraction {
-	requiredCounts := make(map[PlayerID]int, len(ctx.Engine().ListPlayers()))
+	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
 	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
 	for _, p := range ctx.Engine().ListPlayers() {
 		pendingPlayers[p] = true
-		requiredCounts[p.Id] = 1
+		requiredCounts[p] = 1
 	}
 
 	if len(pendingPlayers) == 0 {
@@ -262,7 +265,8 @@ func (e ABooBooEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	}
 
 	return &PlayerDiscardCardsInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionPlayerDiscardCards,
+		Card:             ctx.Card,
 		requiredCounts:   requiredCounts,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine().ListPlayers())),
@@ -302,11 +306,11 @@ func (e TrapDoorEvent) Execute(ctx Context) ([]Event, error) {
 	return events, nil
 }
 func (e TrapDoorEvent) Interaction(ctx *CardEventContext) PendingInteraction {
-	requiredCounts := make(map[PlayerID]int, len(ctx.Engine().ListPlayers()))
+	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
 	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
 	for _, p := range ctx.Engine().ListPlayers() {
 		pendingPlayers[p] = true
-		requiredCounts[p.Id] = 3
+		requiredCounts[p] = 3
 	}
 
 	if len(pendingPlayers) == 0 {
@@ -314,7 +318,8 @@ func (e TrapDoorEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	}
 
 	return &PlayerDiscardCardsInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionPlayerDiscardCards,
+		Card:             ctx.Card,
 		requiredCounts:   requiredCounts,
 		PendingPlayers:   pendingPlayers,
 		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine().ListPlayers())),
@@ -341,7 +346,8 @@ func (e ConfusionEvent) Execute(ctx Context) ([]Event, error) {
 }
 func (e ConfusionEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &PlayerDonatesHandInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionPlayerDonatesHand,
+		Card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
@@ -381,7 +387,8 @@ func (e LockedDoorEvent) Execute(ctx Context) ([]Event, error) {
 }
 func (e LockedDoorEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &TeamChoiceResourceInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionTeamChoiceResource,
+		Card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player]ResourceType, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
@@ -420,11 +427,11 @@ func (e AnUngodlyAmountOfPorcupinesEvent) Execute(ctx Context) ([]Event, error) 
 	return events, nil
 }
 func (e AnUngodlyAmountOfPorcupinesEvent) Interaction(ctx *CardEventContext) PendingInteraction {
-	requiredCounts := make(map[PlayerID]int, len(ctx.Engine().ListPlayers()))
+	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
 	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
 	for _, p := range ctx.Engine().ListPlayers() {
 		pendingPlayers[p] = true
-		requiredCounts[p.Id] = 3
+		requiredCounts[p] = 3
 	}
 
 	if len(pendingPlayers) == 0 {
@@ -432,7 +439,8 @@ func (e AnUngodlyAmountOfPorcupinesEvent) Interaction(ctx *CardEventContext) Pen
 	}
 
 	return &PlayerDiscardCardsInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionPlayerDiscardCards,
+		Card:             ctx.Card,
 		requiredCounts:   requiredCounts,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player][]PlayerCard, len(ctx.Engine().ListPlayers())),
@@ -656,7 +664,8 @@ func (e FireBreathEvent) Execute(ctx Context) ([]Event, error) {
 }
 func (e FireBreathEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &TeamChoicePlayerInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionTeamChoicePlayer,
+		Card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
@@ -682,7 +691,8 @@ func (e TailSwipeEvent) Execute(ctx Context) ([]Event, error) {
 }
 func (e TailSwipeEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &PlayerDonatesHandInteraction{
-		card:             ctx.Card,
+		Kind:             InteractionPlayerDonatesHand,
+		Card:             ctx.Card,
 		PendingPlayers:   populatePendingPlayers(ctx),
 		CollectedChoices: make(map[*Player]*Player, len(ctx.Engine().ListPlayers())),
 		OnComplete:       e.Execute,
