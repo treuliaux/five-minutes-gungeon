@@ -204,7 +204,7 @@ func TestRunnerCommandErrorPropagation(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error playing card not in hand, got nil")
 	}
-	if err.Error() != "card with id '6666' not found" {
+	if !errors.Is(err, ErrCardNotFound) {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -432,7 +432,7 @@ func TestRunnerSubmitPromptChoice(t *testing.T) {
 	}()
 
 	// Submit discard prompt choice
-	err := runner.SubmitPromptChoice(ctx, p1.Id, "", []CardID{c1.ID()}, nil)
+	err := runner.SubmitPromptChoiceCards(ctx, p1.Id, []CardID{c1.ID()})
 	if err != nil {
 		t.Fatalf("failed to submit prompt choice via runner: %v", err)
 	}
@@ -517,25 +517,25 @@ func TestRunnerInvalidIDsErrorHandling(t *testing.T) {
 
 	// 1. Invalid player ID in PlayCard
 	err := runner.PlayCardSimple(ctx, "UnknownPlayer", c1.ID())
-	if err == nil || err.Error() != "player 'UnknownPlayer' not found" {
+	if !errors.Is(err, ErrPlayerNotFound) {
 		t.Errorf("expected player not found error, got: %v", err)
 	}
 
 	// 2. Invalid card ID in DiscardCards
 	err = runner.DiscardCards(ctx, p1.Id, []CardID{9999})
-	if err == nil || err.Error() != "card with id '9999' not found" {
+	if !errors.Is(err, ErrCardNotFound) {
 		t.Errorf("expected card not found error, got: %v", err)
 	}
 
 	// 3. Invalid player ID in UseHeroAbility
 	err = runner.UseHeroAbilitySimple(ctx, "UnknownPlayer", []CardID{c1.ID()})
-	if err == nil || err.Error() != "player 'UnknownPlayer' not found" {
+	if !errors.Is(err, ErrPlayerNotFound) {
 		t.Errorf("expected player not found error, got: %v", err)
 	}
 
 	// 4. Invalid artifact ID in UseArtifact
 	err = runner.UseArtifact(ctx, p1.Id, 9999, FirstArtifactAction, 0)
-	if err == nil || err.Error() != "artifact with id '9999' not found" {
+	if !errors.Is(err, ErrCardNotFound) {
 		t.Errorf("expected artifact not found error, got: %v", err)
 	}
 }
@@ -576,7 +576,7 @@ func TestRunnerCommandsOnTerminatedRunner(t *testing.T) {
 		t.Errorf("expected GameTerminatedError for UseArtifact, got: %v", err)
 	}
 
-	err = runner.SubmitPromptChoice(context.Background(), "Arthur", "", []CardID{1}, nil)
+	err = runner.SubmitPromptChoiceCards(context.Background(), "Arthur", []CardID{1})
 	if !errors.As(err, &termErr) {
 		t.Errorf("expected GameTerminatedError for SubmitPromptChoice, got: %v", err)
 	}

@@ -1118,7 +1118,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 	// P1 votes Sword
 	_, err := game.Apply(SubmitPromptChoiceCmd{
 		PlayerID: p1.Id,
-		Resource: &res,
+		Resource: res,
 	})
 	if err != nil {
 		t.Fatalf("P1 vote failed: %v", err)
@@ -1127,7 +1127,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 	// P2 votes Sword -> finishes interaction
 	_, err = game.Apply(SubmitPromptChoiceCmd{
 		PlayerID: p2.Id,
-		Resource: &res,
+		Resource: res,
 	})
 	if err != nil {
 		t.Fatalf("P2 vote failed: %v", err)
@@ -1245,11 +1245,11 @@ func TestEventResolutionCycle_RunnerIntegration(t *testing.T) {
 	}
 
 	// Submit event choices through Runner
-	err := runner.SubmitPromptChoice(ctx, p1.Id, p2.Id, nil, nil) // P1 votes P2
+	err := runner.SubmitPromptChoicePlayer(ctx, p1.Id, p2.Id) // P1 votes P2
 	if err != nil {
 		t.Fatalf("P1 SubmitEventChoice failed: %v", err)
 	}
-	err = runner.SubmitPromptChoice(ctx, p2.Id, p2.Id, nil, nil) // P2 votes P2
+	err = runner.SubmitPromptChoicePlayer(ctx, p2.Id, p2.Id) // P2 votes P2
 	if err != nil {
 		t.Fatalf("P2 SubmitEventChoice failed: %v", err)
 	}

@@ -105,7 +105,7 @@ func (e CrowdFundingEvent) Execute(ctx Context) ([]Event, error) {
 			return nil, fmt.Errorf("artifact is not in play")
 		}
 		target.Used = false
-		events = append(events, ArtifactReEnabledEvent{ArtifactID: target})
+		events = append(events, ArtifactReEnabledEvent{ArtifactID: target.Id})
 	}
 
 	for _, p := range ctx.Engine().ListPlayers() {

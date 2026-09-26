@@ -2,8 +2,8 @@ package game
 
 import "time"
 
-type ArtifactID uint32
-type CardID uint32
+type ArtifactID uint64
+type CardID uint64
 type IdentifiableCard interface {
 	ID() CardID
 }
@@ -11,7 +11,8 @@ type IdentifiableCard interface {
 type ResourceType int
 
 const (
-	Sword ResourceType = iota
+	NoResource ResourceType = iota
+	Sword
 	Arrow
 	Shield
 	Jump

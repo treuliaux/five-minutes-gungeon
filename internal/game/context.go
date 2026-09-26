@@ -12,8 +12,8 @@ type AbilityContext struct {
 	TargetPlayer *Player
 }
 
-func (AbilityContext) isContext() {}
-func (a AbilityContext) Engine() GameEngine {
+func (*AbilityContext) isContext() {}
+func (a *AbilityContext) Engine() GameEngine {
 	return a.engine
 }
 
@@ -25,8 +25,8 @@ type CardActionContext struct {
 	TargetPlayers []*Player
 }
 
-func (CardActionContext) isContext() {}
-func (a CardActionContext) Engine() GameEngine {
+func (*CardActionContext) isContext() {}
+func (a *CardActionContext) Engine() GameEngine {
 	return a.engine
 }
 
@@ -36,8 +36,8 @@ type CardEventContext struct {
 	Input  PendingInteraction
 }
 
-func (CardEventContext) isContext() {}
-func (a CardEventContext) Engine() GameEngine {
+func (*CardEventContext) isContext() {}
+func (a *CardEventContext) Engine() GameEngine {
 	return a.engine
 }
 
@@ -47,8 +47,8 @@ type CardCurseContext struct {
 	Input  PendingInteraction
 }
 
-func (CardCurseContext) isContext() {}
-func (c CardCurseContext) Engine() GameEngine {
+func (*CardCurseContext) isContext() {}
+func (c *CardCurseContext) Engine() GameEngine {
 	return c.engine
 }
 
@@ -60,7 +60,7 @@ type ArtifactActionContext struct {
 	Target       DungeonCard
 }
 
-func (ArtifactActionContext) isContext() {}
-func (a ArtifactActionContext) Engine() GameEngine {
+func (*ArtifactActionContext) isContext() {}
+func (a *ArtifactActionContext) Engine() GameEngine {
 	return a.engine
 }

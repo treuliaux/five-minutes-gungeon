@@ -1,6 +1,25 @@
 package game
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var (
+	ErrPlayerNotFound            = errors.New("player not found")
+	ErrCardNotFound              = errors.New("card not found")
+	ErrCardNotInHand             = errors.New("card not in hand")
+	ErrGameNotPlaying            = errors.New("game is not in playing state")
+	ErrGameNotWaiting            = errors.New("game is not in waiting state")
+	ErrGameAlreadyStarted        = errors.New("game has already started")
+	ErrGameIncorrectPlayerNumber = errors.New("game has incorrect number of players")
+	ErrGameExtensionDisabled     = errors.New("extension is disabled")
+	ErrInvalidTarget             = errors.New("invalid target")
+	ErrExpectedTarget            = errors.New("expected target")
+	ErrNoPendingInteraction      = errors.New("no pending player interaction")
+	ErrPendingInteraction        = errors.New("pending player interaction")
+	ErrClassAlreadyPicked        = errors.New("class already picked")
+)
 
 type AmbiguousTargetError[T any] struct {
 	Source       any

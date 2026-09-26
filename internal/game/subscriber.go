@@ -29,13 +29,13 @@ func NewSubscriber() *Subscriber {
 	return s
 }
 
-func (s *Subscriber) CloseImmediately() {
+func (s *Subscriber) closeImmediately() {
 	s.closeOnce.Do(func() {
 		close(s.close)
 	})
 }
 
-func (s *Subscriber) CloseGracefully() {
+func (s *Subscriber) closeGracefully() {
 	s.shutDownOnce.Do(func() {
 		close(s.In)
 	})
@@ -45,7 +45,6 @@ func (s *Subscriber) pump(out chan Event, in chan Event, done chan struct{}) {
 	defer func() {
 		close(out)
 		close(done)
-		s.CloseGracefully()
 	}()
 
 	inOrNil := in
@@ -72,7 +71,7 @@ func (s *Subscriber) pump(out chan Event, in chan Event, done chan struct{}) {
 		case outOrNil <- nextEvent:
 			s.queue[0] = nil
 			s.queue = s.queue[1:]
-			if len(s.queue) == 0 || cap(s.queue) > 256 {
+			if len(s.queue) == 0 && cap(s.queue) > 256 {
 				s.queue = nil
 			}
 		case <-s.close:

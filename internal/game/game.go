@@ -77,7 +77,7 @@ func (g *Game) Tick(delta time.Duration) ([]Event, error) {
 		return nil, nil
 	}
 	if g.Status != Playing {
-		return nil, fmt.Errorf("game is not in playing state")
+		return nil, ErrGameNotPlaying
 	}
 	if g.IsTimeFrozen {
 		delta = 0
@@ -285,6 +285,8 @@ func (g *Game) DiscardTopCardFromDungeon() ([]Event, error) {
 }
 
 func (g *Game) PlayArbitraryCard(p *Player, card PlayerCard) ([]Event, error) {
+	g.PlayerCardsMap[card.ID()] = card
+
 	return g.PlayField.AddPlayerCard(p, card)
 }
 
@@ -351,12 +353,12 @@ func (g *Game) TargetHandSize() int {
 
 func (g *Game) addPlayer(cmd AddPlayerCmd) ([]Event, error) {
 	if g.Status != Waiting {
-		return nil, fmt.Errorf("game is not in waiting state")
+		return nil, ErrGameNotWaiting
 	}
 	if slices.ContainsFunc(g.Players, func(player *Player) bool {
-		return player.Hero.Class == cmd.Class
+		return player.Hero.Color == ColorFromHeroClass(cmd.Class)
 	}) {
-		return nil, fmt.Errorf("player with class %d already exists", cmd.Class)
+		return nil, ErrClassAlreadyPicked
 	}
 	player, err := NewPlayer(cmd.Name, cmd.Class, g.UseExtension)
 	if err != nil {
@@ -369,10 +371,10 @@ func (g *Game) addPlayer(cmd AddPlayerCmd) ([]Event, error) {
 
 func (g *Game) start() ([]Event, error) {
 	if g.Status != Waiting {
-		return nil, fmt.Errorf("game has already started")
+		return nil, ErrGameAlreadyStarted
 	}
 	if len(g.Players) < 2 || len(g.Players) > 6 {
-		return nil, fmt.Errorf("game has incorrect number of players: %d", len(g.Players))
+		return nil, ErrGameIncorrectPlayerNumber
 	}
 
 	g.generateDungeon()
@@ -410,7 +412,7 @@ func (g *Game) start() ([]Event, error) {
 
 func (g *Game) playCard(cmd PlayCardCmd) ([]Event, error) {
 	if g.PendingInteraction != nil {
-		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
+		return nil, ErrPendingInteraction
 	}
 	p, err := g.PlayerByID(cmd.PlayerID)
 	if err != nil {
@@ -421,7 +423,7 @@ func (g *Game) playCard(cmd PlayCardCmd) ([]Event, error) {
 		return nil, err
 	}
 	if !p.HasCardInHand(c) {
-		return nil, fmt.Errorf("player does not have card in hand")
+		return nil, ErrCardNotInHand
 	}
 	if g.HasActiveCurseEffect(HandSizeLimitedToThree) && len(p.Hand) > 3 {
 		return p.VoidHand(HandSizeLimitedToThree, g)
@@ -444,6 +446,7 @@ func (g *Game) playCard(cmd PlayCardCmd) ([]Event, error) {
 	}
 
 	var events []Event
+	prevLastPlayedCardTimer := g.LastPlayedCardTimer
 	g.LastPlayedCardTimer = g.RealElapsedTime
 	events = append(events, fieldEvents...)
 	wasTimeFrozen := g.IsTimeFrozen
@@ -484,6 +487,7 @@ func (g *Game) playCard(cmd PlayCardCmd) ([]Event, error) {
 			p.Hand = append(p.Hand, c)
 			g.PlayField.Field = slices.DeleteFunc(g.PlayField.Field, func(item PlayerCard) bool { return item == c })
 			g.IsTimeFrozen = wasTimeFrozen
+			g.LastPlayedCardTimer = prevLastPlayedCardTimer
 
 			return nil, err
 		}
@@ -501,7 +505,7 @@ func (g *Game) playCard(cmd PlayCardCmd) ([]Event, error) {
 
 func (g *Game) useHeroAbility(cmd UseHeroAbilityCmd) ([]Event, error) {
 	if g.PendingInteraction != nil {
-		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
+		return nil, ErrPendingInteraction
 	}
 	p, err := g.PlayerByID(cmd.PlayerID)
 	if err != nil {
@@ -544,7 +548,7 @@ func (g *Game) useHeroAbility(cmd UseHeroAbilityCmd) ([]Event, error) {
 	}
 	for _, card := range discardCards {
 		if !p.HasCardInHand(card) {
-			return nil, fmt.Errorf("player does not have card in hand")
+			return nil, ErrCardNotInHand
 		}
 	}
 
@@ -587,10 +591,10 @@ func (g *Game) useHeroAbility(cmd UseHeroAbilityCmd) ([]Event, error) {
 
 func (g *Game) useArtifact(cmd UseArtifactCmd) ([]Event, error) {
 	if !g.UseExtension {
-		return nil, fmt.Errorf("extension must be enabled to use artifacts")
+		return nil, ErrGameExtensionDisabled
 	}
 	if g.PendingInteraction != nil {
-		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
+		return nil, ErrPendingInteraction
 	}
 	p, err := g.PlayerByID(cmd.PlayerID)
 	if err != nil {
@@ -732,7 +736,7 @@ func (g *Game) resolveActiveEvents() ([]Event, error) {
 
 func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 	if g.PendingInteraction == nil {
-		return nil, fmt.Errorf("no pending player interaction")
+		return nil, ErrNoPendingInteraction
 	}
 	p, err := g.PlayerByID(cmd.PlayerID)
 	if err != nil {
@@ -749,6 +753,13 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 	if err != nil {
 		return nil, err
 	}
+	var targetArtifact *ArtifactCard
+	if cmd.TargetArtifactID != 0 {
+		targetArtifact, err = g.ArtifactByID(cmd.TargetArtifactID)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	var events []Event
 	var resolveEventFunc func(Context) ([]Event, error)
@@ -756,7 +767,7 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 	switch i := g.PendingInteraction.(type) {
 	case *TeamChoicePlayerInteraction:
 		if targetPlayer == nil {
-			return nil, fmt.Errorf("expected target player")
+			return nil, ErrExpectedTarget
 		}
 		i.CollectedChoices[p] = targetPlayer
 		delete(i.PendingPlayers, p)
@@ -769,7 +780,7 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 
 	case *PlayerDonatesHandInteraction:
 		if targetPlayer == nil {
-			return nil, fmt.Errorf("expected target player")
+			return nil, ErrExpectedTarget
 		}
 		i.CollectedChoices[p] = targetPlayer
 		delete(i.PendingPlayers, p)
@@ -781,17 +792,17 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 		resolveEventFunc = i.OnComplete
 
 	case *PlayerDiscardCardsInteraction:
-		cards := uniqueCards(cards)
+		discardCards := uniqueCards(cards)
 		expectedCount := min(i.requiredCounts[p], len(p.Hand))
-		if len(cards) != expectedCount {
-			return nil, fmt.Errorf("expected %d cards to discard, got %d", expectedCount, len(cards))
+		if len(discardCards) != expectedCount {
+			return nil, fmt.Errorf("expected %d cards to discard, got %d", expectedCount, len(discardCards))
 		}
-		for _, c := range cards {
+		for _, c := range discardCards {
 			if !p.HasCardInHand(c) {
-				return nil, fmt.Errorf("p does not have card in hand")
+				return nil, ErrCardNotInHand
 			}
 		}
-		i.CollectedChoices[p] = cards
+		i.CollectedChoices[p] = discardCards
 		delete(i.PendingPlayers, p)
 		events = append(events, PlayerEventChoiceSubmittedEvent{PlayerID: p.Id})
 		if len(i.PendingPlayers) != 0 {
@@ -801,10 +812,23 @@ func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 		resolveEventFunc = i.OnComplete
 
 	case *TeamChoiceResourceInteraction:
-		if cmd.Resource == nil {
-			return nil, fmt.Errorf("expected resource")
+		if cmd.Resource == NoResource {
+			return nil, ErrExpectedTarget
 		}
-		i.CollectedChoices[p] = *cmd.Resource
+		i.CollectedChoices[p] = cmd.Resource
+		delete(i.PendingPlayers, p)
+		events = append(events, PlayerEventChoiceSubmittedEvent{PlayerID: p.Id})
+		if len(i.PendingPlayers) != 0 {
+			return events, nil
+		}
+		eventCard = i.Card
+		resolveEventFunc = i.OnComplete
+
+	case *TeamChoiceArtifactInteraction:
+		if targetArtifact == nil {
+			return nil, ErrExpectedTarget
+		}
+		i.CollectedChoices[p] = targetArtifact
 		delete(i.PendingPlayers, p)
 		events = append(events, PlayerEventChoiceSubmittedEvent{PlayerID: p.Id})
 		if len(i.PendingPlayers) != 0 {

@@ -63,11 +63,12 @@ func (c UseHeroAbilityCmd) Reply() chan error {
 }
 
 type SubmitPromptChoiceCmd struct {
-	PlayerID       PlayerID
-	TargetPlayerID PlayerID
-	CardIDs        []CardID
-	Resource       *ResourceType
-	reply          chan error
+	PlayerID         PlayerID
+	TargetPlayerID   PlayerID
+	CardIDs          []CardID
+	TargetArtifactID ArtifactID
+	Resource         ResourceType
+	reply            chan error
 }
 
 func (SubmitPromptChoiceCmd) isCommand() {}
@@ -90,9 +91,10 @@ func (c UseArtifactCmd) Reply() chan error {
 
 type GetSnapshotCmd struct {
 	reply chan GameSnapshotDTO
+	errCh chan error
 }
 
 func (GetSnapshotCmd) isCommand() {}
 func (c GetSnapshotCmd) Reply() chan error {
-	return nil
+	return c.errCh
 }

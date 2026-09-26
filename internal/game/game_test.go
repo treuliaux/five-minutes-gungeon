@@ -114,7 +114,7 @@ func TestGameStartPlayerCountBoundaries(t *testing.T) {
 		{"6 players", 6, false},
 	}
 
-	classes := []HeroClass{Paladin, Barbarian, Gladiator, Valkyrie, Sorceress, Wizard}
+	classes := []HeroClass{Paladin, Barbarian, Ranger, Thief, Sorceress, Druid}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -684,9 +684,16 @@ func TestTickTimeoutCausesDefeat(t *testing.T) {
 	paladin, _ := NewPlayer("P1", Paladin, true)
 	barbarian, _ := NewPlayer("P2", Barbarian, true)
 
+	door := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	boss := &BossMat{Id: nextCardId(), Name: "Boss"}
+	dungeon := &Dungeon{
+		Boss:  boss,
+		Doors: []DungeonCard{door},
+	}
+
 	game := &Game{
 		Players:   []*Player{paladin, barbarian},
-		Dungeon:   NewBaseDungeon(1, 2),
+		Dungeon:   dungeon,
 		PlayField: NewPlayfield(),
 		Status:    Waiting,
 	}

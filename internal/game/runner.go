@@ -30,13 +30,11 @@ func NewRunner(game *Game) *Runner {
 
 func (r *Runner) Run(ctx context.Context) error {
 	r.ticker = time.NewTicker(tickDuration)
-	resetGlobalCardIndex()
 	defer func() {
 		close(r.done)
 		r.drainCommandsChanel()
 		r.closeAndClearSubscribers()
 		r.ticker.Stop()
-		resetGlobalCardIndex()
 	}()
 
 	var events []Event
@@ -72,7 +70,7 @@ func (r *Runner) Subscribe() <-chan Event {
 
 	sub := NewSubscriber()
 	if !r.canSubscribe {
-		sub.CloseImmediately()
+		sub.closeImmediately()
 
 		return sub.Out
 	}
@@ -87,7 +85,7 @@ func (r *Runner) Unsubscribe(sub <-chan Event) {
 
 	for i, s := range r.subscribers {
 		if s.Out == sub {
-			s.CloseImmediately()
+			s.closeImmediately()
 			r.subscribers[i] = nil
 			r.subscribers = append(r.subscribers[:i], r.subscribers[i+1:]...)
 			if len(r.subscribers) == 0 {
@@ -174,14 +172,31 @@ func (r *Runner) UseHeroAbility(ctx context.Context, pID PlayerID, discardIDs []
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }
 
-func (r *Runner) SubmitPromptChoice(ctx context.Context, actorID PlayerID, targetID PlayerID, cardIDs []CardID, res *ResourceType) error {
+func (r *Runner) SubmitPromptChoicePlayer(ctx context.Context, actorID PlayerID, targetID PlayerID) error {
+	return r.SubmitPromptChoice(ctx, actorID, targetID, nil, 0, 0)
+}
+
+func (r *Runner) SubmitPromptChoiceCards(ctx context.Context, actorID PlayerID, cardIDs []CardID) error {
+	return r.SubmitPromptChoice(ctx, actorID, "", cardIDs, 0, 0)
+}
+
+func (r *Runner) SubmitPromptChoiceResourceType(ctx context.Context, actorID PlayerID, res ResourceType) error {
+	return r.SubmitPromptChoice(ctx, actorID, "", nil, res, 0)
+}
+
+func (r *Runner) SubmitPromptChoiceArtifact(ctx context.Context, actorID PlayerID, artifactId ArtifactID) error {
+	return r.SubmitPromptChoice(ctx, actorID, "", nil, 0, artifactId)
+}
+
+func (r *Runner) SubmitPromptChoice(ctx context.Context, actorID PlayerID, targetID PlayerID, cardIDs []CardID, res ResourceType, artifactId ArtifactID) error {
 	reply := make(chan error, 1)
 	cmd := SubmitPromptChoiceCmd{
-		PlayerID:       actorID,
-		TargetPlayerID: targetID,
-		CardIDs:        cardIDs,
-		Resource:       res,
-		reply:          reply,
+		PlayerID:         actorID,
+		TargetPlayerID:   targetID,
+		CardIDs:          cardIDs,
+		TargetArtifactID: artifactId,
+		Resource:         res,
+		reply:            reply,
 	}
 
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
@@ -201,8 +216,16 @@ func (r *Runner) UseArtifact(ctx context.Context, actorID PlayerID, artifactID A
 }
 
 func (r *Runner) Snapshot(ctx context.Context) (GameSnapshotDTO, error) {
-	reply := make(chan GameSnapshotDTO, 1)
-	cmd := GetSnapshotCmd{reply: reply}
+	snapshotCh := make(chan GameSnapshotDTO, 1)
+	errCh := make(chan error, 1)
+
+	cmd := GetSnapshotCmd{reply: snapshotCh, errCh: errCh}
+
+	select {
+	case <-r.done:
+		return GameSnapshotDTO{}, &GameTerminatedError{Command: cmd}
+	default:
+	}
 
 	select {
 	case r.cmd <- cmd:
@@ -213,8 +236,10 @@ func (r *Runner) Snapshot(ctx context.Context) (GameSnapshotDTO, error) {
 	}
 
 	select {
-	case snapshot := <-reply:
+	case snapshot := <-snapshotCh:
 		return snapshot, nil
+	case err := <-cmd.errCh:
+		return GameSnapshotDTO{}, err
 	case <-r.done:
 		return GameSnapshotDTO{}, &GameTerminatedError{Command: cmd}
 	case <-ctx.Done():
@@ -261,7 +286,7 @@ func (r *Runner) closeAndClearSubscribers() {
 
 	var wg sync.WaitGroup
 	for _, sub := range r.subscribers {
-		sub.CloseGracefully()
+		sub.closeGracefully()
 		wg.Add(1)
 		go func(s *Subscriber) {
 			defer wg.Done()

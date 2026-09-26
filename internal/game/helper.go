@@ -7,14 +7,10 @@ import (
 	"sync/atomic"
 )
 
-var globalCardIdIdx atomic.Uint32
+var globalCardIdIdx atomic.Uint64
 
 func nextCardId() CardID {
 	return CardID(globalCardIdIdx.Add(1))
-}
-
-func resetGlobalCardIndex() {
-	globalCardIdIdx.Store(0)
 }
 
 func (g *Game) PlayerByID(id PlayerID) (*Player, error) {
@@ -26,7 +22,7 @@ func (g *Game) PlayerByID(id PlayerID) (*Player, error) {
 		return player, nil
 	}
 
-	return nil, fmt.Errorf("player '%s' not found", id)
+	return nil, ErrPlayerNotFound
 }
 
 func (g *Game) PlayersByIDs(ids []PlayerID) ([]*Player, error) {
@@ -40,7 +36,7 @@ func (g *Game) PlayersByIDs(ids []PlayerID) ([]*Player, error) {
 		idx++
 	}
 	if len(players) != len(ids) {
-		return nil, fmt.Errorf("not all players were found")
+		return nil, ErrPlayerNotFound
 	}
 
 	return players, nil
@@ -50,7 +46,7 @@ func (g *Game) PlayerCardByID(id CardID) (PlayerCard, error) {
 		return card, nil
 	}
 
-	return nil, fmt.Errorf("card with id '%v' not found", id)
+	return nil, ErrCardNotFound
 }
 func (g *Game) PlayerCardsByIDs(ids []CardID) ([]PlayerCard, error) {
 	cards := make([]PlayerCard, len(ids))
@@ -69,7 +65,7 @@ func (g *Game) DungeonCardByID(id CardID) (DungeonCard, error) {
 		return card, nil
 	}
 
-	return nil, fmt.Errorf("card with id '%v' not found", id)
+	return nil, ErrCardNotFound
 }
 func (g *Game) ArtifactByID(id ArtifactID) (*ArtifactCard, error) {
 	for _, card := range g.PlayField.Artifacts {
@@ -80,7 +76,7 @@ func (g *Game) ArtifactByID(id ArtifactID) (*ArtifactCard, error) {
 		return card, nil
 	}
 
-	return nil, fmt.Errorf("artifact with id '%v' not found", id)
+	return nil, ErrCardNotFound
 }
 
 func pluckCardIDs[T IdentifiableCard](cards []T) []CardID {
@@ -95,7 +91,7 @@ func pluckCardIDs[T IdentifiableCard](cards []T) []CardID {
 func defeatDoorByFilter(engine GameEngine, source any, target DungeonCard, filter *DoorsFilter) ([]Event, error) {
 	if target != nil {
 		if !slices.Contains(engine.ActiveDoors(filter), target) {
-			return nil, fmt.Errorf("invalid target")
+			return nil, ErrInvalidTarget
 		}
 	}
 	if target == nil {

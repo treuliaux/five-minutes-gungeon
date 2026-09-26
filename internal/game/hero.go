@@ -57,6 +57,25 @@ func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
 	}
 }
 
+func ColorFromHeroClass(class HeroClass) DeckColor {
+	switch class {
+	case Sorceress, Wizard:
+		return Blue
+	case Huntress, Ranger:
+		return Green
+	case Ninja, Thief:
+		return Purple
+	case Paladin, Valkyrie:
+		return Yellow
+	case Barbarian, Gladiator:
+		return Red
+	case Druid, Shaman:
+		return Black
+	}
+
+	return NoColor
+}
+
 func NewSorceress() *Hero {
 	return &Hero{
 		Color:   Blue,
@@ -179,7 +198,9 @@ func (h *Hero) NewExtensionDeck() *Deck {
 		return NewGreenDeck().IncludeExtension().Shuffle()
 	case Purple:
 		return NewPurpleDeck().IncludeExtension().Shuffle()
+	case NoColor:
 	}
+
 	return nil
 }
 
@@ -197,6 +218,7 @@ func (h *Hero) NewBaseDeck() *Deck {
 		return NewPurpleDeck().Shuffle()
 	case Black:
 		return NewBlackDeck().Shuffle()
+	case NoColor:
 	}
 
 	return nil

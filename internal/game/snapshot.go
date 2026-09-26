@@ -1,6 +1,9 @@
 package game
 
-import "time"
+import (
+	"slices"
+	"time"
+)
 
 type GameSnapshotDTO struct {
 	Status              Status                 `json:"status"`
@@ -314,6 +317,7 @@ func PendingInteractionToDTO(pendingInteraction PendingInteraction) *PendingInte
 			pendingPlayers = append(pendingPlayers, p.Id)
 		}
 	}
+	slices.Sort(pendingPlayers)
 
 	return &PendingInteractionDTO{
 		Kind:           kind,

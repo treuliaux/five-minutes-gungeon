@@ -101,7 +101,7 @@ func (p *Player) DrawCardsFromDiscard(count int) ([]Event, error) {
 		return nil, nil
 	}
 	if p.Discard == nil {
-		return nil, fmt.Errorf("player has no deck")
+		return nil, fmt.Errorf("player has no discard")
 	}
 	if p.Discard.Empty() {
 		return nil, nil

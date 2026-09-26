@@ -44,15 +44,13 @@ type CardPlayedEvent struct {
 func (CardPlayedEvent) isEvent() {}
 
 type CardRemovedEvent struct {
-	ByPlayerID PlayerID
-	CardID     CardID
+	CardID CardID
 }
 
 func (CardRemovedEvent) isEvent() {}
 
 type DoorCardRemovedEvent struct {
-	ByPlayerID PlayerID
-	CardID     CardID
+	CardID CardID
 }
 
 func (DoorCardRemovedEvent) isEvent() {}
@@ -89,9 +87,10 @@ type ActionCardPlayedEvent struct {
 func (ActionCardPlayedEvent) isEvent() {}
 
 type EventCounteredEvent struct {
-	ByPlayerID PlayerID
-	CardID     CardID
-	WithCardID any
+	ByPlayerID     PlayerID
+	CardID         CardID
+	WithCardID     CardID
+	WithArtifactID ArtifactID
 }
 
 func (EventCounteredEvent) isEvent() {}
@@ -148,7 +147,7 @@ type ArtifactUsedEvent struct {
 func (ArtifactUsedEvent) isEvent() {}
 
 type ArtifactReEnabledEvent struct {
-	ArtifactID *ArtifactCard
+	ArtifactID ArtifactID
 }
 
 func (ArtifactReEnabledEvent) isEvent() {}

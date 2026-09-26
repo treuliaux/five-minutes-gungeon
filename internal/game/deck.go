@@ -7,7 +7,8 @@ import (
 type DeckColor int
 
 const (
-	Blue DeckColor = iota
+	NoColor DeckColor = iota
+	Blue
 	Green
 	Purple
 	Yellow
@@ -331,6 +332,7 @@ func (d *Deck) IncludeExtension() *Deck {
 			&ActionCard{Id: nextCardId(), Name: "Battle Rage", Action: BattleRageAction{}},
 		)
 	case Black:
+	case NoColor:
 	}
 
 	return d

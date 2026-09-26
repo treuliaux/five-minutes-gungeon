@@ -34,6 +34,8 @@ func (a BattleAxeArtifact) Execute(ctx ArtifactActionContext) ([]Event, error) {
 				return events, err
 			}
 		}
+	default:
+		return nil, fmt.Errorf("unexpected artifact action index value: %v", ctx.ChosenAction)
 	}
 
 	return events, nil
@@ -61,9 +63,9 @@ func (a TheInfinityScrollArtifact) Execute(ctx ArtifactActionContext) ([]Event, 
 		}
 
 		return append([]Event{EventCounteredEvent{
-			ByPlayerID: ctx.Player.Id,
-			CardID:     ctx.Target.ID(),
-			WithCardID: ctx.Artifact.Id,
+			ByPlayerID:     ctx.Player.Id,
+			CardID:         ctx.Target.ID(),
+			WithArtifactID: ctx.Artifact.Id,
 		}}, actionEvents...), nil
 	default:
 		return nil, fmt.Errorf("unexpected artifact action index value: %v", ctx.ChosenAction)
