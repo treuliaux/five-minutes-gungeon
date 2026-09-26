@@ -8,12 +8,12 @@ import (
 
 func TestActionCardHolyHandGrenade(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin, true)
-	doorMonster := &DoorCard{Type: DoorMonster, Name: "Dragon", Resources: []ResourceType{Sword, Shield}}
-	doorObstacle := &DoorCard{Type: DoorObstacle, Name: "Wall", Resources: []ResourceType{Jump}}
-	bossMat := &BossMat{Name: "Boss", Resources: []ResourceType{Scroll}}
+	doorMonster := &DoorCard{Id: 10, Type: DoorMonster, Name: "Dragon", Resources: []ResourceType{Sword, Shield}}
+	doorObstacle := &DoorCard{Id: 20, Type: DoorObstacle, Name: "Wall", Resources: []ResourceType{Jump}}
+	bossMat := &BossMat{Id: 30, Name: "Boss", Resources: []ResourceType{Scroll}}
 
-	hhgCard := &ActionCard{Name: "Holy Hand Grenade", Action: HolyHandGrenadeAction{}}
-	drawCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	hhgCard := &ActionCard{Id: 666, Name: "Holy Hand Grenade", Action: HolyHandGrenadeAction{}}
+	drawCard := &ResourceCard{Id: 1, Resources: []ResourceType{Sword}}
 
 	paladin.Hand = []PlayerCard{hhgCard}
 	paladin.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -31,9 +31,10 @@ func TestActionCardHolyHandGrenade(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	registerCardsInTestGame(game)
 
 	// 1. Play HHG auto-targets the single active door
-	events, err := game.Apply(PlayCardCmd{Player: paladin, Card: hhgCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: paladin.Id, CardID: hhgCard.ID()})
 	if err != nil {
 		t.Fatalf("failed to play Holy Hand Grenade: %v", err)
 	}
@@ -63,7 +64,7 @@ func TestActionCardHolyHandGrenade(t *testing.T) {
 		if _, ok := e.(CardPlayedEvent); ok {
 			playedEvtFound = true
 		}
-		if dev, ok := e.(DoorDefeatedEvent); ok && dev.DungeonCard == doorMonster {
+		if dev, ok := e.(DoorDefeatedEvent); ok && dev.CardID == doorMonster.ID() {
 			defeatEvtFound = true
 		}
 	}
@@ -73,9 +74,11 @@ func TestActionCardHolyHandGrenade(t *testing.T) {
 
 	// 2. Targeting BossMat while it is not yet active on the playfield must be rejected
 	paladin.Hand = []PlayerCard{hhgCard}
+	registerCardsInTestGame(game)
 	_, err = game.Apply(PlayCardCmd{
-		Player: paladin,
-		Card:   &ActionCard{Name: "Holy Hand Grenade", Action: HolyHandGrenadeAction{Target: bossMat}},
+		PlayerID:     paladin.Id,
+		CardID:       hhgCard.ID(),
+		TargetCardID: bossMat.ID(),
 	})
 	if err == nil {
 		t.Error("expected error when targeting BossMat with Holy Hand Grenade, got nil")
@@ -83,7 +86,9 @@ func TestActionCardHolyHandGrenade(t *testing.T) {
 
 	// 3. Play HHG when only BossMat is active should work
 	game.PlayField.OpenedDoors = []DungeonCard{bossMat}
-	_, err = game.Apply(PlayCardCmd{Player: paladin, Card: hhgCard})
+	paladin.Hand = []PlayerCard{hhgCard}
+	registerCardsInTestGame(game)
+	_, err = game.Apply(PlayCardCmd{PlayerID: paladin.Id, CardID: hhgCard.ID()})
 	if err != nil {
 		t.Errorf("expected no error when only BossMat is active, got: %v", err)
 	}
@@ -93,14 +98,14 @@ func TestActionCardHeal(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	healCard := &ActionCard{Name: "Heal", Action: HealAction{}}
-	drawCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	healCard := &ActionCard{Id: 666, Name: "Heal", Action: HealAction{}}
+	drawCard := &ResourceCard{Id: 1, Resources: []ResourceType{Sword}}
 
 	p1.Hand = []PlayerCard{healCard}
 	p1.Deck = &Deck{Cards: []PlayerCard{drawCard}}
 
-	c1 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c2 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	c1 := &ResourceCard{Id: 2, Resources: []ResourceType{Shield}}
+	c2 := &ResourceCard{Id: 3, Resources: []ResourceType{Arrow}}
 	p2.Discard.PutAtop(c1, c2)
 	p2.Deck = &Deck{Cards: []PlayerCard{}}
 
@@ -110,8 +115,9 @@ func TestActionCardHeal(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: healCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: healCard.ID()})
 	if err != nil {
 		t.Fatalf("failed to play Heal action: %v", err)
 	}
@@ -127,10 +133,10 @@ func TestActionCardHeal(t *testing.T) {
 	// Verify PlayerHealedEvent emitted
 	var healFound bool
 	for _, e := range events {
-		if he, ok := e.(PlayerHealedEvent); ok && he.Player == p2 {
+		if he, ok := e.(PlayerHealedEvent); ok && he.PlayerID == p2.Id {
 			healFound = true
-			if len(he.Cards) != 2 {
-				t.Errorf("expected 2 healed cards, got %d", len(he.Cards))
+			if len(he.CardIDs) != 2 {
+				t.Errorf("expected 2 healed cards, got %d", len(he.CardIDs))
 			}
 		}
 	}
@@ -154,7 +160,7 @@ func TestActionCardHealthPotion(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	potCard := &ActionCard{Name: "Health Potion", Action: HealthPotionAction{}}
+	potCard := &ActionCard{Id: 666, Name: "Health Potion", Action: HealthPotionAction{}}
 	p1.Hand = []PlayerCard{potCard}
 	p1.Deck = &Deck{Cards: []PlayerCard{&ResourceCard{Resources: []ResourceType{Sword}}}}
 
@@ -176,8 +182,9 @@ func TestActionCardHealthPotion(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: potCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: potCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Health Potion: %v", err)
 	}
@@ -215,7 +222,7 @@ func TestActionCardMysticRune(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	runeCard := &ActionCard{Name: "Mystic Rune", Action: MysticRuneAction{}}
+	runeCard := &ActionCard{Id: 666, Name: "Mystic Rune", Action: MysticRuneAction{}}
 	draw1 := &ResourceCard{Resources: []ResourceType{Sword}}
 	draw2 := &ResourceCard{Resources: []ResourceType{Shield}}
 	drawDeck := &ResourceCard{Resources: []ResourceType{Arrow}}
@@ -236,8 +243,9 @@ func TestActionCardMysticRune(t *testing.T) {
 		Name:   "Tourbillon de Wazaa",
 		Effect: TimeCannotBeStopped,
 	}, game)
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: runeCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: runeCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Mystic Rune: %v", err)
 	}
@@ -250,7 +258,7 @@ func TestActionCardMysticRune(t *testing.T) {
 	// Verify CardDrawnFromDeckEvent
 	var p2DrawnFound bool
 	for _, e := range events {
-		if de, ok := e.(CardDrawnFromDeckEvent); ok && de.ByPlayer == p2 && de.Card == draw2 {
+		if de, ok := e.(CardDrawnFromDeckEvent); ok && de.ByPlayerID == p2.Id && de.CardID == draw2.Id {
 			p2DrawnFound = true
 		}
 	}
@@ -263,7 +271,7 @@ func TestActionCardRally(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	rallyCard := &ActionCard{Name: "Rally", Action: RallyAction{}}
+	rallyCard := &ActionCard{Id: 666, Name: "Rally", Action: RallyAction{}}
 	p1.Hand = []PlayerCard{rallyCard}
 	p1.Deck = &Deck{Cards: []PlayerCard{&ResourceCard{Resources: []ResourceType{Sword}}}}
 
@@ -287,8 +295,9 @@ func TestActionCardRally(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: rallyCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: rallyCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Rally action: %v", err)
 	}
@@ -307,10 +316,10 @@ func TestActionCardRally(t *testing.T) {
 	var drawnSword, drawnShield bool
 	for _, e := range events {
 		if de, ok := e.(CardDrawnFromDiscardEvent); ok {
-			if de.Card == cSword {
+			if de.CardID == cSword.Id {
 				drawnSword = true
 			}
-			if de.Card == cShield {
+			if de.CardID == cShield.Id {
 				drawnShield = true
 			}
 		}
@@ -322,7 +331,7 @@ func TestActionCardRally(t *testing.T) {
 
 func TestActionCardFailedPlayKeepsCardInHand(t *testing.T) {
 	ranger, _ := NewPlayer("Robin", Ranger, true)
-	snipeCard := &ActionCard{Name: "Snipe", Action: SnipeAction{}} // Needs DoorPerson
+	snipeCard := &ActionCard{Id: 666, Name: "Snipe", Action: SnipeAction{}} // Needs DoorPerson
 	ranger.Hand = []PlayerCard{snipeCard}
 
 	doorMonster := &DoorCard{Type: DoorMonster, Name: "Goblin"}
@@ -338,9 +347,10 @@ func TestActionCardFailedPlayKeepsCardInHand(t *testing.T) {
 		Status: Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	registerCardsInTestGame(game)
 
 	// Snipe should fail because no Person door is active
-	_, err := game.Apply(PlayCardCmd{Player: ranger, Card: snipeCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: ranger.Id, CardID: snipeCard.Id})
 	if err == nil {
 		t.Fatal("expected error when playing Snipe with no active Person door")
 	}
@@ -358,7 +368,7 @@ func TestActionCardPersistsOnPlayfieldUntilRoomCleared(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	healCard := &ActionCard{Name: "Heal", Action: HealAction{}}
+	healCard := &ActionCard{Id: 666, Name: "Heal", Action: HealAction{}}
 	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
 	drawCard1 := &ResourceCard{Resources: []ResourceType{Arrow}}
 	drawCard2 := &ResourceCard{Resources: []ResourceType{Shield}}
@@ -382,9 +392,10 @@ func TestActionCardPersistsOnPlayfieldUntilRoomCleared(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	registerCardsInTestGame(game)
 
 	// 1. Play Heal Action: door is NOT defeated yet, healCard must be on playfield
-	_, err := game.Apply(PlayCardCmd{Player: p1, Card: healCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: healCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play heal: %v", err)
 	}
@@ -397,7 +408,7 @@ func TestActionCardPersistsOnPlayfieldUntilRoomCleared(t *testing.T) {
 	}
 
 	// 2. Play Sword Resource: now door requirements are satisfied
-	_, err = game.Apply(PlayCardCmd{Player: p1, Card: swordCard})
+	_, err = game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: swordCard.ID()})
 	if err != nil {
 		t.Fatalf("failed to play sword: %v", err)
 	}
@@ -437,7 +448,7 @@ func TestActionCardPersistsOnPlayfieldUntilRoomCleared(t *testing.T) {
 
 func TestActionCardTimeWarp(t *testing.T) {
 	wizard, _ := NewPlayer("Gandalf", Wizard, true)
-	timeWarpCard := &ActionCard{Name: "Time Warp", Action: TimeWarpAction{}}
+	timeWarpCard := &ActionCard{Id: 666, Name: "Time Warp", Action: TimeWarpAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Scroll}}
 
 	wizard.Hand = []PlayerCard{timeWarpCard}
@@ -457,8 +468,9 @@ func TestActionCardTimeWarp(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: wizard, Card: timeWarpCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: wizard.Id, CardID: timeWarpCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Time Warp: %v", err)
 	}
@@ -480,7 +492,7 @@ func TestActionCardTimeWarp(t *testing.T) {
 
 func TestActionCardSnipeAndDefeatDoorKinds(t *testing.T) {
 	ranger, _ := NewPlayer("Robin", Ranger, true)
-	snipeCard := &ActionCard{Name: "Snipe", Action: SnipeAction{}}
+	snipeCard := &ActionCard{Id: 666, Name: "Snipe", Action: SnipeAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Arrow}}
 
 	ranger.Hand = []PlayerCard{snipeCard}
@@ -501,8 +513,9 @@ func TestActionCardSnipeAndDefeatDoorKinds(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(personDoor, game)
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: ranger, Card: snipeCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: ranger.Id, CardID: snipeCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Snipe: %v", err)
 	}
@@ -516,7 +529,7 @@ func TestActionCardSnipeAndDefeatDoorKinds(t *testing.T) {
 
 	var defeatFound bool
 	for _, e := range events {
-		if de, ok := e.(DoorDefeatedEvent); ok && de.DungeonCard == personDoor {
+		if de, ok := e.(DoorDefeatedEvent); ok && de.CardID == personDoor.Id {
 			defeatFound = true
 		}
 	}
@@ -529,7 +542,7 @@ func TestActionCardEnrage(t *testing.T) {
 	p1, _ := NewPlayer("P1", Barbarian, true)
 	p2, _ := NewPlayer("P2", Gladiator, true)
 
-	enrageCard := &ActionCard{Name: "Enrage", Action: EnrageAction{}}
+	enrageCard := &ActionCard{Id: 666, Name: "Enrage", Action: EnrageAction{}}
 	d1 := &ResourceCard{Resources: []ResourceType{Sword}}
 	d2 := &ResourceCard{Resources: []ResourceType{Shield}}
 	d3 := &ResourceCard{Resources: []ResourceType{Jump}}
@@ -544,8 +557,9 @@ func TestActionCardEnrage(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: enrageCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: enrageCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Enrage: %v", err)
 	}
@@ -561,7 +575,7 @@ func TestActionCardEnrage(t *testing.T) {
 
 func TestActionCardWildCard(t *testing.T) {
 	ranger, _ := NewPlayer("Robin", Ranger, true)
-	wildCard := &ActionCard{Name: "Wild Card", Action: WildCardAction{}}
+	wildCard := &ActionCard{Id: 666, Name: "Wild Card", Action: WildCardAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Arrow}}
 
 	ranger.Hand = []PlayerCard{wildCard}
@@ -581,10 +595,11 @@ func TestActionCardWildCard(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: ranger, Card: wildCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: ranger.Id, CardID: wildCard.Id})
 	if err != nil {
-		t.Fatalf("failed to play Wild Card: %v", err)
+		t.Fatalf("failed to play Wild CardID: %v", err)
 	}
 
 	// ActionCard is removed from playfield and replaced by a ResourceCard{Resources: [WildCard]}
@@ -601,7 +616,7 @@ func TestActionCardWildCard(t *testing.T) {
 
 	var cardRemovedFound bool
 	for _, e := range events {
-		if re, ok := e.(CardRemovedEvent); ok && re.Card == wildCard {
+		if re, ok := e.(CardRemovedEvent); ok && re.CardID == wildCard.Id {
 			cardRemovedFound = true
 		}
 	}
@@ -612,7 +627,7 @@ func TestActionCardWildCard(t *testing.T) {
 
 func TestActionCardMagicBomb(t *testing.T) {
 	wizard, _ := NewPlayer("Mage", Wizard, true)
-	magicBombCard := &ActionCard{Name: "Magic Bomb", Action: MagicBombAction{}}
+	magicBombCard := &ActionCard{Id: 666, Name: "Magic Bomb", Action: MagicBombAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Scroll}}
 
 	wizard.Hand = []PlayerCard{magicBombCard}
@@ -627,8 +642,9 @@ func TestActionCardMagicBomb(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: wizard, Card: magicBombCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: wizard.Id, CardID: magicBombCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Magic Bomb: %v", err)
 	}
@@ -648,7 +664,7 @@ func TestActionCardMagicBomb(t *testing.T) {
 
 func TestActionCardThrowingKnives(t *testing.T) {
 	ninja, _ := NewPlayer("Ninja", Ninja, true)
-	knivesCard := &ActionCard{Name: "Throwing Knives", Action: ThrowingKnivesAction{}}
+	knivesCard := &ActionCard{Id: 666, Name: "Throwing Knives", Action: ThrowingKnivesAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Jump}}
 
 	ninja.Hand = []PlayerCard{knivesCard}
@@ -663,8 +679,9 @@ func TestActionCardThrowingKnives(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: ninja, Card: knivesCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: ninja.Id, CardID: knivesCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Throwing Knives: %v", err)
 	}
@@ -695,7 +712,7 @@ func TestActionCardMonsterDefeatActions(t *testing.T) {
 	for _, tt := range monsterActions {
 		t.Run(tt.name, func(t *testing.T) {
 			player, _ := NewPlayer("Hero", Ranger, true)
-			card := &ActionCard{Name: tt.name, Action: tt.action}
+			card := &ActionCard{Id: 666, Name: tt.name, Action: tt.action}
 			drawCard := &ResourceCard{Resources: []ResourceType{Arrow}}
 			player.Hand = []PlayerCard{card}
 			player.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -711,8 +728,9 @@ func TestActionCardMonsterDefeatActions(t *testing.T) {
 				Status:    Playing,
 			}
 			_, _ = game.PlayField.AddDungeonCard(monsterDoor, game)
+			registerCardsInTestGame(game)
 
-			_, err := game.Apply(PlayCardCmd{Player: player, Card: card})
+			_, err := game.Apply(PlayCardCmd{PlayerID: player.Id, CardID: card.Id})
 			if err != nil {
 				t.Fatalf("failed to play %s: %v", tt.name, err)
 			}
@@ -736,7 +754,7 @@ func TestActionCardObstacleDefeatActions(t *testing.T) {
 	for _, tt := range obstacleActions {
 		t.Run(tt.name, func(t *testing.T) {
 			player, _ := NewPlayer("Hero", Barbarian, true)
-			card := &ActionCard{Name: tt.name, Action: tt.action}
+			card := &ActionCard{Id: 666, Name: tt.name, Action: tt.action}
 			drawCard := &ResourceCard{Resources: []ResourceType{Sword}}
 			player.Hand = []PlayerCard{card}
 			player.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -752,8 +770,9 @@ func TestActionCardObstacleDefeatActions(t *testing.T) {
 				Status:    Playing,
 			}
 			_, _ = game.PlayField.AddDungeonCard(obstacleDoor, game)
+			registerCardsInTestGame(game)
 
-			_, err := game.Apply(PlayCardCmd{Player: player, Card: card})
+			_, err := game.Apply(PlayCardCmd{PlayerID: player.Id, CardID: card.Id})
 			if err != nil {
 				t.Fatalf("failed to play %s: %v", tt.name, err)
 			}
@@ -777,7 +796,7 @@ func TestActionCardPersonDefeatActions(t *testing.T) {
 	for _, tt := range personActions {
 		t.Run(tt.name, func(t *testing.T) {
 			player, _ := NewPlayer("Hero", Thief, true)
-			card := &ActionCard{Name: tt.name, Action: tt.action}
+			card := &ActionCard{Id: 666, Name: tt.name, Action: tt.action}
 			drawCard := &ResourceCard{Resources: []ResourceType{Jump}}
 			player.Hand = []PlayerCard{card}
 			player.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -793,8 +812,9 @@ func TestActionCardPersonDefeatActions(t *testing.T) {
 				Status:    Playing,
 			}
 			_, _ = game.PlayField.AddDungeonCard(personDoor, game)
+			registerCardsInTestGame(game)
 
-			_, err := game.Apply(PlayCardCmd{Player: player, Card: card})
+			_, err := game.Apply(PlayCardCmd{PlayerID: player.Id, CardID: card.Id})
 			if err != nil {
 				t.Fatalf("failed to play %s: %v", tt.name, err)
 			}
@@ -816,7 +836,7 @@ func TestActionCardMiniBossDefeatActions(t *testing.T) {
 	for _, tt := range miniBossActions {
 		t.Run(tt.name, func(t *testing.T) {
 			barbarian, _ := NewPlayer("Hero", Barbarian, true)
-			card := &ActionCard{Name: tt.name, Action: tt.action}
+			card := &ActionCard{Id: 666, Name: tt.name, Action: tt.action}
 			drawCard := &ResourceCard{Resources: []ResourceType{Sword}}
 			barbarian.Hand = []PlayerCard{card}
 			barbarian.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -832,8 +852,9 @@ func TestActionCardMiniBossDefeatActions(t *testing.T) {
 				Status:    Playing,
 			}
 			_, _ = game.PlayField.AddDungeonCard(miniBoss, game)
+			registerCardsInTestGame(game)
 
-			_, err := game.Apply(PlayCardCmd{Player: barbarian, Card: card})
+			_, err := game.Apply(PlayCardCmd{PlayerID: barbarian.Id, CardID: card.Id})
 			if err != nil {
 				t.Fatalf("failed to play %s: %v", tt.name, err)
 			}
@@ -846,7 +867,7 @@ func TestActionCardMiniBossDefeatActions(t *testing.T) {
 
 func TestActionCardCancelEvent(t *testing.T) {
 	wizard, _ := NewPlayer("Mage", Wizard, true)
-	cancelCard := &ActionCard{Name: "Cancel", Action: CancelAction{}}
+	cancelCard := &ActionCard{Id: 666, Name: "Cancel", Action: CancelAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Scroll}}
 	wizard.Hand = []PlayerCard{cancelCard}
 	wizard.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -862,8 +883,9 @@ func TestActionCardCancelEvent(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventDoor, game)
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: wizard, Card: cancelCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: wizard.Id, CardID: cancelCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Cancel: %v", err)
 	}
@@ -876,7 +898,7 @@ func TestActionCardDivineShield(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Valkyrie, true)
 
-	divineShieldCard := &ActionCard{Name: "Divine Shield", Action: DivineShieldAction{}}
+	divineShieldCard := &ActionCard{Id: 666, Name: "Divine Shield", Action: DivineShieldAction{}}
 	d1 := &ResourceCard{Resources: []ResourceType{Sword}}
 	d2 := &ResourceCard{Resources: []ResourceType{Shield}}
 	p1.Hand = []PlayerCard{divineShieldCard}
@@ -889,8 +911,9 @@ func TestActionCardDivineShield(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: divineShieldCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: divineShieldCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Divine Shield: %v", err)
 	}
@@ -919,7 +942,7 @@ func TestActionCardExtraQuiver(t *testing.T) {
 	p1, _ := NewPlayer("P1", Ranger, true)
 	p2, _ := NewPlayer("P2", Huntress, true)
 
-	quiverCard := &ActionCard{Name: "Extra Quiver", Action: ExtraQuiverAction{}}
+	quiverCard := &ActionCard{Id: 666, Name: "Extra Quiver", Action: ExtraQuiverAction{}}
 	d1 := &ResourceCard{Resources: []ResourceType{Arrow}}
 	d2 := &ResourceCard{Resources: []ResourceType{Arrow}}
 	p1.Hand = []PlayerCard{quiverCard}
@@ -932,8 +955,9 @@ func TestActionCardExtraQuiver(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: p1, Card: quiverCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: quiverCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Extra Quiver: %v", err)
 	}
@@ -948,7 +972,7 @@ func TestActionCardHealingHerbs(t *testing.T) {
 	p1, _ := NewPlayer("P1", Ranger, true)
 	p2, _ := NewPlayer("P2", Paladin, true)
 
-	herbsCard := &ActionCard{Name: "Healing Herbs", Action: HealingHerbsAction{}}
+	herbsCard := &ActionCard{Id: 666, Name: "Healing Herbs", Action: HealingHerbsAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Arrow}}
 	p1.Hand = []PlayerCard{herbsCard}
 	p1.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -963,8 +987,9 @@ func TestActionCardHealingHerbs(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: p1, Card: herbsCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: herbsCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Healing Herbs: %v", err)
 	}
@@ -982,7 +1007,7 @@ func TestActionCardAncientHealing(t *testing.T) {
 	p1, _ := NewPlayer("P1", Valkyrie, true)
 	p2, _ := NewPlayer("P2", Paladin, true)
 
-	ancientHealingCard := &ActionCard{Name: "Ancient Healing", Action: AncientHealingAction{}}
+	ancientHealingCard := &ActionCard{Id: 666, Name: "Ancient Healing", Action: AncientHealingAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Shield}}
 	p1.Hand = []PlayerCard{ancientHealingCard}
 	p1.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -999,8 +1024,9 @@ func TestActionCardAncientHealing(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: p1, Card: ancientHealingCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: ancientHealingCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Ancient Healing: %v", err)
 	}
@@ -1019,7 +1045,7 @@ func TestActionCardAncientHealing(t *testing.T) {
 
 func TestActionCardBattleRage(t *testing.T) {
 	barbarian, _ := NewPlayer("Conan", Barbarian, true)
-	battleRageCard := &ActionCard{Name: "Battle Rage", Action: BattleRageAction{}}
+	battleRageCard := &ActionCard{Id: 666, Name: "Battle Rage", Action: BattleRageAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Sword}}
 	barbarian.Hand = []PlayerCard{battleRageCard}
 	barbarian.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -1039,8 +1065,9 @@ func TestActionCardBattleRage(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: barbarian, Card: battleRageCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: barbarian.Id, CardID: battleRageCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Battle Rage: %v", err)
 	}
@@ -1052,7 +1079,7 @@ func TestActionCardBattleRage(t *testing.T) {
 
 func TestActionCardCleanse(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin, true)
-	cleanseCard := &ActionCard{Name: "Cleanse", Action: CleanseAction{}}
+	cleanseCard := &ActionCard{Id: 666, Name: "Cleanse", Action: CleanseAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Sword}}
 	paladin.Hand = []PlayerCard{cleanseCard}
 	paladin.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -1072,8 +1099,9 @@ func TestActionCardCleanse(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: paladin, Card: cleanseCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: paladin.Id, CardID: cleanseCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Cleanse: %v", err)
 	}
@@ -1085,7 +1113,7 @@ func TestActionCardCleanse(t *testing.T) {
 
 func TestActionCardPortal(t *testing.T) {
 	wizard, _ := NewPlayer("Gandalf", Wizard, true)
-	portalCard := &ActionCard{Name: "Portal", Action: PortalAction{}}
+	portalCard := &ActionCard{Id: 666, Name: "Portal", Action: PortalAction{}}
 	drawCard := &ResourceCard{Resources: []ResourceType{Scroll}}
 	wizard.Hand = []PlayerCard{portalCard}
 	wizard.Deck = &Deck{Cards: []PlayerCard{drawCard}}
@@ -1106,8 +1134,9 @@ func TestActionCardPortal(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(door1, game)
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: wizard, Card: portalCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: wizard.Id, CardID: portalCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Portal: %v", err)
 	}
@@ -1128,7 +1157,7 @@ func TestActionCardDonate(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	donateCard := &ActionCard{Name: "Donate", Action: DonateAction{Target: p2}}
+	donateCard := &ActionCard{Id: 666, Name: "Donate", Action: DonateAction{}}
 	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
 	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
 	p1.Hand = []PlayerCard{donateCard, c1, c2}
@@ -1140,8 +1169,9 @@ func TestActionCardDonate(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: donateCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: donateCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Donate: %v", err)
 	}
@@ -1153,7 +1183,7 @@ func TestActionCardDonate(t *testing.T) {
 
 	var donateEvtFound bool
 	for _, e := range events {
-		if de, ok := e.(HandDonatedEvent); ok && de.From == p1 && de.To == p2 {
+		if de, ok := e.(HandDonatedEvent); ok && de.FromPlayerID == p1.Id && de.ToPlayerID == p2.Id {
 			donateEvtFound = true
 		}
 	}
@@ -1166,7 +1196,7 @@ func TestActionCardDonateAutoTarget(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	donateCard := &ActionCard{Name: "Donate", Action: DonateAction{}}
+	donateCard := &ActionCard{Id: 666, Name: "Donate", Action: DonateAction{}}
 	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
 	p1.Hand = []PlayerCard{donateCard, c1}
 	p1.Deck = &Deck{Cards: []PlayerCard{&ResourceCard{Resources: []ResourceType{Jump}}}}
@@ -1177,8 +1207,9 @@ func TestActionCardDonateAutoTarget(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: p1, Card: donateCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: donateCard.Id})
 	if err != nil {
 		t.Fatalf("failed to auto-target Donate in 2-player game: %v", err)
 	}
@@ -1192,7 +1223,7 @@ func TestActionCardSteal(t *testing.T) {
 	p1, _ := NewPlayer("P1", Thief, true)
 	p2, _ := NewPlayer("P2", Paladin, true)
 
-	stealCard := &ActionCard{Name: "Steal", Action: StealAction{Target: p2}}
+	stealCard := &ActionCard{Id: 666, Name: "Steal", Action: StealAction{}}
 	p1.Hand = []PlayerCard{stealCard}
 	p1.Deck = &Deck{Cards: []PlayerCard{&ResourceCard{Resources: []ResourceType{Jump}}}}
 
@@ -1206,8 +1237,9 @@ func TestActionCardSteal(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: stealCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: stealCard.Id})
 	if err != nil {
 		t.Fatalf("failed to play Steal: %v", err)
 	}
@@ -1222,7 +1254,7 @@ func TestActionCardSteal(t *testing.T) {
 
 	var stealEvtFound bool
 	for _, e := range events {
-		if se, ok := e.(HandStolenEvent); ok && se.From == p2 && se.To == p1 {
+		if se, ok := e.(HandStolenEvent); ok && se.FromPlayerID == p2.Id && se.ToPlayerID == p1.Id {
 			stealEvtFound = true
 		}
 	}
@@ -1235,7 +1267,7 @@ func TestActionCardStealAutoTarget(t *testing.T) {
 	p1, _ := NewPlayer("P1", Thief, true)
 	p2, _ := NewPlayer("P2", Paladin, true)
 
-	stealCard := &ActionCard{Name: "Steal", Action: StealAction{}}
+	stealCard := &ActionCard{Id: 666, Name: "Steal", Action: StealAction{}}
 	p1.Hand = []PlayerCard{stealCard}
 	p1.Deck = &Deck{Cards: []PlayerCard{&ResourceCard{Resources: []ResourceType{Jump}}}}
 
@@ -1248,8 +1280,9 @@ func TestActionCardStealAutoTarget(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	_, err := game.Apply(PlayCardCmd{Player: p1, Card: stealCard})
+	_, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: stealCard.Id})
 	if err != nil {
 		t.Fatalf("failed to auto-target Steal in 2-player game: %v", err)
 	}

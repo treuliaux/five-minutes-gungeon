@@ -2,8 +2,95 @@ package game
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"slices"
+	"sync/atomic"
 )
+
+var globalCardIdIdx atomic.Uint32
+
+func nextCardId() CardID {
+	return CardID(globalCardIdIdx.Add(1))
+}
+
+func resetGlobalCardIndex() {
+	globalCardIdIdx.Store(0)
+}
+
+func (g *Game) PlayerByID(id PlayerID) (*Player, error) {
+	for _, player := range g.Players {
+		if player.Id != id {
+			continue
+		}
+
+		return player, nil
+	}
+
+	return nil, fmt.Errorf("player '%s' not found", id)
+}
+
+func (g *Game) PlayersByIDs(ids []PlayerID) ([]*Player, error) {
+	players := make([]*Player, len(ids))
+	idx := 0
+	for _, player := range g.Players {
+		if !slices.Contains(ids, player.Id) {
+			continue
+		}
+		players[idx] = player
+		idx++
+	}
+	if len(players) != len(ids) {
+		return nil, fmt.Errorf("not all players were found")
+	}
+
+	return players, nil
+}
+func (g *Game) PlayerCardByID(id CardID) (PlayerCard, error) {
+	if card, ok := g.PlayerCardsMap[id]; ok {
+		return card, nil
+	}
+
+	return nil, fmt.Errorf("card with id '%v' not found", id)
+}
+func (g *Game) PlayerCardsByIDs(ids []CardID) ([]PlayerCard, error) {
+	cards := make([]PlayerCard, len(ids))
+	for i, id := range ids {
+		c, err := g.PlayerCardByID(id)
+		if err != nil {
+			return nil, err
+		}
+		cards[i] = c
+	}
+
+	return cards, nil
+}
+func (g *Game) DungeonCardByID(id CardID) (DungeonCard, error) {
+	if card, ok := g.DungeonCardsMap[id]; ok {
+		return card, nil
+	}
+
+	return nil, fmt.Errorf("card with id '%v' not found", id)
+}
+func (g *Game) ArtifactByID(id ArtifactID) (*ArtifactCard, error) {
+	for _, card := range g.PlayField.Artifacts {
+		if card.ID() != id {
+			continue
+		}
+
+		return card, nil
+	}
+
+	return nil, fmt.Errorf("artifact with id '%v' not found", id)
+}
+
+func pluckCardIDs[T IdentifiableCard](cards []T) []CardID {
+	cardIDs := make([]CardID, len(cards))
+	for i, c := range cards {
+		cardIDs[i] = c.ID()
+	}
+
+	return cardIDs
+}
 
 func defeatDoorByFilter(engine GameEngine, source any, target DungeonCard, filter *DoorsFilter) ([]Event, error) {
 	if target != nil {
@@ -63,7 +150,7 @@ func smartTwoPlayersTargeting(ctx *CardActionContext, targets []*Player) ([]*Pla
 }
 
 func otherPlayers(allPlayers []*Player, omit *Player) []*Player {
-	var result []*Player
+	result := make([]*Player, 0, len(allPlayers))
 	for _, p := range allPlayers {
 		if p == omit {
 			continue
@@ -72,4 +159,10 @@ func otherPlayers(allPlayers []*Player, omit *Player) []*Player {
 	}
 
 	return result
+}
+
+func shuffleCards[T any](cards []T) {
+	rand.Shuffle(len(cards), func(i, j int) {
+		cards[i], cards[j] = cards[j], cards[i]
+	})
 }

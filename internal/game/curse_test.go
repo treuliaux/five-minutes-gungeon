@@ -38,10 +38,10 @@ func TestCurseActivationLifecycle(t *testing.T) {
 	// Should emit DoorOpenedEvent and CurseActivatedEvent
 	var doorOpenedFound, curseActivatedFound bool
 	for _, e := range events {
-		if doe, ok := e.(DoorOpenedEvent); ok && doe.DungeonCard == curse {
+		if doe, ok := e.(DoorOpenedEvent); ok && doe.CardID == curse.Id {
 			doorOpenedFound = true
 		}
-		if cae, ok := e.(CurseActivatedEvent); ok && cae.Card == curse {
+		if cae, ok := e.(CurseActivatedEvent); ok && cae.CardID == curse.Id {
 			curseActivatedFound = true
 		}
 	}
@@ -87,7 +87,7 @@ func TestCurseRemovalLifecycle(t *testing.T) {
 
 	var curseRemovedFound bool
 	for _, e := range events {
-		if cre, ok := e.(CurseRemovedEvent); ok && cre.Card == curse {
+		if cre, ok := e.(CurseRemovedEvent); ok && cre.CardID == curse.Id {
 			curseRemovedFound = true
 		}
 	}
@@ -147,8 +147,8 @@ func TestOpenDoorContinuesOnCurse(t *testing.T) {
 
 func TestCurseTimeCannotBeStopped(t *testing.T) {
 	p1, _ := NewPlayer("Arthur", Paladin, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
 	p1.Hand = []PlayerCard{c1, c2}
 	p1.Deck = &Deck{Cards: []PlayerCard{c1, c2, c1, c2, c1}}
 
@@ -193,10 +193,10 @@ func TestCurseTimeCannotBeStopped(t *testing.T) {
 
 	var voidEventFound bool
 	for _, e := range events {
-		if ve, ok := e.(PlayerHandVoidedEvent); ok && ve.Player == p1 {
+		if ve, ok := e.(PlayerHandVoidedEvent); ok && ve.PlayerID == p1.Id {
 			voidEventFound = true
-			if len(ve.VoidedCards) != 2 {
-				t.Errorf("expected 2 voided cards in event, got %d", len(ve.VoidedCards))
+			if len(ve.VoidedCardIDs) != 2 {
+				t.Errorf("expected 2 voided cards in event, got %d", len(ve.VoidedCardIDs))
 			}
 		}
 	}
@@ -207,8 +207,8 @@ func TestCurseTimeCannotBeStopped(t *testing.T) {
 
 func TestCurseActionsCannotBePlayed(t *testing.T) {
 	p1, _ := NewPlayer("Arthur", Paladin, true)
-	actionCard := &ActionCard{Name: "Holy Hand Grenade", Action: HolyHandGrenadeAction{}}
-	resourceCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	actionCard := &ActionCard{Id: 666, Name: "Holy Hand Grenade", Action: HolyHandGrenadeAction{}}
+	resourceCard := &ResourceCard{Id: 664, Resources: []ResourceType{Sword}}
 	p1.Hand = []PlayerCard{actionCard, resourceCard}
 	p1.Deck = &Deck{Cards: []PlayerCard{resourceCard, resourceCard, resourceCard, resourceCard, resourceCard}}
 
@@ -217,7 +217,7 @@ func TestCurseActionsCannotBePlayed(t *testing.T) {
 		Name:   "Sheepified!",
 		Effect: ActionsCannotBePlayed,
 	}
-	door := &DoorCard{Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
+	door := &DoorCard{Id: 6549873, Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
 		Players:   []*Player{p1, p1},
@@ -227,9 +227,10 @@ func TestCurseActionsCannotBePlayed(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
 	// Playing action card should fail with curse violation
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: actionCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: actionCard.Id})
 	if err == nil {
 		t.Fatal("expected error when playing action card under ActionsCannotBePlayed")
 	}
@@ -269,7 +270,7 @@ func TestCurseActionsCannotBePlayed(t *testing.T) {
 
 	// Playing a resource card should succeed normally
 	resCard := p1.Hand[0]
-	_, err = game.Apply(PlayCardCmd{Player: p1, Card: resCard})
+	_, err = game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: resCard.ID()})
 	if err != nil {
 		t.Fatalf("playing resource card should succeed: %v", err)
 	}
@@ -277,18 +278,19 @@ func TestCurseActionsCannotBePlayed(t *testing.T) {
 
 func TestCurseAbilitiesCannotBePlayed(t *testing.T) {
 	p1, _ := NewPlayer("Arthur", Paladin, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c1 := &ResourceCard{Id: 1001, Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: 1002, Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: 1003, Resources: []ResourceType{Jump}}
 	p1.Hand = []PlayerCard{c1, c2, c3}
 	p1.Deck = &Deck{Cards: []PlayerCard{c1, c2, c3, c1, c2}}
 
 	curse := &CurseCard{
+		Id:     1004,
 		Type:   ChallengeCurse,
 		Name:   "Gorgon's Gaze",
 		Effect: AbilitiesCannotBePlayed,
 	}
-	door := &DoorCard{Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
+	door := &DoorCard{Id: 1005, Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
 		Players:   []*Player{p1, p1},
@@ -298,11 +300,12 @@ func TestCurseAbilitiesCannotBePlayed(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
 	events, err := game.Apply(UseHeroAbilityCmd{
-		Player:       p1,
-		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      SmiteAbility{Target: door},
+		PlayerID:       p1.Id,
+		DiscardCardIDs: []CardID{c1.Id, c2.Id, c3.Id},
+		TargetCardID:   door.Id,
 	})
 	if err == nil {
 		t.Fatal("expected error when using ability under AbilitiesCannotBePlayed")
@@ -344,11 +347,11 @@ func TestCurseAbilitiesCannotBePlayed(t *testing.T) {
 
 func TestCurseHandSizeLimitedToThree(t *testing.T) {
 	p1, _ := NewPlayer("Arthur", Paladin, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Jump}}
-	c4 := &ResourceCard{Resources: []ResourceType{Arrow}}
-	c5 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
+	c4 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
+	c5 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
 	p1.Hand = []PlayerCard{c1, c2, c3, c4, c5}
 	p1.Deck = &Deck{Cards: []PlayerCard{c1, c2, c3, c4, c5}}
 
@@ -367,6 +370,7 @@ func TestCurseHandSizeLimitedToThree(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
 	// TargetHandSize should now be 3
 	if game.TargetHandSize() != 3 {
@@ -374,7 +378,7 @@ func TestCurseHandSizeLimitedToThree(t *testing.T) {
 	}
 
 	// Playing a card while having >3 cards (5) should trigger HandSizeLimitedToThree violation
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: c1})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: c1.Id})
 	if err == nil {
 		t.Fatal("expected error when playing card with >3 cards under HandSizeLimitedToThree")
 	}
@@ -404,7 +408,7 @@ func TestCurseHandSizeLimitedToThree(t *testing.T) {
 
 	// Now holding 3 cards, playing a card should succeed and refill up to 3 cards
 	cardToPlay := p1.Hand[0]
-	_, err = game.Apply(PlayCardCmd{Player: p1, Card: cardToPlay})
+	_, err = game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: cardToPlay.ID()})
 	if err != nil {
 		t.Fatalf("expected playing card with 3 cards in hand to succeed: %v", err)
 	}
@@ -415,10 +419,10 @@ func TestCurseHandSizeLimitedToThree(t *testing.T) {
 
 func TestCurseHandSizeLimitedToThreeBlocksHeroAbility(t *testing.T) {
 	p1, _ := NewPlayer("Arthur", Paladin, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Jump}}
-	c4 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
+	c4 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
 	p1.Hand = []PlayerCard{c1, c2, c3, c4} // 4 cards > 3
 	p1.Deck = &Deck{Cards: []PlayerCard{c1, c2, c3, c4, c1}}
 
@@ -437,11 +441,12 @@ func TestCurseHandSizeLimitedToThreeBlocksHeroAbility(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
 	_, err := game.Apply(UseHeroAbilityCmd{
-		Player:       p1,
-		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      SmiteAbility{Target: door},
+		PlayerID:       p1.Id,
+		DiscardCardIDs: []CardID{c1.Id, c2.Id, c3.Id},
+		TargetCardID:   door.Id,
 	})
 	if err == nil {
 		t.Fatal("expected error when using ability with >3 cards under HandSizeLimitedToThree")
@@ -540,11 +545,11 @@ func TestCurseFlippedHeroMat(t *testing.T) {
 func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 	p1, _ := NewPlayer("Arthur", Paladin, true)
 	p2, _ := NewPlayer("Robin", Ranger, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Jump}}
-	c4 := &ResourceCard{Resources: []ResourceType{Arrow}}
-	c5 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
+	c4 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
+	c5 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
 
 	p1.Hand = []PlayerCard{c1, c2, c3, c4, c5}
 	p1.Deck = &Deck{Cards: []PlayerCard{c1, c2, c3, c4, c5}}
@@ -571,6 +576,7 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
 	// Stopping time activates debt of 3 discards per player
 	_, err := game.StopTime(p1)
@@ -584,7 +590,7 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 	}
 
 	// P1 attempts to play card without fulfilling discard debt -> triggers penalty
-	events, err := game.Apply(PlayCardCmd{Player: p1, Card: p1.Hand[0]})
+	events, err := game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: p1.Hand[0].ID()})
 	if err == nil {
 		t.Fatal("expected error when playing card while discard debt is active")
 	}
@@ -603,7 +609,7 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 	}
 
 	// P2 satisfies debt progressively via DiscardCardsCmd
-	_, err = game.Apply(DiscardCardsCmd{Player: p2, Cards: []PlayerCard{p2.Hand[0]}})
+	_, err = game.Apply(DiscardCardsCmd{PlayerID: p2.Id, CardIDs: []CardID{p2.Hand[0].ID()}})
 	if err != nil {
 		t.Fatalf("discard 1 card failed: %v", err)
 	}
@@ -611,7 +617,7 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 		t.Errorf("expected P2 debt to be 2, got %d", game.CurseExpectingDiscards[p2])
 	}
 
-	_, err = game.Apply(DiscardCardsCmd{Player: p2, Cards: []PlayerCard{p2.Hand[0], p2.Hand[1]}})
+	_, err = game.Apply(DiscardCardsCmd{PlayerID: p2.Id, CardIDs: []CardID{p2.Hand[0].ID(), p2.Hand[1].ID()}})
 	if err != nil {
 		t.Fatalf("discard 2 cards failed: %v", err)
 	}
@@ -620,7 +626,7 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 	}
 
 	// P2 can now play cards without penalty
-	_, err = game.Apply(PlayCardCmd{Player: p2, Card: p2.Hand[0]})
+	_, err = game.Apply(PlayCardCmd{PlayerID: p2.Id, CardID: p2.Hand[0].ID()})
 	if err != nil {
 		t.Fatalf("P2 should be able to play card after debt cleared: %v", err)
 	}
@@ -658,6 +664,7 @@ func TestCurseThreeDiscardsWhenTimeStopsCured(t *testing.T) {
 		CurseExpectingDiscards: make(map[*Player]int),
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	registerCardsInTestGame(game)
 
 	_, err := game.StopTime(p1)
 	if err != nil {
@@ -701,6 +708,7 @@ func TestCurseDoorsOpenInPairs(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	registerCardsInTestGame(game)
 
 	// OpenDoor under DoorsOpenInPairs should open 2 doors
 	_, err := game.OpenDoor()
@@ -718,9 +726,9 @@ func TestCurseDoorsOpenInPairs(t *testing.T) {
 
 func TestDruidForestSpiritsCyclesCurseToBottom(t *testing.T) {
 	druid, _ := NewPlayer("Malfurion", Druid, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
 	druid.Hand = []PlayerCard{c1, c2, c3}
 	druid.Deck = &Deck{Cards: []PlayerCard{c1, c2, c3, c1, c2}}
 
@@ -746,12 +754,13 @@ func TestDruidForestSpiritsCyclesCurseToBottom(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
 	_, _ = game.PlayField.AddDungeonCard(door1, game)
+	registerCardsInTestGame(game)
 
 	// Druid uses ForestSpiritsAbility targeting curse
 	events, err := game.Apply(UseHeroAbilityCmd{
-		Player:       druid,
-		DiscardCards: []PlayerCard{c1, c2, c3},
-		Ability:      ForestSpiritsAbility{Target: curse},
+		PlayerID:       druid.Id,
+		DiscardCardIDs: []CardID{c1.Id, c2.Id, c3.Id},
+		TargetCardID:   curse.Id,
 	})
 	if err != nil {
 		t.Fatalf("ForestSpiritsAbility failed: %v", err)
@@ -770,10 +779,10 @@ func TestDruidForestSpiritsCyclesCurseToBottom(t *testing.T) {
 	// CurseRemovedEvent and DungeonCardSentToBottomEvent should be emitted
 	var curseRemovedFound, sentToBottomFound bool
 	for _, e := range events {
-		if cre, ok := e.(CurseRemovedEvent); ok && cre.Card == curse {
+		if cre, ok := e.(CurseRemovedEvent); ok && cre.CardID == curse.Id {
 			curseRemovedFound = true
 		}
-		if sbe, ok := e.(DungeonCardSentToBottomEvent); ok && sbe.Card == curse {
+		if sbe, ok := e.(DungeonCardSentToBottomEvent); ok && sbe.CardID == curse.Id {
 			sentToBottomFound = true
 		}
 	}
@@ -795,6 +804,7 @@ func TestCurseQueryWithDoorsFilter(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(curse, game)
 	_, _ = game.PlayField.AddDungeonCard(door, game)
+	registerCardsInTestGame(game)
 
 	// Filter with AddCurses
 	curseOnly := game.ActiveDoors(NewDoorsFilter().AddCurses())
@@ -811,11 +821,11 @@ func TestCurseQueryWithDoorsFilter(t *testing.T) {
 
 func TestPassiveSocialCurses(t *testing.T) {
 	socialCurses := []*CurseCard{
-		{Type: ChallengeCurse, Name: "Blinding Light", Effect: HandsHidden},
-		{Type: ChallengeCurse, Name: "House Rules!", Effect: PlayersHandFacingAway},
-		{Type: ChallengeCurse, Name: "Cursed Blanket", Effect: PlayersCanOnlyUseOneHandToPlay},
-		{Type: ChallengeCurse, Name: "Waffles Waffles !", Effect: PlayersMustOnlySayWaffles},
-		{Type: ChallengeCurse, Name: "A Boot-Alion of Kittens", Effect: PlayersMustOnlySayMeow},
+		{Id: nextCardId(), Type: ChallengeCurse, Name: "Blinding Light", Effect: HandsHidden},
+		{Id: nextCardId(), Type: ChallengeCurse, Name: "House Rules!", Effect: PlayersHandFacingAway},
+		{Id: nextCardId(), Type: ChallengeCurse, Name: "Cursed Blanket", Effect: PlayersCanOnlyUseOneHandToPlay},
+		{Id: nextCardId(), Type: ChallengeCurse, Name: "Waffles Waffles !", Effect: PlayersMustOnlySayWaffles},
+		{Id: nextCardId(), Type: ChallengeCurse, Name: "A Boot-Alion of Kittens", Effect: PlayersMustOnlySayMeow},
 	}
 
 	for _, curse := range socialCurses {
@@ -826,6 +836,7 @@ func TestPassiveSocialCurses(t *testing.T) {
 			}
 
 			addEvents, err := game.PlayField.AddDungeonCard(curse, game)
+			registerCardsInTestGame(game)
 			if err != nil {
 				t.Fatalf("failed to add %s: %v", curse.Name, err)
 			}
@@ -838,7 +849,7 @@ func TestPassiveSocialCurses(t *testing.T) {
 
 			var activatedFound bool
 			for _, e := range addEvents {
-				if cae, ok := e.(CurseActivatedEvent); ok && cae.Card == curse {
+				if cae, ok := e.(CurseActivatedEvent); ok && cae.CardID == curse.Id {
 					activatedFound = true
 				}
 			}
@@ -856,7 +867,7 @@ func TestPassiveSocialCurses(t *testing.T) {
 
 			var removedFound bool
 			for _, e := range remEvents {
-				if cre, ok := e.(CurseRemovedEvent); ok && cre.Card == curse {
+				if cre, ok := e.(CurseRemovedEvent); ok && cre.CardID == curse.Id {
 					removedFound = true
 				}
 			}

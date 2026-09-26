@@ -20,7 +20,7 @@ type GameWonEvent struct {
 func (GameWonEvent) isEvent() {}
 
 type DoorDefeatedEvent struct {
-	DungeonCard DungeonCard
+	CardID CardID
 }
 
 func (DoorDefeatedEvent) isEvent() {}
@@ -31,131 +31,131 @@ type FieldClearedEvent struct {
 func (FieldClearedEvent) isEvent() {}
 
 type PlayerAddedEvent struct {
-	Player *Player
+	PlayerID PlayerID
 }
 
 func (PlayerAddedEvent) isEvent() {}
 
 type CardPlayedEvent struct {
-	ByPlayer *Player
-	Card     PlayerCard
+	ByPlayerID PlayerID
+	CardID     CardID
 }
 
 func (CardPlayedEvent) isEvent() {}
 
 type CardRemovedEvent struct {
-	ByPlayer *Player
-	Card     PlayerCard
+	ByPlayerID PlayerID
+	CardID     CardID
 }
 
 func (CardRemovedEvent) isEvent() {}
 
 type DoorCardRemovedEvent struct {
-	ByPlayer *Player
-	Card     DungeonCard
+	ByPlayerID PlayerID
+	CardID     CardID
 }
 
 func (DoorCardRemovedEvent) isEvent() {}
 
 type DungeonCardSentToBottomEvent struct {
-	Card DungeonCard
+	CardID CardID
 }
 
 func (DungeonCardSentToBottomEvent) isEvent() {}
 
 type DungeonCardDiscardedEvent struct {
-	Card DungeonCard
+	CardID CardID
 }
 
 func (DungeonCardDiscardedEvent) isEvent() {}
 
 type CurseActivatedEvent struct {
-	Card DungeonCard
+	CardID CardID
 }
 
 func (CurseActivatedEvent) isEvent() {}
 
 type CurseRemovedEvent struct {
-	Card DungeonCard
+	CardID CardID
 }
 
 func (CurseRemovedEvent) isEvent() {}
 
 type ActionCardPlayedEvent struct {
-	ByPlayer *Player
-	Card     PlayerCard
+	ByPlayerID PlayerID
+	CardID     CardID
 }
 
 func (ActionCardPlayedEvent) isEvent() {}
 
 type EventCounteredEvent struct {
-	ByPlayer  *Player
-	EventCard DungeonCard
-	WithCard  any
+	ByPlayerID PlayerID
+	CardID     CardID
+	WithCardID any
 }
 
 func (EventCounteredEvent) isEvent() {}
 
 type CardDrawnFromDeckEvent struct {
-	ByPlayer *Player
-	Card     PlayerCard
+	ByPlayerID PlayerID
+	CardID     CardID
 }
 
 func (CardDrawnFromDeckEvent) isEvent() {}
 
 type CardDrawnFromDiscardEvent struct {
-	ByPlayer *Player
-	Card     PlayerCard
+	ByPlayerID PlayerID
+	CardID     CardID
 }
 
 func (CardDrawnFromDiscardEvent) isEvent() {}
 
 type CardDiscardedEvent struct {
-	ByPlayer *Player
-	Card     PlayerCard
+	ByPlayerID PlayerID
+	CardID     CardID
 }
 
 func (CardDiscardedEvent) isEvent() {}
 
 type TimeFrozenEvent struct {
-	ByPlayer *Player
+	ByPlayerID PlayerID
 }
 
 func (TimeFrozenEvent) isEvent() {}
 
 type TimeUnfrozenEvent struct {
-	ByPlayer *Player
+	ByPlayerID PlayerID
 }
 
 func (TimeUnfrozenEvent) isEvent() {}
 
 type DoorOpenedEvent struct {
-	DungeonCard DungeonCard
+	CardID CardID
 }
 
 func (DoorOpenedEvent) isEvent() {}
 
 type HeroAbilityUsedEvent struct {
-	ByPlayer *Player
+	ByPlayerID PlayerID
 }
 
 func (HeroAbilityUsedEvent) isEvent() {}
 
 type ArtifactUsedEvent struct {
-	ByPlayer *Player
+	ByPlayerID PlayerID
 }
 
 func (ArtifactUsedEvent) isEvent() {}
 
 type ArtifactReEnabledEvent struct {
-	Artifact *ArtifactCard
+	ArtifactID *ArtifactCard
 }
 
 func (ArtifactReEnabledEvent) isEvent() {}
 
 type PlayerHealedEvent struct {
-	Player *Player
-	Cards  []PlayerCard
+	PlayerID PlayerID
+	CardIDs  []CardID
 }
 
 func (PlayerHealedEvent) isEvent() {}
@@ -167,45 +167,45 @@ type ExtensionToggledEvent struct {
 func (ExtensionToggledEvent) isEvent() {}
 
 type HandDonatedEvent struct {
-	From  *Player
-	To    *Player
-	Cards []PlayerCard
+	FromPlayerID PlayerID
+	ToPlayerID   PlayerID
+	CardIDs      []CardID
 }
 
 func (HandDonatedEvent) isEvent() {}
 
 type HandStolenEvent struct {
-	From  *Player
-	To    *Player
-	Cards []PlayerCard
+	FromPlayerID PlayerID
+	ToPlayerID   PlayerID
+	CardIDs      []CardID
 }
 
 func (HandStolenEvent) isEvent() {}
 
 type EventPromptOpenedEvent struct {
 	Kind           InteractionKind
-	RequiredCounts map[*Player]int
+	RequiredCounts map[PlayerID]int
 }
 
 func (EventPromptOpenedEvent) isEvent() {}
 
 type PlayerEventChoiceSubmittedEvent struct {
-	Player *Player
+	PlayerID PlayerID
 }
 
 func (PlayerEventChoiceSubmittedEvent) isEvent() {}
 
 type HeroMatFlippedEvent struct {
-	Player *Player
-	From   *Hero
-	To     *Hero
+	PlayerID PlayerID
+	From     *Hero
+	To       *Hero
 }
 
 func (HeroMatFlippedEvent) isEvent() {}
 
 type PlayerHandVoidedEvent struct {
-	Player      *Player
-	VoidedCards []PlayerCard
+	PlayerID      PlayerID
+	VoidedCardIDs []CardID
 }
 
 func (PlayerHandVoidedEvent) isEvent() {}

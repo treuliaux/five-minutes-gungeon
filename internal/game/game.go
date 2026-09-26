@@ -34,6 +34,8 @@ type Game struct {
 	UseExtension           bool
 	PendingInteraction     PendingInteraction
 	CurseExpectingDiscards map[*Player]int
+	PlayerCardsMap         map[CardID]PlayerCard
+	DungeonCardsMap        map[CardID]DungeonCard
 }
 
 type GameEngine interface {
@@ -46,6 +48,10 @@ type GameEngine interface {
 	ListPlayers() []*Player
 	ActiveDoors(f *DoorsFilter) []DungeonCard
 	ListArtifacts() []*ArtifactCard
+	DungeonCardByID(id CardID) (DungeonCard, error)
+	PlayerCardsByIDs(id []CardID) ([]PlayerCard, error)
+	PlayerByID(id PlayerID) (*Player, error)
+	ArtifactByID(id ArtifactID) (*ArtifactCard, error)
 
 	PlayArbitraryCard(player *Player, card PlayerCard) ([]Event, error)
 	RemoveDungeonCard(card DungeonCard) ([]Event, error)
@@ -56,10 +62,12 @@ type GameEngine interface {
 
 func NewGame() *Game {
 	return &Game{
-		PlayField:          NewPlayfield(),
-		Status:             Waiting,
-		UseExtension:       true,
-		PendingInteraction: nil,
+		PlayField:              NewPlayfield(),
+		Status:                 Waiting,
+		UseExtension:           true,
+		CurseExpectingDiscards: make(map[*Player]int),
+		DungeonCardsMap:        make(map[CardID]DungeonCard, 62),
+		PlayerCardsMap:         make(map[CardID]PlayerCard, 252),
 	}
 }
 
@@ -117,19 +125,19 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 
 	switch cmd := cmd.(type) {
 	case AddPlayerCmd:
-		events, err = g.addPlayer(cmd.Name, cmd.Class)
+		events, err = g.addPlayer(cmd)
 	case StartCmd:
 		events, err = g.start()
 	case PlayCardCmd:
-		events, err = g.playCard(cmd.Player, cmd.Card)
+		events, err = g.playCard(cmd)
 	case DiscardCardsCmd:
-		events, err = g.discardCard(cmd.Player, cmd.Cards)
+		events, err = g.discardCard(cmd)
 	case UseHeroAbilityCmd:
-		events, err = g.useHeroAbility(cmd.Player, cmd.DiscardCards, cmd.Ability)
+		events, err = g.useHeroAbility(cmd)
 	case SubmitPromptChoiceCmd:
-		events, err = g.submitPromptChoice(cmd.Player, cmd.TargetPlayer, cmd.Cards, cmd.Resource)
+		events, err = g.submitPromptChoice(cmd)
 	case UseArtifactCmd:
-		events, err = g.useArtifact(cmd.Player, cmd.Artifact, cmd.ActionIndex, cmd.Target)
+		events, err = g.useArtifact(cmd)
 	}
 	if cmd.Reply() != nil {
 		cmd.Reply() <- err
@@ -187,7 +195,7 @@ func (g *Game) StopTime(player *Player) ([]Event, error) {
 	}
 	g.IsTimeFrozen = true
 
-	return []Event{TimeFrozenEvent{ByPlayer: player}}, nil
+	return []Event{TimeFrozenEvent{ByPlayerID: player.Id}}, nil
 }
 
 func (g *Game) ClearStopTimeCurse() {
@@ -261,7 +269,7 @@ func (g *Game) SendDungeonCardBottomDungeon(card DungeonCard) ([]Event, error) {
 		}
 	}
 
-	return append(events, DungeonCardSentToBottomEvent{Card: card}), nil
+	return append(events, DungeonCardSentToBottomEvent{CardID: card.ID()}), nil
 }
 
 func (g *Game) DiscardTopCardFromDungeon() ([]Event, error) {
@@ -269,7 +277,7 @@ func (g *Game) DiscardTopCardFromDungeon() ([]Event, error) {
 		return nil, nil
 	}
 
-	return []Event{DungeonCardDiscardedEvent{Card: g.Dungeon.OpenDoor()}}, nil
+	return []Event{DungeonCardDiscardedEvent{CardID: g.Dungeon.OpenDoor().ID()}}, nil
 }
 
 func (g *Game) PlayArbitraryCard(p *Player, card PlayerCard) ([]Event, error) {
@@ -285,13 +293,19 @@ func (g *Game) RemoveDungeonCard(card DungeonCard) ([]Event, error) {
 }
 
 func (g *Game) OpenDoor() ([]Event, error) {
+	if g.Dungeon == nil {
+		return nil, nil
+	}
 	var events []Event
 	var err error
 	loop := true
 	for loop || (g.HasActiveCurseEffect(DoorsOpenInPairs) && len(g.PlayField.OpenedDoors) != 2) {
 		loop = len(g.PlayField.OpenedDoors) == 0
-		var addDungeonCardEvents []Event
 		card := g.Dungeon.OpenDoor()
+		if card == nil {
+			break
+		}
+		var addDungeonCardEvents []Event
 		addDungeonCardEvents, err = g.PlayField.AddDungeonCard(card, g)
 		events = append(events, addDungeonCardEvents...)
 		if err != nil {
@@ -331,22 +345,22 @@ func (g *Game) TargetHandSize() int {
 	return g.HandSize
 }
 
-func (g *Game) addPlayer(name string, class HeroClass) ([]Event, error) {
+func (g *Game) addPlayer(cmd AddPlayerCmd) ([]Event, error) {
 	if g.Status != Waiting {
 		return nil, fmt.Errorf("game is not in waiting state")
 	}
 	if slices.ContainsFunc(g.Players, func(player *Player) bool {
-		return player.Hero.Class == class
+		return player.Hero.Class == cmd.Class
 	}) {
-		return nil, fmt.Errorf("player with class %d already exists", class)
+		return nil, fmt.Errorf("player with class %d already exists", cmd.Class)
 	}
-	player, err := NewPlayer(name, class, g.UseExtension)
+	player, err := NewPlayer(cmd.Name, cmd.Class, g.UseExtension)
 	if err != nil {
 		return nil, err
 	}
 	g.Players = append(g.Players, player)
 
-	return []Event{PlayerAddedEvent{Player: player}}, nil
+	return []Event{PlayerAddedEvent{PlayerID: player.Id}}, nil
 }
 
 func (g *Game) start() ([]Event, error) {
@@ -365,9 +379,9 @@ func (g *Game) start() ([]Event, error) {
 		}
 		g.PlayField.SetupArtifacts(deckColors)
 	}
+	g.registerCards()
+
 	g.Status = Playing
-	g.InGameTimer = 0
-	g.LastPlayedCardTimer = 0
 	g.CurseExpectingDiscards = make(map[*Player]int, len(g.Players))
 
 	var events []Event
@@ -390,11 +404,19 @@ func (g *Game) start() ([]Event, error) {
 	return events, nil
 }
 
-func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
+func (g *Game) playCard(cmd PlayCardCmd) ([]Event, error) {
 	if g.PendingInteraction != nil {
 		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
 	}
-	if !p.HasCardInHand(card) {
+	p, err := g.PlayerByID(cmd.PlayerID)
+	if err != nil {
+		return nil, err
+	}
+	c, err := g.PlayerCardByID(cmd.CardID)
+	if err != nil {
+		return nil, err
+	}
+	if !p.HasCardInHand(c) {
 		return nil, fmt.Errorf("player does not have card in hand")
 	}
 	if g.HasActiveCurseEffect(HandSizeLimitedToThree) && len(p.Hand) > 3 {
@@ -406,14 +428,14 @@ func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 			return p.VoidHand(ThreeDiscardsWhenTimeStops, g)
 		}
 	}
-	if _, ok := card.(*ActionCard); ok && g.HasActiveCurseEffect(ActionsCannotBePlayed) {
+	if _, ok := c.(*ActionCard); ok && g.HasActiveCurseEffect(ActionsCannotBePlayed) {
 		return p.VoidHand(ActionsCannotBePlayed, g)
 	}
 
-	p.RemoveCardFromHand(card)
-	fieldEvents, err := g.PlayField.AddPlayerCard(p, card)
+	p.RemoveCardFromHand(c)
+	fieldEvents, err := g.PlayField.AddPlayerCard(p, c)
 	if err != nil {
-		p.Hand = append(p.Hand, card)
+		p.Hand = append(p.Hand, c)
 		return nil, err
 	}
 
@@ -423,21 +445,42 @@ func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 	wasTimeFrozen := g.IsTimeFrozen
 	if g.IsTimeFrozen {
 		g.IsTimeFrozen = false
-		events = append(events, TimeUnfrozenEvent{ByPlayer: p})
+		events = append(events, TimeUnfrozenEvent{ByPlayerID: p.Id})
 	}
 
 	var actionEvents []Event
-	if ac, ok := card.(*ActionCard); ok {
+	if ac, ok := c.(*ActionCard); ok {
+		var targetCard DungeonCard
+		if cmd.TargetCardID != 0 {
+			targetCard, err = g.DungeonCardByID(cmd.TargetCardID)
+			if err != nil {
+				p.Hand = append(p.Hand, c)
+
+				return events, err
+			}
+		}
+		var targetPlayers []*Player
+		if len(cmd.TargetPlayerIDs) > 0 {
+			targetPlayers, err = g.PlayersByIDs(cmd.TargetPlayerIDs)
+			if err != nil {
+				p.Hand = append(p.Hand, c)
+
+				return events, err
+			}
+		}
 		ctx := &CardActionContext{
-			engine: g,
-			Player: p,
-			Card:   card,
+			engine:        g,
+			Player:        p,
+			Card:          c,
+			TargetCard:    targetCard,
+			TargetPlayers: targetPlayers,
 		}
 		actionEvents, err = ac.Action.Execute(ctx)
 		if err != nil {
-			p.Hand = append(p.Hand, card)
-			g.PlayField.Field = slices.DeleteFunc(g.PlayField.Field, func(c PlayerCard) bool { return c == card })
+			p.Hand = append(p.Hand, c)
+			g.PlayField.Field = slices.DeleteFunc(g.PlayField.Field, func(item PlayerCard) bool { return item == c })
 			g.IsTimeFrozen = wasTimeFrozen
+
 			return nil, err
 		}
 	}
@@ -452,20 +495,42 @@ func (g *Game) playCard(p *Player, card PlayerCard) ([]Event, error) {
 	return events, nil
 }
 
-func (g *Game) useHeroAbility(player *Player, discardCards []PlayerCard, ability Ability) ([]Event, error) {
+func (g *Game) useHeroAbility(cmd UseHeroAbilityCmd) ([]Event, error) {
 	if g.PendingInteraction != nil {
 		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
 	}
-	if g.HasActiveCurseEffect(AbilitiesCannotBePlayed) {
-		return player.VoidHand(AbilitiesCannotBePlayed, g)
+	p, err := g.PlayerByID(cmd.PlayerID)
+	if err != nil {
+		return nil, err
 	}
-	if g.HasActiveCurseEffect(HandSizeLimitedToThree) && len(player.Hand) > 3 {
-		return player.VoidHand(HandSizeLimitedToThree, g)
+	discardCards, err := g.PlayerCardsByIDs(cmd.DiscardCardIDs)
+	if err != nil {
+		return nil, err
+	}
+	var targetCard DungeonCard
+	if cmd.TargetCardID != 0 {
+		targetCard, err = g.DungeonCardByID(cmd.TargetCardID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var targetPlayer *Player
+	if cmd.TargetPlayerID != "" {
+		targetPlayer, err = g.PlayerByID(cmd.TargetPlayerID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if g.HasActiveCurseEffect(AbilitiesCannotBePlayed) {
+		return p.VoidHand(AbilitiesCannotBePlayed, g)
+	}
+	if g.HasActiveCurseEffect(HandSizeLimitedToThree) && len(p.Hand) > 3 {
+		return p.VoidHand(HandSizeLimitedToThree, g)
 	}
 	if g.HasActiveCurseEffect(ThreeDiscardsWhenTimeStops) {
-		if _, ok := g.CurseExpectingDiscards[player]; ok {
-			delete(g.CurseExpectingDiscards, player)
-			return player.VoidHand(ThreeDiscardsWhenTimeStops, g)
+		if _, ok := g.CurseExpectingDiscards[p]; ok {
+			delete(g.CurseExpectingDiscards, p)
+			return p.VoidHand(ThreeDiscardsWhenTimeStops, g)
 		}
 	}
 
@@ -474,14 +539,14 @@ func (g *Game) useHeroAbility(player *Player, discardCards []PlayerCard, ability
 		return nil, fmt.Errorf("player must discard 3 different cards")
 	}
 	for _, card := range discardCards {
-		if !player.HasCardInHand(card) {
+		if !p.HasCardInHand(card) {
 			return nil, fmt.Errorf("player does not have card in hand")
 		}
 	}
 
 	var events []Event
 	for _, card := range discardCards {
-		discardEvents, err := player.DiscardCard(card)
+		discardEvents, err := p.DiscardCard(card)
 		events = append(events, discardEvents...)
 		if err != nil {
 			return nil, err
@@ -489,23 +554,25 @@ func (g *Game) useHeroAbility(player *Player, discardCards []PlayerCard, ability
 	}
 
 	ctx := &AbilityContext{
-		engine: g,
-		Player: player,
+		engine:       g,
+		Player:       p,
+		TargetCard:   targetCard,
+		TargetPlayer: targetPlayer,
 	}
-	abilityEvents, err := ability.Execute(ctx)
+	abilityEvents, err := p.Hero.Ability.Execute(ctx)
 	if err != nil {
 		for _, c := range discardCards {
-			if !slices.Contains(player.Hand, c) {
-				player.Hand = append(player.Hand, c)
+			if !slices.Contains(p.Hand, c) {
+				p.Hand = append(p.Hand, c)
 			}
 		}
 		return nil, err
 	}
 
-	events = append(events, HeroAbilityUsedEvent{ByPlayer: player})
+	events = append(events, HeroAbilityUsedEvent{ByPlayerID: p.Id})
 	events = append(events, abilityEvents...)
 
-	cardDrawnEvents, err := g.RefillPlayerHand(player)
+	cardDrawnEvents, err := g.RefillPlayerHand(p)
 	events = append(events, cardDrawnEvents...)
 	if err != nil {
 		return events, err
@@ -514,12 +581,27 @@ func (g *Game) useHeroAbility(player *Player, discardCards []PlayerCard, ability
 	return events, nil
 }
 
-func (g *Game) useArtifact(player *Player, artifact *ArtifactCard, index ArtifactActionIndex, target DungeonCard) ([]Event, error) {
+func (g *Game) useArtifact(cmd UseArtifactCmd) ([]Event, error) {
 	if !g.UseExtension {
 		return nil, fmt.Errorf("extension must be enabled to use artifacts")
 	}
 	if g.PendingInteraction != nil {
 		return nil, fmt.Errorf("cannot play cards: waiting for event resolution (%s)", g.PendingInteraction)
+	}
+	p, err := g.PlayerByID(cmd.PlayerID)
+	if err != nil {
+		return nil, err
+	}
+	var target DungeonCard
+	if cmd.TargetID != 0 {
+		target, err = g.DungeonCardByID(cmd.TargetID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	artifact, err := g.ArtifactByID(cmd.ArtifactID)
+	if err != nil {
+		return nil, err
 	}
 	if !g.PlayField.ArtifactCanBePlayed(artifact) {
 		return nil, fmt.Errorf("artifact cannot be played")
@@ -527,9 +609,9 @@ func (g *Game) useArtifact(player *Player, artifact *ArtifactCard, index Artifac
 
 	ctx := ArtifactActionContext{
 		engine:       g,
-		Player:       player,
+		Player:       p,
 		Artifact:     artifact,
-		ChosenAction: index,
+		ChosenAction: cmd.ActionIndex,
 		Target:       target,
 	}
 	artifactEvents, err := artifact.Action.Execute(ctx)
@@ -538,7 +620,7 @@ func (g *Game) useArtifact(player *Player, artifact *ArtifactCard, index Artifac
 	}
 	artifact.Used = true
 
-	events := []Event{ArtifactUsedEvent{ByPlayer: player}}
+	events := []Event{ArtifactUsedEvent{ByPlayerID: p.Id}}
 
 	return append(events, artifactEvents...), nil
 }
@@ -643,9 +725,24 @@ func (g *Game) resolveActiveEvents() ([]Event, error) {
 	return events, nil
 }
 
-func (g *Game) submitPromptChoice(player *Player, targetPlayer *Player, cards []PlayerCard, resource *ResourceType) ([]Event, error) {
+func (g *Game) submitPromptChoice(cmd SubmitPromptChoiceCmd) ([]Event, error) {
 	if g.PendingInteraction == nil {
 		return nil, fmt.Errorf("no pending player interaction")
+	}
+	p, err := g.PlayerByID(cmd.PlayerID)
+	if err != nil {
+		return nil, err
+	}
+	var targetPlayer *Player
+	if cmd.TargetPlayerID != "" {
+		targetPlayer, err = g.PlayerByID(cmd.TargetPlayerID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	cards, err := g.PlayerCardsByIDs(cmd.CardIDs)
+	if err != nil {
+		return nil, err
 	}
 
 	var events []Event
@@ -655,9 +752,9 @@ func (g *Game) submitPromptChoice(player *Player, targetPlayer *Player, cards []
 		if targetPlayer == nil {
 			return nil, fmt.Errorf("expected target player")
 		}
-		i.CollectedChoices[player] = targetPlayer
-		delete(i.PendingPlayers, player)
-		events = append(events, PlayerEventChoiceSubmittedEvent{Player: player})
+		i.CollectedChoices[p] = targetPlayer
+		delete(i.PendingPlayers, p)
+		events = append(events, PlayerEventChoiceSubmittedEvent{PlayerID: p.Id})
 		if len(i.PendingPlayers) != 0 {
 			return events, nil
 		}
@@ -667,9 +764,9 @@ func (g *Game) submitPromptChoice(player *Player, targetPlayer *Player, cards []
 		if targetPlayer == nil {
 			return nil, fmt.Errorf("expected target player")
 		}
-		i.CollectedChoices[player] = targetPlayer
-		delete(i.PendingPlayers, player)
-		events = append(events, PlayerEventChoiceSubmittedEvent{Player: player})
+		i.CollectedChoices[p] = targetPlayer
+		delete(i.PendingPlayers, p)
+		events = append(events, PlayerEventChoiceSubmittedEvent{PlayerID: p.Id})
 		if len(i.PendingPlayers) != 0 {
 			return events, nil
 		}
@@ -677,30 +774,30 @@ func (g *Game) submitPromptChoice(player *Player, targetPlayer *Player, cards []
 
 	case *PlayerDiscardCardsInteraction:
 		cards := uniqueCards(cards)
-		expectedCount := min(i.RequiredCounts()[player], len(player.Hand))
+		expectedCount := min(i.RequiredCounts()[p.Id], len(p.Hand))
 		if len(cards) != expectedCount {
 			return nil, fmt.Errorf("expected %d cards to discard, got %d", expectedCount, len(cards))
 		}
 		for _, c := range cards {
-			if !player.HasCardInHand(c) {
-				return nil, fmt.Errorf("player does not have card in hand")
+			if !p.HasCardInHand(c) {
+				return nil, fmt.Errorf("p does not have card in hand")
 			}
 		}
-		i.CollectedChoices[player] = cards
-		delete(i.PendingPlayers, player)
-		events = append(events, PlayerEventChoiceSubmittedEvent{Player: player})
+		i.CollectedChoices[p] = cards
+		delete(i.PendingPlayers, p)
+		events = append(events, PlayerEventChoiceSubmittedEvent{PlayerID: p.Id})
 		if len(i.PendingPlayers) != 0 {
 			return events, nil
 		}
 		resolveEventFunc = i.OnComplete
 
 	case *TeamChoiceResourceInteraction:
-		if resource == nil {
+		if cmd.Resource == nil {
 			return nil, fmt.Errorf("expected resource")
 		}
-		i.CollectedChoices[player] = *resource
-		delete(i.PendingPlayers, player)
-		events = append(events, PlayerEventChoiceSubmittedEvent{Player: player})
+		i.CollectedChoices[p] = *cmd.Resource
+		delete(i.PendingPlayers, p)
+		events = append(events, PlayerEventChoiceSubmittedEvent{PlayerID: p.Id})
 		if len(i.PendingPlayers) != 0 {
 			return events, nil
 		}
@@ -744,19 +841,28 @@ func (g *Game) finalizeEventInteraction(ctx *CardEventContext, onComplete func(C
 	return append(actionEvents, defeatEvents...), nil
 }
 
-func (g *Game) discardCard(player *Player, cards []PlayerCard) ([]Event, error) {
-	if _, ok := g.CurseExpectingDiscards[player]; ok {
-		g.CurseExpectingDiscards[player] -= len(cards)
-		if g.CurseExpectingDiscards[player] <= 0 {
-			delete(g.CurseExpectingDiscards, player)
+func (g *Game) discardCard(cmd DiscardCardsCmd) ([]Event, error) {
+	p, err := g.PlayerByID(cmd.PlayerID)
+	if err != nil {
+		return nil, err
+	}
+	cards, err := g.PlayerCardsByIDs(cmd.CardIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, ok := g.CurseExpectingDiscards[p]; ok {
+		g.CurseExpectingDiscards[p] -= len(cards)
+		if g.CurseExpectingDiscards[p] <= 0 {
+			delete(g.CurseExpectingDiscards, p)
 		}
 	}
 
-	events, err := player.DiscardCards(cards)
+	events, err := p.DiscardCards(cards)
 	if err != nil {
 		return events, err
 	}
-	refillEvents, err := g.RefillPlayerHand(player)
+	refillEvents, err := g.RefillPlayerHand(p)
 	events = append(events, refillEvents...)
 	if err != nil {
 		return events, err
@@ -765,13 +871,35 @@ func (g *Game) discardCard(player *Player, cards []PlayerCard) ([]Event, error) 
 	return events, err
 }
 
-func uniqueCards[T comparable](inputSlice []T) []T {
+func (g *Game) registerCards() {
+	if g.DungeonCardsMap == nil {
+		g.DungeonCardsMap = make(map[CardID]DungeonCard, 64)
+	}
+	if g.PlayerCardsMap == nil {
+		g.PlayerCardsMap = make(map[CardID]PlayerCard, 256)
+	}
+	if g.Status != Waiting {
+		return
+	}
+
+	for _, c := range append(g.Dungeon.Doors, g.Dungeon.Boss) {
+		g.DungeonCardsMap[c.ID()] = c
+	}
+
+	for _, p := range g.Players {
+		for _, c := range p.Deck.Cards {
+			g.PlayerCardsMap[c.ID()] = c
+		}
+	}
+}
+
+func uniqueCards[T IdentifiableCard](inputSlice []T) []T {
 	uniqueSlice := make([]T, 0, len(inputSlice))
-	seen := make(map[T]bool, len(inputSlice))
+	seen := make(map[CardID]bool, len(inputSlice))
 	for _, element := range inputSlice {
-		if !seen[element] {
+		if !seen[element.ID()] {
 			uniqueSlice = append(uniqueSlice, element)
-			seen[element] = true
+			seen[element.ID()] = true
 		}
 	}
 

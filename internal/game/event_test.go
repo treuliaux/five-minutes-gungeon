@@ -10,8 +10,8 @@ import (
 // --- Unit Tests for All 20 Event Cards ---
 
 func TestAmbushEvent(t *testing.T) {
-	d1 := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
-	d2 := &DoorCard{Type: DoorObstacle, Name: "Pit", Resources: []ResourceType{Jump}}
+	d1 := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	d2 := &DoorCard{Id: nextCardId(), Type: DoorObstacle, Name: "Pit", Resources: []ResourceType{Jump}}
 	dungeon := &Dungeon{
 		Boss:  &BossMat{Name: "Boss"},
 		Doors: []DungeonCard{d1, d2},
@@ -23,8 +23,9 @@ func TestAmbushEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Ambush!", Action: AmbushEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Ambush!", Action: AmbushEvent{}}
 	ctx := &CardEventContext{
 		engine: game,
 		Card:   eventCard,
@@ -57,7 +58,7 @@ func TestAmbushEvent(t *testing.T) {
 func TestDungeonErrorInYourFavorEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	dCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	dCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 
 	p1.Hand = []PlayerCard{}
 	p1.Deck = &Deck{Cards: []PlayerCard{dCard, dCard, dCard, dCard, dCard, dCard}}
@@ -69,8 +70,9 @@ func TestDungeonErrorInYourFavorEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Dungeon Error in Your Favor", Action: DungeonErrorInYourFavorEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Dungeon Error in Your Favor", Action: DungeonErrorInYourFavorEvent{}}
 	ctx := &CardEventContext{
 		engine: game,
 		Card:   eventCard,
@@ -94,8 +96,8 @@ func TestDungeonErrorInYourFavorEvent(t *testing.T) {
 func TestSuddenIllnessEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
 
 	p1.Hand = []PlayerCard{c1, c2}
 	p2.Hand = []PlayerCard{c1}
@@ -105,8 +107,9 @@ func TestSuddenIllnessEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
 	ctx := &CardEventContext{
 		engine: game,
 		Card:   eventCard,
@@ -128,7 +131,7 @@ func TestSuddenIllnessEvent(t *testing.T) {
 func TestCrowdFundingEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 
 	p1.Hand = []PlayerCard{c1}
 	p2.Hand = []PlayerCard{c1}
@@ -138,8 +141,9 @@ func TestCrowdFundingEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Crowd Funding", Action: CrowdFundingEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Crowd Funding", Action: CrowdFundingEvent{}}
 	ctx := &CardEventContext{
 		engine: game,
 		Card:   eventCard,
@@ -158,8 +162,8 @@ func TestCrowdFundingEvent(t *testing.T) {
 func TestYetMoreSpikesEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
 
 	p1.Hand = []PlayerCard{c1, c2}
 	p2.Hand = []PlayerCard{c1}
@@ -169,8 +173,9 @@ func TestYetMoreSpikesEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}}
 	interaction := &TeamChoicePlayerInteraction{
 		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
@@ -203,9 +208,9 @@ func TestGimmeAHandEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 	p3, _ := NewPlayer("P3", Wizard, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
 
 	p1.Hand = []PlayerCard{c1}
 	p2.Hand = []PlayerCard{c2}
@@ -216,8 +221,9 @@ func TestGimmeAHandEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Gimme a Hand!", Action: GimmeAHandEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Gimme a Hand!", Action: GimmeAHandEvent{}}
 	interaction := &TeamChoicePlayerInteraction{
 		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
@@ -253,9 +259,9 @@ func TestLockedDoorEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
-	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
-	multiCard := &ResourceCard{Resources: []ResourceType{Sword, Jump}}
+	swordCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	shieldCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	multiCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword, Jump}}
 
 	p1.Hand = []PlayerCard{swordCard, shieldCard}
 	p2.Hand = []PlayerCard{multiCard, shieldCard}
@@ -265,8 +271,9 @@ func TestLockedDoorEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Locked Door!", Action: LockedDoorEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Locked Door!", Action: LockedDoorEvent{}}
 	interaction := &TeamChoiceResourceInteraction{
 		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
@@ -299,9 +306,9 @@ func TestABooBooEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
 
 	p1.Hand = []PlayerCard{c1, c2}
 	p2.Hand = []PlayerCard{c3}
@@ -311,11 +318,12 @@ func TestABooBooEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "A Boo-Boo", Action: ABooBooEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "A Boo-Boo", Action: ABooBooEvent{}}
 	interaction := &PlayerDiscardCardsInteraction{
 		card:             eventCard,
-		requiredCounts:   map[*Player]int{p1: 1, p2: 1},
+		requiredCounts:   map[PlayerID]int{p1.Id: 1, p2.Id: 1},
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player][]PlayerCard{p1: {c1}, p2: {c3}},
 		OnComplete:       ABooBooEvent{}.Execute,
@@ -352,10 +360,10 @@ func TestTrapDoorEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
-	c4 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
+	c4 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
 
 	p1.Hand = []PlayerCard{c1, c2, c3, c4}
 	p2.Hand = []PlayerCard{c1, c2} // only 2 cards
@@ -365,11 +373,12 @@ func TestTrapDoorEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Trap Door", Action: TrapDoorEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Trap Door", Action: TrapDoorEvent{}}
 	interaction := &PlayerDiscardCardsInteraction{
 		card:             eventCard,
-		requiredCounts:   map[*Player]int{p1: 3, p2: 3},
+		requiredCounts:   map[PlayerID]int{p1.Id: 3, p2.Id: 3},
 		PendingPlayers:   map[*Player]bool{},
 		CollectedChoices: map[*Player][]PlayerCard{p1: {c1, c2, c3}, p2: {c1, c2}},
 		OnComplete:       TrapDoorEvent{}.Execute,
@@ -406,9 +415,9 @@ func TestConfusionEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
 
 	p1.Hand = []PlayerCard{c1, c2}
 	p2.Hand = []PlayerCard{c3}
@@ -418,8 +427,9 @@ func TestConfusionEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Confusion", Action: ConfusionEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Confusion", Action: ConfusionEvent{}}
 	// P1 passes hand to P2, P2 passes hand to P1
 	interaction := &PlayerDonatesHandInteraction{
 		card:             eventCard,
@@ -461,7 +471,7 @@ func TestConfusionEvent(t *testing.T) {
 
 func TestAnUngodlyAmountOfPorcupinesEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
-	dCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	dCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	p1.Hand = []PlayerCard{}
 	p1.Deck = &Deck{Cards: []PlayerCard{dCard, dCard, dCard, dCard}}
 
@@ -470,8 +480,9 @@ func TestAnUngodlyAmountOfPorcupinesEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "An Ungodly Amount of Porcupines", Action: AnUngodlyAmountOfPorcupinesEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "An Ungodly Amount of Porcupines", Action: AnUngodlyAmountOfPorcupinesEvent{}}
 	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	// Interaction returns the interaction descriptor, Init triggers the 3-card draw phase
@@ -509,7 +520,7 @@ func TestPoisonedMilkEvent(t *testing.T) {
 	p2, _ := NewPlayer("P2", Ranger, true)
 	p3, _ := NewPlayer("P3", Wizard, true)
 
-	c := &ResourceCard{Resources: []ResourceType{Sword}}
+	c := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	p1.Hand = []PlayerCard{c, c, c, c} // size 4 (tied largest)
 	p2.Hand = []PlayerCard{c, c, c, c} // size 4 (tied largest)
 	p3.Hand = []PlayerCard{c, c}       // size 2
@@ -519,8 +530,9 @@ func TestPoisonedMilkEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Poisoned Milk", Action: PoisonedMilkEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Poisoned Milk", Action: PoisonedMilkEvent{}}
 	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
@@ -545,8 +557,8 @@ func TestAcidPolishEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
-	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	shieldCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	swordCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 
 	p1.Hand = []PlayerCard{shieldCard, swordCard} // has Shield -> discards hand
 	p2.Hand = []PlayerCard{swordCard, swordCard}  // no Shield -> keeps hand
@@ -556,8 +568,9 @@ func TestAcidPolishEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Acid Polish", Action: AcidPolishEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Acid Polish", Action: AcidPolishEvent{}}
 	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
@@ -577,7 +590,7 @@ func TestWaxedFloorEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	c := &ResourceCard{Resources: []ResourceType{Sword}}
+	c := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	p1.Hand = []PlayerCard{c, c, c, c, c, c} // 6 cards (> 5) -> discards hand
 	p2.Hand = []PlayerCard{c, c, c, c, c}    // 5 cards (<= 5) -> keeps hand
 
@@ -586,8 +599,9 @@ func TestWaxedFloorEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Waxed Floor", Action: WaxedFloorEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Waxed Floor", Action: WaxedFloorEvent{}}
 	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
@@ -606,8 +620,8 @@ func TestWaxedFloorEvent(t *testing.T) {
 func TestCorrosiveSpitEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
-	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	shieldCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	swordCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 
 	p1.Hand = []PlayerCard{shieldCard, swordCard}
 	p2.Hand = []PlayerCard{swordCard}
@@ -617,8 +631,9 @@ func TestCorrosiveSpitEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Corrosive Spit", Action: CorrosiveSpitEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Corrosive Spit", Action: CorrosiveSpitEvent{}}
 	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
@@ -637,8 +652,8 @@ func TestCorrosiveSpitEvent(t *testing.T) {
 func TestEnsnaredEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Ranger, true)
 	p2, _ := NewPlayer("P2", Paladin, true)
-	jumpCard := &ResourceCard{Resources: []ResourceType{Jump}}
-	arrowCard := &ResourceCard{Resources: []ResourceType{Arrow}}
+	jumpCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
+	arrowCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
 
 	p1.Hand = []PlayerCard{jumpCard, arrowCard}
 	p2.Hand = []PlayerCard{arrowCard}
@@ -648,8 +663,9 @@ func TestEnsnaredEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Ensnared!", Action: EnsnaredEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Ensnared!", Action: EnsnaredEvent{}}
 	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
@@ -668,8 +684,8 @@ func TestEnsnaredEvent(t *testing.T) {
 func TestMySwordsEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Barbarian, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
-	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
+	swordCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	shieldCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
 
 	p1.Hand = []PlayerCard{swordCard, shieldCard}
 	p2.Hand = []PlayerCard{shieldCard}
@@ -679,8 +695,9 @@ func TestMySwordsEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "My Swords!", Action: MySwordsEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "My Swords!", Action: MySwordsEvent{}}
 	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
@@ -699,7 +716,7 @@ func TestMySwordsEvent(t *testing.T) {
 func TestFireBreathEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c := &ResourceCard{Resources: []ResourceType{Sword}}
+	c := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 
 	p1.Hand = []PlayerCard{c, c}
 	p2.Hand = []PlayerCard{c, c}
@@ -709,8 +726,9 @@ func TestFireBreathEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Fire Breath", Action: FireBreathEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Fire Breath", Action: FireBreathEvent{}}
 	// Team chooses P1 to spare
 	interaction := &TeamChoicePlayerInteraction{
 		card:             eventCard,
@@ -743,8 +761,8 @@ func TestFireBreathEvent(t *testing.T) {
 func TestTailSwipeEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Arrow}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
 
 	p1.Hand = []PlayerCard{c1}
 	p2.Hand = []PlayerCard{c2}
@@ -754,8 +772,9 @@ func TestTailSwipeEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "Tail Swipe", Action: TailSwipeEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Tail Swipe", Action: TailSwipeEvent{}}
 	interaction := &PlayerDonatesHandInteraction{
 		card:             eventCard,
 		PendingPlayers:   map[*Player]bool{},
@@ -785,7 +804,7 @@ func TestTailSwipeEvent(t *testing.T) {
 func TestATwentySidedBoulderEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c := &ResourceCard{Resources: []ResourceType{Sword}}
+	c := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 
 	p1.Hand = []PlayerCard{c, c}
 	p2.Hand = []PlayerCard{c}
@@ -795,8 +814,9 @@ func TestATwentySidedBoulderEvent(t *testing.T) {
 		PlayField: NewPlayfield(),
 		Status:    Playing,
 	}
+	registerCardsInTestGame(game)
 
-	eventCard := &EventCard{Name: "A 20-Sided Boulder", Action: ATwentySidedBoulderEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "A 20-Sided Boulder", Action: ATwentySidedBoulderEvent{}}
 	ctx := &CardEventContext{engine: game, Card: eventCard}
 
 	_, err := eventCard.Action.Execute(ctx)
@@ -817,17 +837,17 @@ func TestATwentySidedBoulderEvent(t *testing.T) {
 func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c := &ResourceCard{Resources: []ResourceType{Sword}}
+	c := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	p1.Hand = []PlayerCard{c, c}
 	p2.Hand = []PlayerCard{c}
 
-	nextDoor := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	dungeon := &Dungeon{
 		Boss:  &BossMat{Name: "Boss"},
 		Doors: []DungeonCard{nextDoor},
 	}
 
-	eventCard := &EventCard{Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
 
 	game := &Game{
 		Players:   []*Player{p1, p2},
@@ -837,6 +857,7 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	registerCardsInTestGame(game)
 
 	// Tick before 2 seconds elapsed -> event should NOT resolve yet
 	game.InGameTimer = time.Second * 1
@@ -876,10 +897,10 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 
 	var doorDefeatedFound, doorOpenedFound bool
 	for _, e := range events {
-		if de, ok := e.(DoorDefeatedEvent); ok && de.DungeonCard == eventCard {
+		if de, ok := e.(DoorDefeatedEvent); ok && de.CardID == eventCard.Id {
 			doorDefeatedFound = true
 		}
-		if de, ok := e.(DoorOpenedEvent); ok && de.DungeonCard == nextDoor {
+		if de, ok := e.(DoorOpenedEvent); ok && de.CardID == nextDoor.Id {
 			doorOpenedFound = true
 		}
 	}
@@ -891,12 +912,12 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c := &ResourceCard{Resources: []ResourceType{Sword}}
+	c := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	p1.Hand = []PlayerCard{c, c}
 	p2.Hand = []PlayerCard{c, c}
 
-	nextDoor := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
-	eventCard := &EventCard{Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}}
+	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}}
 
 	game := &Game{
 		Players:   []*Player{p1, p2},
@@ -906,6 +927,7 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	registerCardsInTestGame(game)
 
 	// Advance timer to trigger prompt opening
 	game.InGameTimer = time.Second * 3
@@ -927,20 +949,20 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	}
 
 	// Normal card playing must be blocked while interaction is pending
-	_, err = game.Apply(PlayCardCmd{Player: p1, Card: c})
+	_, err = game.Apply(PlayCardCmd{PlayerID: p1.Id, CardID: c.Id})
 	if err == nil {
 		t.Error("expected error when playing card during pending interaction, got nil")
 	}
 
 	// Player 1 submits choice (votes P1) -> partial submission
 	events, err = game.Apply(SubmitPromptChoiceCmd{
-		Player:       p1,
-		TargetPlayer: p1,
+		PlayerID:       p1.Id,
+		TargetPlayerID: p1.Id,
 	})
 	if err != nil {
 		t.Fatalf("P1 SubmitEventChoice failed: %v", err)
 	}
-	if len(events) != 1 || events[0] != (PlayerEventChoiceSubmittedEvent{Player: p1}) {
+	if len(events) != 1 || events[0] != (PlayerEventChoiceSubmittedEvent{PlayerID: p1.Id}) {
 		t.Errorf("expected PlayerEventChoiceSubmittedEvent for P1, got %v", events)
 	}
 	// Interaction is still pending (waiting for P2)
@@ -950,8 +972,8 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 
 	// Player 2 submits choice (votes P1) -> interaction finishes
 	events, err = game.Apply(SubmitPromptChoiceCmd{
-		Player:       p2,
-		TargetPlayer: p1,
+		PlayerID:       p2.Id,
+		TargetPlayerID: p1.Id,
 	})
 	if err != nil {
 		t.Fatalf("P2 SubmitEventChoice failed: %v", err)
@@ -986,16 +1008,16 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
-	c4 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
+	c4 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
 
 	p1.Hand = []PlayerCard{c1, c2}
 	p2.Hand = []PlayerCard{c3, c4}
 
-	nextDoor := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
-	eventCard := &EventCard{Name: "A Boo-Boo", Action: ABooBooEvent{}}
+	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "A Boo-Boo", Action: ABooBooEvent{}}
 
 	game := &Game{
 		Players:   []*Player{p1, p2},
@@ -1005,6 +1027,7 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	registerCardsInTestGame(game)
 
 	// Trigger prompt opening
 	game.InGameTimer = time.Second * 3
@@ -1017,10 +1040,10 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 	}
 
 	// P1 submits invalid card (not in hand) -> rejected
-	notInHand := &ResourceCard{Resources: []ResourceType{Scroll}}
+	notInHand := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
 	_, err = game.Apply(SubmitPromptChoiceCmd{
-		Player: p1,
-		Cards:  []PlayerCard{notInHand},
+		PlayerID: p1.Id,
+		CardIDs:  []CardID{notInHand.Id},
 	})
 	if err == nil {
 		t.Error("expected error for submitting card not in hand, got nil")
@@ -1028,8 +1051,8 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 
 	// P1 submits valid card (c1)
 	_, err = game.Apply(SubmitPromptChoiceCmd{
-		Player: p1,
-		Cards:  []PlayerCard{c1},
+		PlayerID: p1.Id,
+		CardIDs:  []CardID{c1.Id},
 	})
 	if err != nil {
 		t.Fatalf("P1 valid submit failed: %v", err)
@@ -1037,8 +1060,8 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 
 	// P2 submits valid card (c3)
 	_, err = game.Apply(SubmitPromptChoiceCmd{
-		Player: p2,
-		Cards:  []PlayerCard{c3},
+		PlayerID: p2.Id,
+		CardIDs:  []CardID{c3.Id},
 	})
 	if err != nil {
 		t.Fatalf("P2 valid submit failed: %v", err)
@@ -1069,13 +1092,13 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
-	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
+	swordCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	shieldCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
 	p1.Hand = []PlayerCard{swordCard, shieldCard}
 	p2.Hand = []PlayerCard{swordCard}
 
-	nextDoor := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
-	eventCard := &EventCard{Name: "Locked Door!", Action: LockedDoorEvent{}}
+	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Locked Door!", Action: LockedDoorEvent{}}
 
 	game := &Game{
 		Players:   []*Player{p1, p2},
@@ -1085,6 +1108,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	registerCardsInTestGame(game)
 
 	// Trigger prompt
 	game.InGameTimer = time.Second * 3
@@ -1093,7 +1117,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 	res := Sword
 	// P1 votes Sword
 	_, err := game.Apply(SubmitPromptChoiceCmd{
-		Player:   p1,
+		PlayerID: p1.Id,
 		Resource: &res,
 	})
 	if err != nil {
@@ -1102,7 +1126,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 
 	// P2 votes Sword -> finishes interaction
 	_, err = game.Apply(SubmitPromptChoiceCmd{
-		Player:   p2,
+		PlayerID: p2.Id,
 		Resource: &res,
 	})
 	if err != nil {
@@ -1129,13 +1153,13 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 
 func TestEventResolutionCycle_CanceledByCancelAction(t *testing.T) {
 	wizard, _ := NewPlayer("Gandalf", Wizard, true)
-	cancelCard := &ActionCard{Name: "Cancel", Action: CancelAction{}}
-	drawCard := &ResourceCard{Resources: []ResourceType{Scroll}}
+	cancelCard := &ActionCard{Id: nextCardId(), Name: "Cancel", Action: CancelAction{}}
+	drawCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
 	wizard.Hand = []PlayerCard{cancelCard}
 	wizard.Deck = &Deck{Cards: []PlayerCard{drawCard}}
 
-	eventCard := &EventCard{Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
-	nextDoor := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
+	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 
 	game := &Game{
 		Players:   []*Player{wizard},
@@ -1145,9 +1169,10 @@ func TestEventResolutionCycle_CanceledByCancelAction(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	registerCardsInTestGame(game)
 
 	// Before 2 seconds elapses, Wizard plays Cancel card
-	events, err := game.Apply(PlayCardCmd{Player: wizard, Card: cancelCard})
+	events, err := game.Apply(PlayCardCmd{PlayerID: wizard.Id, CardID: cancelCard.Id})
 	if err != nil {
 		t.Fatalf("Cancel play failed: %v", err)
 	}
@@ -1162,7 +1187,7 @@ func TestEventResolutionCycle_CanceledByCancelAction(t *testing.T) {
 
 	var counterEvtFound bool
 	for _, e := range events {
-		if ce, ok := e.(EventCounteredEvent); ok && ce.ByPlayer == wizard && ce.EventCard == eventCard {
+		if ce, ok := e.(EventCounteredEvent); ok && ce.ByPlayerID == wizard.Id && ce.CardID == eventCard.Id {
 			counterEvtFound = true
 		}
 	}
@@ -1174,11 +1199,11 @@ func TestEventResolutionCycle_CanceledByCancelAction(t *testing.T) {
 func TestEventResolutionCycle_RunnerIntegration(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
-	c := &ResourceCard{Resources: []ResourceType{Sword}}
+	c := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	p1.Hand = []PlayerCard{c, c}
 	p2.Hand = []PlayerCard{c}
 
-	eventCard := &EventCard{Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}, OpenedTime: -2 * time.Second}
+	eventCard := &EventCard{Id: nextCardId(), Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}, OpenedTime: -2 * time.Second}
 	boss := &BossMat{Name: "Boss", Resources: []ResourceType{Scroll}}
 
 	game := &Game{
@@ -1189,6 +1214,7 @@ func TestEventResolutionCycle_RunnerIntegration(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	registerCardsInTestGame(game)
 
 	runner := NewRunner(game)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -1219,11 +1245,11 @@ func TestEventResolutionCycle_RunnerIntegration(t *testing.T) {
 	}
 
 	// Submit event choices through Runner
-	err := runner.SubmitPromptChoice(ctx, p1, p2, nil, nil) // P1 votes P2
+	err := runner.SubmitPromptChoice(ctx, p1.Id, p2.Id, nil, nil) // P1 votes P2
 	if err != nil {
 		t.Fatalf("P1 SubmitEventChoice failed: %v", err)
 	}
-	err = runner.SubmitPromptChoice(ctx, p2, p2, nil, nil) // P2 votes P2
+	err = runner.SubmitPromptChoice(ctx, p2.Id, p2.Id, nil, nil) // P2 votes P2
 	if err != nil {
 		t.Fatalf("P2 SubmitEventChoice failed: %v", err)
 	}
@@ -1247,10 +1273,10 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)
 
-	c1 := &ResourceCard{Resources: []ResourceType{Sword}}
-	c2 := &ResourceCard{Resources: []ResourceType{Shield}}
-	c3 := &ResourceCard{Resources: []ResourceType{Arrow}}
-	c4 := &ResourceCard{Resources: []ResourceType{Jump}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
+	c4 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
 
 	p1.Hand = []PlayerCard{}
 	p1.Deck = &Deck{Cards: []PlayerCard{c1, c2, c3, c4}}
@@ -1258,8 +1284,8 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 	p2.Hand = []PlayerCard{}
 	p2.Deck = &Deck{Cards: []PlayerCard{c1, c2, c3, c4}}
 
-	eventCard := &EventCard{Name: "An Ungodly Amount of Porcupines", Action: AnUngodlyAmountOfPorcupinesEvent{}}
-	nextDoor := &DoorCard{Type: DoorObstacle, Name: "Trap", Resources: []ResourceType{Jump}}
+	eventCard := &EventCard{Id: nextCardId(), Name: "An Ungodly Amount of Porcupines", Action: AnUngodlyAmountOfPorcupinesEvent{}}
+	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorObstacle, Name: "Trap", Resources: []ResourceType{Jump}}
 	dungeon := &Dungeon{
 		Boss:  &BossMat{Name: "Boss"},
 		Doors: []DungeonCard{nextDoor},
@@ -1273,6 +1299,7 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 		Status:    Playing,
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	registerCardsInTestGame(game)
 
 	// Tick after 2s triggers event resolution -> runs Init() which draws 3 cards per player
 	game.InGameTimer = 3 * time.Second
@@ -1307,8 +1334,8 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 	// Discard choices submitted
 	p1CardsToDiscard := slices.Clone(p1.Hand)
 	_, err = game.Apply(SubmitPromptChoiceCmd{
-		Player: p1,
-		Cards:  p1CardsToDiscard,
+		PlayerID: p1.Id,
+		CardIDs:  pluckCardIDs(p1CardsToDiscard),
 	})
 	if err != nil {
 		t.Fatalf("P1 SubmitEventChoice failed: %v", err)
@@ -1316,8 +1343,8 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 
 	p2CardsToDiscard := slices.Clone(p2.Hand)
 	events, err = game.Apply(SubmitPromptChoiceCmd{
-		Player: p2,
-		Cards:  p2CardsToDiscard,
+		PlayerID: p2.Id,
+		CardIDs:  pluckCardIDs(p2CardsToDiscard),
 	})
 	if err != nil {
 		t.Fatalf("P2 SubmitEventChoice failed: %v", err)

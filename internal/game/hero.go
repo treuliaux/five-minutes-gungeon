@@ -20,9 +20,10 @@ const (
 )
 
 type Hero struct {
-	Color DeckColor
-	Class HeroClass
-	Name  string
+	Color   DeckColor
+	Class   HeroClass
+	Name    string
+	Ability Ability
 }
 
 func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
@@ -58,97 +59,109 @@ func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
 
 func NewSorceress() *Hero {
 	return &Hero{
-		Color: Blue,
-		Class: Sorceress,
-		Name:  "Sorceress",
+		Color:   Blue,
+		Class:   Sorceress,
+		Name:    "Sorceress",
+		Ability: TeleportAbility{},
 	}
 }
 
 func NewWizard() *Hero {
 	return &Hero{
-		Color: Blue,
-		Class: Wizard,
-		Name:  "Wizard",
+		Color:   Blue,
+		Class:   Wizard,
+		Name:    "Wizard",
+		Ability: StopTimeAbility{},
 	}
 }
 
 func NewHuntress() *Hero {
 	return &Hero{
-		Color: Green,
-		Class: Huntress,
-		Name:  "Huntress",
+		Color:   Green,
+		Class:   Huntress,
+		Name:    "Huntress",
+		Ability: AnimalCompanionAbility{},
 	}
 }
 
 func NewRanger() *Hero {
 	return &Hero{
-		Color: Green,
-		Class: Ranger,
-		Name:  "Ranger",
+		Color:   Green,
+		Class:   Ranger,
+		Name:    "Ranger",
+		Ability: TrickShotAbility{},
 	}
 }
 
 func NewNinja() *Hero {
 	return &Hero{
-		Color: Purple,
-		Class: Ninja,
-		Name:  "Ninja",
+		Color:   Purple,
+		Class:   Ninja,
+		Name:    "Ninja",
+		Ability: VaultAbility{},
 	}
 }
 
 func NewThief() *Hero {
 	return &Hero{
-		Color: Purple,
-		Class: Thief,
-		Name:  "Thief",
+		Color:   Purple,
+		Class:   Thief,
+		Name:    "Thief",
+		Ability: PickpocketAbility{},
 	}
 }
 
 func NewPaladin() *Hero {
 	return &Hero{
-		Color: Yellow,
-		Class: Paladin,
-		Name:  "Paladin",
+		Color:   Yellow,
+		Class:   Paladin,
+		Name:    "Paladin",
+		Ability: SmiteAbility{},
 	}
 }
 
 func NewValkyrie() *Hero {
 	return &Hero{
-		Color: Yellow,
-		Class: Valkyrie,
-		Name:  "Valkyrie",
+		Color:   Yellow,
+		Class:   Valkyrie,
+		Name:    "Valkyrie",
+		Ability: InspireAbility{},
 	}
 }
 
 func NewBarbarian() *Hero {
 	return &Hero{
-		Color: Red,
-		Class: Barbarian,
-		Name:  "Barbarian",
+		Color:   Red,
+		Class:   Barbarian,
+		Name:    "Barbarian",
+		Ability: SlayAbility{},
 	}
 }
 
 func NewGladiator() *Hero {
 	return &Hero{
-		Color: Red,
-		Class: Gladiator,
-		Name:  "Gladiator",
+		Color:   Red,
+		Class:   Gladiator,
+		Name:    "Gladiator",
+		Ability: IntimidateAbility{},
 	}
 }
 
 func NewDruid() *Hero {
 	return &Hero{
-		Color: Black,
-		Class: Druid,
-		Name:  "Druid",
+		Color:   Black,
+		Class:   Druid,
+		Name:    "Druid",
+		Ability: ForestSpiritsAbility{},
 	}
 }
 
 func NewShaman() *Hero {
 	return &Hero{
-		Color: Black,
-		Class: Shaman,
-		Name:  "Shaman",
+		Color:   Black,
+		Class:   Shaman,
+		Name:    "Shaman",
+		Ability: SpiritAnimalAbility{},
 	}
 }
 

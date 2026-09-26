@@ -5,7 +5,10 @@ import (
 	"slices"
 )
 
+type PlayerID string
+
 type Player struct {
+	Id      PlayerID
 	Name    string
 	Hero    *Hero
 	Deck    *Deck
@@ -28,6 +31,7 @@ func NewPlayer(name string, class HeroClass, includeExtension bool) (*Player, er
 	}
 
 	return &Player{
+		Id:      PlayerID(name),
 		Name:    name,
 		Hero:    hero,
 		Deck:    deck,
@@ -67,7 +71,7 @@ func (p *Player) DiscardCard(card PlayerCard) ([]Event, error) {
 		p.Discard.PutAtop(card)
 	}
 
-	return []Event{CardDiscardedEvent{ByPlayer: p, Card: card}}, nil
+	return []Event{CardDiscardedEvent{ByPlayerID: p.Id, CardID: card.ID()}}, nil
 }
 
 func (p *Player) DrawCardsFromDeck(count int) ([]Event, error) {
@@ -86,7 +90,7 @@ func (p *Player) DrawCardsFromDeck(count int) ([]Event, error) {
 	for range count {
 		drawn := p.Deck.Draw()
 		p.Hand = append(p.Hand, drawn)
-		events = append(events, CardDrawnFromDeckEvent{ByPlayer: p, Card: drawn})
+		events = append(events, CardDrawnFromDeckEvent{ByPlayerID: p.Id, CardID: drawn.ID()})
 	}
 
 	return events, nil
@@ -111,7 +115,7 @@ func (p *Player) DrawCardsFromDiscard(count int) ([]Event, error) {
 			return events, fmt.Errorf("no more cards in discard")
 		}
 		p.Hand = append(p.Hand, drawn)
-		events = append(events, CardDrawnFromDiscardEvent{ByPlayer: p, Card: drawn})
+		events = append(events, CardDrawnFromDiscardEvent{ByPlayerID: p.Id, CardID: drawn.ID()})
 	}
 
 	return events, nil
@@ -129,7 +133,7 @@ func (p *Player) DrawResourceCardsFromDiscard(resourceTypes []ResourceType) ([]E
 			break
 		}
 		p.Hand = append(p.Hand, drawn)
-		events = append(events, CardDrawnFromDiscardEvent{ByPlayer: p, Card: drawn})
+		events = append(events, CardDrawnFromDiscardEvent{ByPlayerID: p.Id, CardID: drawn.ID()})
 	}
 
 	return events, nil
@@ -154,8 +158,8 @@ func (p *Player) Heal(amount int) ([]Event, error) {
 	}
 
 	return []Event{PlayerHealedEvent{
-		Player: p,
-		Cards:  healed,
+		PlayerID: p.Id,
+		CardIDs:  pluckCardIDs(healed),
 	}}, nil
 }
 
@@ -171,8 +175,8 @@ func (p *Player) ArtifactHeal() ([]Event, error) {
 	}
 
 	return []Event{PlayerHealedEvent{
-		Player: p,
-		Cards:  healed,
+		PlayerID: p.Id,
+		CardIDs:  pluckCardIDs(healed),
 	}}, nil
 }
 
@@ -181,16 +185,16 @@ func (p *Player) FlipHeroMat() []Event {
 	p.Hero = p.Hero.Flip()
 
 	return []Event{HeroMatFlippedEvent{
-		Player: p,
-		From:   oldHero,
-		To:     p.Hero,
+		PlayerID: p.Id,
+		From:     oldHero,
+		To:       p.Hero,
 	}}
 }
 
 func (p *Player) VoidHand(effect GameCurseEffect, game *Game) ([]Event, error) {
 	voidedCards := slices.Clone(p.Hand)
 	p.Hand = make([]PlayerCard, 0)
-	events := []Event{PlayerHandVoidedEvent{Player: p, VoidedCards: voidedCards}}
+	events := []Event{PlayerHandVoidedEvent{PlayerID: p.Id, VoidedCardIDs: pluckCardIDs(voidedCards)}}
 
 	refillEvents, err := game.RefillPlayerHand(p)
 	events = append(events, refillEvents...)

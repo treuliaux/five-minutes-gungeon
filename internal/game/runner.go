@@ -30,11 +30,13 @@ func NewRunner(game *Game) *Runner {
 
 func (r *Runner) Run(ctx context.Context) error {
 	r.ticker = time.NewTicker(tickDuration)
+	resetGlobalCardIndex()
 	defer func() {
 		close(r.done)
 		r.drainCommandsChanel()
 		r.closeAndClearSubscribers()
 		r.ticker.Stop()
+		resetGlobalCardIndex()
 	}()
 
 	var events []Event
@@ -111,47 +113,87 @@ func (r *Runner) Start(ctx context.Context) error {
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }
 
-func (r *Runner) PlayCard(ctx context.Context, p *Player, c PlayerCard) error {
-	reply := make(chan error, 1)
-	cmd := PlayCardCmd{Player: p, Card: c, reply: reply}
-
-	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+func (r *Runner) PlayCardSimple(ctx context.Context, actorID PlayerID, cardID CardID) error {
+	return r.PlayCard(ctx, actorID, cardID, 0, nil)
 }
 
-func (r *Runner) DiscardCard(ctx context.Context, p *Player, c []PlayerCard) error {
-	reply := make(chan error, 1)
-	cmd := DiscardCardsCmd{Player: p, Cards: c, reply: reply}
-
-	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+func (r *Runner) PlayCardWithPlayersTarget(ctx context.Context, actorID PlayerID, cardID CardID, targetPlayerIDs []PlayerID) error {
+	return r.PlayCard(ctx, actorID, cardID, 0, targetPlayerIDs)
 }
 
-func (r *Runner) UseHeroAbility(ctx context.Context, p *Player, discards []PlayerCard, params Ability) error {
-	reply := make(chan error, 1)
-	cmd := UseHeroAbilityCmd{Player: p, DiscardCards: discards, Ability: params, reply: reply}
-
-	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+func (r *Runner) PlayCardWithCardTarget(ctx context.Context, actorID PlayerID, cardID CardID, targetCardID CardID) error {
+	return r.PlayCard(ctx, actorID, cardID, targetCardID, nil)
 }
 
-func (r *Runner) SubmitPromptChoice(ctx context.Context, p *Player, target *Player, cards []PlayerCard, res *ResourceType) error {
+func (r *Runner) PlayCard(ctx context.Context, actorID PlayerID, cardID CardID, targetCardID CardID, targetPlayerIDs []PlayerID) error {
 	reply := make(chan error, 1)
-	cmd := SubmitPromptChoiceCmd{
-		Player:       p,
-		TargetPlayer: target,
-		Cards:        cards,
-		Resource:     res,
-		reply:        reply,
+	cmd := PlayCardCmd{
+		PlayerID:        actorID,
+		CardID:          cardID,
+		TargetCardID:    targetCardID,
+		TargetPlayerIDs: targetPlayerIDs,
+		reply:           reply,
 	}
 
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }
 
-func (r *Runner) UseArtifact(ctx context.Context, p *Player, artifact *ArtifactCard, actionIndex ArtifactActionIndex, target DungeonCard) error {
+func (r *Runner) DiscardCards(ctx context.Context, actorID PlayerID, cardIDs []CardID) error {
+	reply := make(chan error, 1)
+	cmd := DiscardCardsCmd{
+		PlayerID: actorID,
+		CardIDs:  cardIDs,
+		reply:    reply,
+	}
+
+	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+}
+
+func (r *Runner) UseHeroAbilitySimple(ctx context.Context, pID PlayerID, discardIDs []CardID) error {
+	return r.UseHeroAbility(ctx, pID, discardIDs, 0, "")
+}
+
+func (r *Runner) UseHeroAbilityWithCardTarget(ctx context.Context, pID PlayerID, discardIDs []CardID, targetCard CardID) error {
+	return r.UseHeroAbility(ctx, pID, discardIDs, targetCard, "")
+}
+
+func (r *Runner) UseHeroAbilityWithPlayerTarget(ctx context.Context, pID PlayerID, discardIDs []CardID, targetPlayer PlayerID) error {
+	return r.UseHeroAbility(ctx, pID, discardIDs, 0, targetPlayer)
+}
+
+func (r *Runner) UseHeroAbility(ctx context.Context, pID PlayerID, discardIDs []CardID, targetCard CardID, targetPlayer PlayerID) error {
+	reply := make(chan error, 1)
+	cmd := UseHeroAbilityCmd{
+		PlayerID:       pID,
+		DiscardCardIDs: discardIDs,
+		TargetCardID:   targetCard,
+		TargetPlayerID: targetPlayer,
+		reply:          reply,
+	}
+
+	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+}
+
+func (r *Runner) SubmitPromptChoice(ctx context.Context, actorID PlayerID, targetID PlayerID, cardIDs []CardID, res *ResourceType) error {
+	reply := make(chan error, 1)
+	cmd := SubmitPromptChoiceCmd{
+		PlayerID:       actorID,
+		TargetPlayerID: targetID,
+		CardIDs:        cardIDs,
+		Resource:       res,
+		reply:          reply,
+	}
+
+	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+}
+
+func (r *Runner) UseArtifact(ctx context.Context, actorID PlayerID, artifactID ArtifactID, actionIndex ArtifactActionIndex, targetID CardID) error {
 	reply := make(chan error, 1)
 	cmd := UseArtifactCmd{
-		Player:      p,
-		Artifact:    artifact,
+		PlayerID:    actorID,
+		ArtifactID:  artifactID,
 		ActionIndex: actionIndex,
-		Target:      target,
+		TargetID:    targetID,
 		reply:       reply,
 	}
 

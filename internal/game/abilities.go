@@ -9,9 +9,7 @@ type Ability interface {
 
 // Ranger
 
-type TrickShotAbility struct {
-	Target DungeonCard
-}
+type TrickShotAbility struct{}
 
 func (TrickShotAbility) isAbility() {}
 
@@ -25,14 +23,12 @@ func (a TrickShotAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Ranger")
 	}
 
-	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
+	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorPerson))
 }
 
 // Huntress
 
-type AnimalCompanionAbility struct {
-	Target *Player
-}
+type AnimalCompanionAbility struct{}
 
 func (AnimalCompanionAbility) isAbility() {}
 
@@ -46,10 +42,10 @@ func (a AnimalCompanionAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Huntress")
 	}
 
-	target := a.Target
+	target := aCtx.TargetPlayer
 	if target == nil {
 		var err error
-		target, err = smartTargeting(nil, otherPlayers(ctx.Engine().ListPlayers(), aCtx.Player))
+		target, err = smartTargeting(aCtx.Player, otherPlayers(ctx.Engine().ListPlayers(), aCtx.Player))
 		if err != nil {
 			return nil, err
 		}
@@ -89,9 +85,7 @@ func (InspireAbility) Execute(ctx Context) ([]Event, error) {
 
 // Paladin
 
-type SmiteAbility struct {
-	Target DungeonCard
-}
+type SmiteAbility struct{}
 
 func (SmiteAbility) isAbility() {}
 
@@ -105,7 +99,7 @@ func (a SmiteAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Paladin")
 	}
 
-	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
+	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorMonster))
 }
 
 // Wizard
@@ -130,9 +124,7 @@ func (StopTimeAbility) Execute(ctx Context) ([]Event, error) {
 
 // Sorceress
 
-type TeleportAbility struct {
-	Target DungeonCard
-}
+type TeleportAbility struct{}
 
 func (TeleportAbility) isAbility() {}
 
@@ -146,14 +138,12 @@ func (a TeleportAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Sorceress")
 	}
 
-	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
+	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorObstacle))
 }
 
 // Barbarian
 
-type SlayAbility struct {
-	Target DungeonCard
-}
+type SlayAbility struct{}
 
 func (SlayAbility) isAbility() {}
 
@@ -167,14 +157,12 @@ func (a SlayAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Barbarian")
 	}
 
-	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, a.Target, NewDoorsFilter().AddDoors(DoorMonster))
+	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorMonster))
 }
 
 // Gladiator
 
-type IntimidateAbility struct {
-	Target DungeonCard
-}
+type IntimidateAbility struct{}
 
 func (IntimidateAbility) isAbility() {}
 
@@ -188,14 +176,12 @@ func (a IntimidateAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Gladiator")
 	}
 
-	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, a.Target, NewDoorsFilter().AddDoors(DoorPerson))
+	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorPerson))
 }
 
 // Ninja
 
-type VaultAbility struct {
-	Target DungeonCard
-}
+type VaultAbility struct{}
 
 func (VaultAbility) isAbility() {}
 
@@ -209,7 +195,7 @@ func (a VaultAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Ninja")
 	}
 
-	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, a.Target, NewDoorsFilter().AddDoors(DoorObstacle))
+	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorObstacle))
 }
 
 // Thief
@@ -234,9 +220,7 @@ func (PickpocketAbility) Execute(ctx Context) ([]Event, error) {
 
 // Druid
 
-type ForestSpiritsAbility struct {
-	Target DungeonCard
-}
+type ForestSpiritsAbility struct{}
 
 func (ForestSpiritsAbility) isAbility() {}
 
@@ -250,14 +234,15 @@ func (a ForestSpiritsAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Druid")
 	}
 
-	target := a.Target
+	target := aCtx.TargetCard
 	if target == nil {
 		var err error
-		target, err = smartTargeting(nil, ctx.Engine().ActiveDoors(NewDoorsFilter().AddCurses()))
+		target, err = smartTargeting(aCtx.Player, aCtx.Engine().ActiveDoors(NewDoorsFilter().AddCurses()))
 		if err != nil {
 			return nil, err
 		}
 	}
+
 	if _, ok := target.(*CurseCard); !ok {
 		return nil, fmt.Errorf("target is not a curse")
 	}
@@ -267,9 +252,7 @@ func (a ForestSpiritsAbility) Execute(ctx Context) ([]Event, error) {
 
 // Shaman
 
-type SpiritAnimalAbility struct {
-	Target *Player
-}
+type SpiritAnimalAbility struct{}
 
 func (SpiritAnimalAbility) isAbility() {}
 
@@ -283,13 +266,16 @@ func (a SpiritAnimalAbility) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("player is not a Shaman")
 	}
 
-	target := a.Target
+	target := aCtx.TargetPlayer
 	if target == nil {
 		var err error
-		target, err = smartTargeting(nil, otherPlayers(ctx.Engine().ListPlayers(), aCtx.Player))
+		target, err = smartTargeting(aCtx.Player, otherPlayers(ctx.Engine().ListPlayers(), aCtx.Player))
 		if err != nil {
 			return nil, err
 		}
+	}
+	if target == aCtx.Player {
+		return nil, fmt.Errorf("player cannot self-target")
 	}
 
 	return target.Heal(3)

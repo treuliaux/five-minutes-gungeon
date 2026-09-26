@@ -97,15 +97,15 @@ func TestBattleAxeArtifact_DefeatMonster(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(monster, game)
 
-	axe := &ArtifactCard{Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}}
+	axe := &ArtifactCard{Id: 101, Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{axe}
 
 	// 1. Defeat Monster with explicit target
 	events, err := game.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    axe,
+		PlayerID:    p1.Id,
+		ArtifactID:  axe.Id,
 		ActionIndex: FirstArtifactAction,
-		Target:      monster,
+		TargetID:    monster.Id,
 	})
 	if err != nil {
 		t.Fatalf("failed to use Battle Axe on monster: %v", err)
@@ -122,7 +122,7 @@ func TestBattleAxeArtifact_DefeatMonster(t *testing.T) {
 
 	foundArtifactUsed := false
 	for _, e := range events {
-		if ae, ok := e.(ArtifactUsedEvent); ok && ae.ByPlayer == p1 {
+		if ae, ok := e.(ArtifactUsedEvent); ok && ae.ByPlayerID == p1.Id {
 			foundArtifactUsed = true
 		}
 	}
@@ -131,15 +131,15 @@ func TestBattleAxeArtifact_DefeatMonster(t *testing.T) {
 	}
 
 	// 2. Reject targeting non-monster
-	axe2 := &ArtifactCard{Color: Red, Name: "Battle Axe 2", Action: &BattleAxeArtifact{}}
+	axe2 := &ArtifactCard{Id: 102, Color: Red, Name: "Battle Axe 2", Action: &BattleAxeArtifact{}}
 	game.PlayField.Artifacts = append(game.PlayField.Artifacts, axe2)
 	game.PlayField.OpenedDoors = []DungeonCard{obstacle}
 
 	_, err = game.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    axe2,
+		PlayerID:    p1.Id,
+		ArtifactID:  axe2.Id,
 		ActionIndex: FirstArtifactAction,
-		Target:      obstacle,
+		TargetID:    obstacle.Id,
 	})
 	if err == nil {
 		t.Error("expected error when targeting DoorObstacle with Battle Axe, got nil")
@@ -164,15 +164,15 @@ func TestBattleAxeArtifact_AutoTargetMonster(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(monster, game)
 
-	axe := &ArtifactCard{Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}}
+	axe := &ArtifactCard{Id: 101, Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{axe}
 
 	// Target nil -> auto-targets active Monster door
 	_, err := game.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    axe,
+		PlayerID:    p1.Id,
+		ArtifactID:  axe.Id,
 		ActionIndex: FirstArtifactAction,
-		Target:      nil,
+		TargetID:    0,
 	})
 	if err != nil {
 		t.Fatalf("failed auto-targeting monster with Battle Axe: %v", err)
@@ -204,12 +204,12 @@ func TestBattleAxeArtifact_DrawTwoCards(t *testing.T) {
 		UseExtension: true,
 	}
 
-	axe := &ArtifactCard{Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}}
+	axe := &ArtifactCard{Id: 101, Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{axe}
 
 	events, err := game.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    axe,
+		PlayerID:    p1.Id,
+		ArtifactID:  axe.Id,
 		ActionIndex: SecondArtifactAction,
 	})
 	if err != nil {
@@ -249,15 +249,15 @@ func TestTheInfinityScrollArtifact_DefeatMiniBoss(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(miniBoss, game)
 
-	scroll := &ArtifactCard{Color: Blue, Name: "The Infinity Scroll", Action: &TheInfinityScrollArtifact{}}
+	scroll := &ArtifactCard{Id: 201, Color: Blue, Name: "The Infinity Scroll", Action: &TheInfinityScrollArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{scroll}
 
 	// 1. Defeat MiniBoss
 	_, err := game.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    scroll,
+		PlayerID:    p1.Id,
+		ArtifactID:  scroll.Id,
 		ActionIndex: FirstArtifactAction,
-		Target:      nil, // auto-targets MiniBoss
+		TargetID:    0, // auto-targets MiniBoss
 	})
 	if err != nil {
 		t.Fatalf("failed to defeat mini-boss with The Infinity Scroll: %v", err)
@@ -288,15 +288,15 @@ func TestTheInfinityScrollArtifact_CounterEvent(t *testing.T) {
 	}
 	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
 
-	scroll := &ArtifactCard{Color: Blue, Name: "The Infinity Scroll", Action: &TheInfinityScrollArtifact{}}
+	scroll := &ArtifactCard{Id: 201, Color: Blue, Name: "The Infinity Scroll", Action: &TheInfinityScrollArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{scroll}
 
 	// 2. Counter active Event
 	events, err := game.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    scroll,
+		PlayerID:    p1.Id,
+		ArtifactID:  scroll.Id,
 		ActionIndex: SecondArtifactAction,
-		Target:      nil, // auto-targets active EventCard
+		TargetID:    0, // auto-targets active EventCard
 	})
 	if err != nil {
 		t.Fatalf("failed to counter event with The Infinity Scroll: %v", err)
@@ -311,8 +311,8 @@ func TestTheInfinityScrollArtifact_CounterEvent(t *testing.T) {
 	foundCounteredEvent := false
 	for _, e := range events {
 		if ce, ok := e.(EventCounteredEvent); ok {
-			if ce.EventCard != eventCard {
-				t.Errorf("expected EventCounteredEvent to have eventCard %v, got %v", eventCard, ce.EventCard)
+			if ce.CardID != eventCard.Id {
+				t.Errorf("expected EventCounteredEvent to have eventCard %v, got %v", eventCard, ce.CardID)
 			}
 			foundCounteredEvent = true
 		}
@@ -344,12 +344,12 @@ func TestRainbowHerbsArtifact(t *testing.T) {
 		UseExtension: true,
 	}
 
-	herbs := &ArtifactCard{Color: Green, Name: "Rainbow Herbs", Action: &RainbowHerbsArtifact{}}
+	herbs := &ArtifactCard{Id: 301, Color: Green, Name: "Rainbow Herbs", Action: &RainbowHerbsArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{herbs}
 
 	events, err := game.Apply(UseArtifactCmd{
-		Player:   p1,
-		Artifact: herbs,
+		PlayerID:   p1.Id,
+		ArtifactID: herbs.Id,
 	})
 	if err != nil {
 		t.Fatalf("failed to use Rainbow Herbs: %v", err)
@@ -393,12 +393,12 @@ func TestMJhoilnorArtifact(t *testing.T) {
 		UseExtension: true,
 	}
 
-	mj := &ArtifactCard{Color: Yellow, Name: "M-jh'öilnør", Action: &MJhoilnorArtifact{}}
+	mj := &ArtifactCard{Id: 401, Color: Yellow, Name: "M-jh'öilnør", Action: &MJhoilnorArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{mj}
 
 	events, err := game.Apply(UseArtifactCmd{
-		Player:   p1,
-		Artifact: mj,
+		PlayerID:   p1.Id,
+		ArtifactID: mj.Id,
 	})
 	if err != nil {
 		t.Fatalf("failed to use M-jh'öilnør: %v", err)
@@ -421,19 +421,19 @@ func TestMJhoilnorArtifact(t *testing.T) {
 
 	// When 0 cards remain in dungeon, DiscardTopCardFromDungeon must NOT discard BossMat
 	dungeon.Doors = []DungeonCard{}
-	mj2 := &ArtifactCard{Color: Yellow, Name: "M-jh'öilnør 2", Action: &MJhoilnorArtifact{}}
+	mj2 := &ArtifactCard{Id: 402, Color: Yellow, Name: "M-jh'öilnør 2", Action: &MJhoilnorArtifact{}}
 	game.PlayField.Artifacts = append(game.PlayField.Artifacts, mj2)
 
 	events2, err2 := game.Apply(UseArtifactCmd{
-		Player:   p1,
-		Artifact: mj2,
+		PlayerID:   p1.Id,
+		ArtifactID: mj2.Id,
 	})
 	if err2 != nil {
 		t.Fatalf("expected no error when dungeon is empty, got: %v", err2)
 	}
 	for _, e := range events2 {
 		if de, ok := e.(DungeonCardDiscardedEvent); ok {
-			if _, isBoss := de.Card.(*BossMat); isBoss {
+			if de.CardID == boss.Id {
 				t.Error("M-jh'öilnør must NEVER discard the BossMat")
 			}
 		}
@@ -450,12 +450,12 @@ func TestSundialWatchArtifact(t *testing.T) {
 		UseExtension: true,
 	}
 
-	sundial := &ArtifactCard{Color: Purple, Name: "Sundial Watch", Action: &SundialWatchArtifact{}}
+	sundial := &ArtifactCard{Id: 6667, Color: Purple, Name: "Sundial Watch", Action: &SundialWatchArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{sundial}
 
 	events, err := game.Apply(UseArtifactCmd{
-		Player:   p1,
-		Artifact: sundial,
+		PlayerID:   p1.Id,
+		ArtifactID: sundial.Id,
 	})
 	if err != nil {
 		t.Fatalf("failed to use Sundial Watch: %v", err)
@@ -466,7 +466,7 @@ func TestSundialWatchArtifact(t *testing.T) {
 
 	foundTimeFrozenEvent := false
 	for _, e := range events {
-		if te, ok := e.(TimeFrozenEvent); ok && te.ByPlayer == p1 {
+		if te, ok := e.(TimeFrozenEvent); ok && te.ByPlayerID == p1.Id {
 			foundTimeFrozenEvent = true
 		}
 	}
@@ -475,12 +475,12 @@ func TestSundialWatchArtifact(t *testing.T) {
 	}
 
 	// Attempting to freeze time again when already frozen returns error
-	sundial2 := &ArtifactCard{Color: Purple, Name: "Sundial Watch 2", Action: &SundialWatchArtifact{}}
+	sundial2 := &ArtifactCard{Id: 6666, Color: Purple, Name: "Sundial Watch 2", Action: &SundialWatchArtifact{}}
 	game.PlayField.Artifacts = append(game.PlayField.Artifacts, sundial2)
 
 	_, err = game.Apply(UseArtifactCmd{
-		Player:   p1,
-		Artifact: sundial2,
+		PlayerID:   p1.Id,
+		ArtifactID: sundial2.Id,
 	})
 	if err == nil {
 		t.Error("expected error when time is already frozen, got nil")
@@ -508,12 +508,12 @@ func TestCurseZapperArtifact(t *testing.T) {
 	}
 	game.PlayField.ActiveCurses = []*CurseCard{curse1, curse2}
 
-	zapper := &ArtifactCard{Color: Black, Name: "Curse Zapper", Action: &CurseZapperArtifact{}}
+	zapper := &ArtifactCard{Id: 6666, Color: Black, Name: "Curse Zapper", Action: &CurseZapperArtifact{}}
 	game.PlayField.Artifacts = []*ArtifactCard{zapper}
 
 	events, err := game.Apply(UseArtifactCmd{
-		Player:   p1,
-		Artifact: zapper,
+		PlayerID:   p1.Id,
+		ArtifactID: zapper.Id,
 	})
 	if err != nil {
 		t.Fatalf("failed to use Curse Zapper: %v", err)
@@ -536,7 +536,7 @@ func TestCurseZapperArtifact(t *testing.T) {
 
 func TestGameUseArtifact_GuardsAndValidation(t *testing.T) {
 	p1, _ := NewPlayer("Arthur", Paladin, true)
-	axe := &ArtifactCard{Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}, Used: false}
+	axe := &ArtifactCard{Id: 6665, Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}, Used: false}
 
 	// 1. Error when Extension is disabled
 	gameNoExt := &Game{
@@ -547,8 +547,8 @@ func TestGameUseArtifact_GuardsAndValidation(t *testing.T) {
 	}
 	gameNoExt.PlayField.Artifacts = []*ArtifactCard{axe}
 	_, err := gameNoExt.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    axe,
+		PlayerID:    p1.Id,
+		ArtifactID:  axe.Id,
 		ActionIndex: FirstArtifactAction,
 	})
 	if err == nil {
@@ -565,8 +565,8 @@ func TestGameUseArtifact_GuardsAndValidation(t *testing.T) {
 	}
 	gamePending.PlayField.Artifacts = []*ArtifactCard{axe}
 	_, err = gamePending.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    axe,
+		PlayerID:    p1.Id,
+		ArtifactID:  axe.Id,
 		ActionIndex: FirstArtifactAction,
 	})
 	if err == nil {
@@ -574,7 +574,7 @@ func TestGameUseArtifact_GuardsAndValidation(t *testing.T) {
 	}
 
 	// 3. Error when artifact is already used
-	usedAxe := &ArtifactCard{Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}, Used: true}
+	usedAxe := &ArtifactCard{Id: 6666, Color: Red, Name: "Battle Axe", Action: &BattleAxeArtifact{}, Used: true}
 	gameUsed := &Game{
 		Players:      []*Player{p1},
 		PlayField:    NewPlayfield(),
@@ -583,8 +583,8 @@ func TestGameUseArtifact_GuardsAndValidation(t *testing.T) {
 	}
 	gameUsed.PlayField.Artifacts = []*ArtifactCard{usedAxe}
 	_, err = gameUsed.Apply(UseArtifactCmd{
-		Player:      p1,
-		Artifact:    usedAxe,
+		PlayerID:    p1.Id,
+		ArtifactID:  usedAxe.Id,
 		ActionIndex: FirstArtifactAction,
 	})
 	if err == nil {

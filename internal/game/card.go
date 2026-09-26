@@ -2,6 +2,12 @@ package game
 
 import "time"
 
+type ArtifactID uint32
+type CardID uint32
+type IdentifiableCard interface {
+	ID() CardID
+}
+
 type ResourceType int
 
 const (
@@ -22,27 +28,41 @@ const (
 
 type PlayerCard interface {
 	isPlayerCard()
+	ID() CardID
 }
 
 type ResourceCard struct {
+	Id        CardID
 	Resources []ResourceType
 }
 
 func (rc *ResourceCard) isPlayerCard() {}
+func (rc *ResourceCard) ID() CardID {
+	return rc.Id
+}
 
 type ActionCard struct {
+	Id        CardID
 	Name      string
 	Action    CardAction
 	Extension bool
 }
 
 func (ac *ActionCard) isPlayerCard() {}
+func (ac *ActionCard) ID() CardID {
+	return ac.Id
+}
 
 type ArtifactCard struct {
+	Id     ArtifactID
 	Color  DeckColor
 	Name   string
 	Action ArtifactAction
 	Used   bool
+}
+
+func (ac *ArtifactCard) ID() ArtifactID {
+	return ac.Id
 }
 
 // Dungeon types
@@ -50,6 +70,7 @@ type ArtifactCard struct {
 type DungeonCard interface {
 	isDungeonCard()
 	Require() []ResourceType
+	ID() CardID
 }
 
 type DoorKind int
@@ -69,6 +90,7 @@ const (
 )
 
 type DoorCard struct {
+	Id        CardID
 	Type      DoorKind
 	Name      string
 	Resources []ResourceType
@@ -78,8 +100,12 @@ func (dc *DoorCard) isDungeonCard() {}
 func (dc *DoorCard) Require() []ResourceType {
 	return dc.Resources
 }
+func (dc *DoorCard) ID() CardID {
+	return dc.Id
+}
 
 type EventCard struct {
+	Id         CardID
 	Type       ChallengeKind
 	Name       string
 	Action     EventAction
@@ -91,8 +117,12 @@ func (ec *EventCard) isDungeonCard() {}
 func (ec *EventCard) Require() []ResourceType {
 	return nil
 }
+func (ec *EventCard) ID() CardID {
+	return ec.Id
+}
 
 type MiniBossCard struct {
+	Id        CardID
 	Type      ChallengeKind
 	Name      string
 	Resources []ResourceType
@@ -103,8 +133,12 @@ func (mc *MiniBossCard) isDungeonCard() {}
 func (mc *MiniBossCard) Require() []ResourceType {
 	return mc.Resources
 }
+func (mc *MiniBossCard) ID() CardID {
+	return mc.Id
+}
 
 type CurseCard struct {
+	Id     CardID
 	Type   ChallengeKind
 	Name   string
 	Apply  CurseHook
@@ -116,8 +150,12 @@ func (cc *CurseCard) isDungeonCard() {}
 func (cc *CurseCard) Require() []ResourceType {
 	return nil
 }
+func (cc *CurseCard) ID() CardID {
+	return cc.Id
+}
 
 type BossMat struct {
+	Id                   CardID
 	Name                 string
 	Resources            []ResourceType
 	DeckSize             int
@@ -128,6 +166,9 @@ type BossMat struct {
 func (bm *BossMat) isDungeonCard() {}
 func (bm *BossMat) Require() []ResourceType {
 	return bm.Resources
+}
+func (bm *BossMat) ID() CardID {
+	return bm.Id
 }
 
 func IsInfiniteVersionOf(inf ResourceType, base ResourceType) bool {

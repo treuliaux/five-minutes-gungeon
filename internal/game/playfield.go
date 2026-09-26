@@ -25,8 +25,8 @@ func (p *Playfield) AddPlayerCard(player *Player, card PlayerCard) ([]Event, err
 	p.Field = append(p.Field, card)
 
 	return []Event{CardPlayedEvent{
-		ByPlayer: player,
-		Card:     card,
+		ByPlayerID: player.Id,
+		CardID:     card.ID(),
 	}}, nil
 }
 
@@ -37,11 +37,14 @@ func (p *Playfield) RemovePlayerCard(card PlayerCard) ([]Event, error) {
 	p.Field = slices.DeleteFunc(p.Field, func(c PlayerCard) bool { return c == card })
 
 	return []Event{CardRemovedEvent{
-		Card: card,
+		CardID: card.ID(),
 	}}, nil
 }
 
 func (p *Playfield) RemoveDungeonCard(game *Game, card DungeonCard) ([]Event, error) {
+	if card == nil {
+		return nil, nil
+	}
 	switch c := card.(type) {
 	case *BossMat:
 		return nil, fmt.Errorf("boss mat cannot be removed")
@@ -62,27 +65,30 @@ func (p *Playfield) RemoveDungeonCard(game *Game, card DungeonCard) ([]Event, er
 			}
 		}
 
-		return append([]Event{CurseRemovedEvent{Card: c}}, events...), nil
+		return append([]Event{CurseRemovedEvent{CardID: c.ID()}}, events...), nil
 	case *DoorCard, *MiniBossCard:
 		if !slices.Contains(p.OpenedDoors, c) {
 			return nil, fmt.Errorf("target card is not in play")
 		}
 		p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(e DungeonCard) bool { return e == c })
 
-		return []Event{DoorCardRemovedEvent{Card: c}}, nil
+		return []Event{DoorCardRemovedEvent{CardID: c.ID()}}, nil
 	case *EventCard:
 		if !slices.Contains(p.OpenedDoors, card) {
 			return nil, fmt.Errorf("target card is not in play")
 		}
 		p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(e DungeonCard) bool { return e == c })
 
-		return []Event{DoorCardRemovedEvent{Card: c}}, nil
+		return []Event{DoorCardRemovedEvent{CardID: c.ID()}}, nil
 	default:
 		return nil, fmt.Errorf("unexpected dungeon card type: %v", c)
 	}
 }
 
 func (p *Playfield) AddDungeonCard(card DungeonCard, g *Game) ([]Event, error) {
+	if card == nil {
+		return nil, nil
+	}
 	switch c := card.(type) {
 	case *CurseCard:
 		p.ActiveCurses = append(p.ActiveCurses, c)
@@ -98,14 +104,14 @@ func (p *Playfield) AddDungeonCard(card DungeonCard, g *Game) ([]Event, error) {
 			}
 		}
 
-		return append([]Event{DoorOpenedEvent{DungeonCard: c}, CurseActivatedEvent{Card: c}}, events...), nil
+		return append([]Event{DoorOpenedEvent{CardID: c.ID()}, CurseActivatedEvent{CardID: c.ID()}}, events...), nil
 	case *DoorCard, *MiniBossCard, *BossMat:
 		if p.IsDoorsFull() {
 			return nil, fmt.Errorf("cannot add more than two dungeon cards")
 		}
 		p.OpenedDoors = append(p.OpenedDoors, c)
 
-		return []Event{DoorOpenedEvent{DungeonCard: c}}, nil
+		return []Event{DoorOpenedEvent{CardID: c.ID()}}, nil
 	case *EventCard:
 		if p.IsDoorsFull() {
 			return nil, fmt.Errorf("cannot add more than two dungeon cards")
@@ -113,7 +119,7 @@ func (p *Playfield) AddDungeonCard(card DungeonCard, g *Game) ([]Event, error) {
 		c.OpenedTime = g.InGameTimer
 		p.OpenedDoors = append(p.OpenedDoors, c)
 
-		return []Event{DoorOpenedEvent{DungeonCard: c}}, nil
+		return []Event{DoorOpenedEvent{CardID: c.ID()}}, nil
 	default:
 		return nil, fmt.Errorf("unexpected dungeon card type: %v", c)
 	}
@@ -144,13 +150,13 @@ func (p *Playfield) DefeatDoor(target DungeonCard) ([]Event, error) {
 	}
 	p.OpenedDoors = slices.DeleteFunc(p.OpenedDoors, func(c DungeonCard) bool { return c == target })
 
-	return []Event{DoorDefeatedEvent{DungeonCard: target}}, nil
+	return []Event{DoorDefeatedEvent{CardID: target.ID()}}, nil
 }
 
 func (p *Playfield) DefeatAllDoors() ([]Event, error) {
 	var events []Event
 	for _, card := range p.OpenedDoors {
-		events = append(events, DoorDefeatedEvent{DungeonCard: card})
+		events = append(events, DoorDefeatedEvent{CardID: card.ID()})
 	}
 	clearEvents, err := p.ClearField()
 	events = append(events, clearEvents...)
@@ -267,36 +273,42 @@ func (p *Playfield) SetupArtifacts(deckColors []DeckColor) {
 func Artifacts() []*ArtifactCard {
 	return []*ArtifactCard{
 		{
+			Id:     ArtifactID(1),
 			Color:  Green,
 			Name:   "Rainbow Herbs",
 			Action: &RainbowHerbsArtifact{},
 			Used:   false,
 		},
 		{
+			Id:     ArtifactID(2),
 			Color:  Yellow,
 			Name:   "M-jh'öilnør",
 			Action: &MJhoilnorArtifact{},
 			Used:   false,
 		},
 		{
+			Id:     ArtifactID(3),
 			Color:  Purple,
 			Name:   "Sundial Watch",
 			Action: &SundialWatchArtifact{},
 			Used:   false,
 		},
 		{
+			Id:     ArtifactID(4),
 			Color:  Red,
 			Name:   "Battle Axe",
 			Action: &BattleAxeArtifact{},
 			Used:   false,
 		},
 		{
+			Id:     ArtifactID(5),
 			Color:  Blue,
 			Name:   "The Infinity Scroll",
 			Action: &TheInfinityScrollArtifact{},
 			Used:   false,
 		},
 		{
+			Id:     ArtifactID(6),
 			Color:  Black,
 			Name:   "Curse Zapper",
 			Action: &CurseZapperArtifact{},

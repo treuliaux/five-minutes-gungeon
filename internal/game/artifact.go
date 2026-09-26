@@ -61,9 +61,9 @@ func (a TheInfinityScrollArtifact) Execute(ctx ArtifactActionContext) ([]Event, 
 		}
 
 		return append([]Event{EventCounteredEvent{
-			ByPlayer:  ctx.Player,
-			EventCard: ctx.Target,
-			WithCard:  ctx.Artifact,
+			ByPlayerID: ctx.Player.Id,
+			CardID:     ctx.Target.ID(),
+			WithCardID: ctx.Artifact.Id,
 		}}, actionEvents...), nil
 	default:
 		return nil, fmt.Errorf("unexpected artifact action index value: %v", ctx.ChosenAction)

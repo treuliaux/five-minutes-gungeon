@@ -14,8 +14,8 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin, true)
 	barbarian, _ := NewPlayer("Conan", Barbarian, true)
 
-	door1 := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
-	boss := &BossMat{Name: "Piti Amenou", Resources: []ResourceType{Shield}}
+	door1 := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	boss := &BossMat{Id: nextCardId(), Name: "Piti Amenou", Resources: []ResourceType{Shield}}
 	dungeon := &Dungeon{
 		Boss:  boss,
 		Doors: []DungeonCard{door1},
@@ -49,10 +49,11 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(DoorOpenedEvent); return ok })
 
 	// 2. Paladin plays Sword to beat door1
-	swordCard := &ResourceCard{Resources: []ResourceType{Sword}}
+	swordCard := &ResourceCard{Id: 6666, Resources: []ResourceType{Sword}}
 	paladin.Hand = []PlayerCard{swordCard}
+	registerCardsInTestGame(game)
 
-	if err := runner.PlayCard(ctx, paladin, swordCard); err != nil {
+	if err := runner.PlayCardSimple(ctx, paladin.Id, swordCard.ID()); err != nil {
 		t.Fatalf("paladin failed to play sword: %v", err)
 	}
 
@@ -62,14 +63,15 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(FieldClearedEvent); return ok })
 	expectEvent(t, sub, func(e Event) bool {
 		doorEvt, ok := e.(DoorOpenedEvent)
-		return ok && doorEvt.DungeonCard == boss
+		return ok && doorEvt.CardID == boss.ID()
 	})
 
 	// 3. Barbarian plays Shield to beat Boss
-	shieldCard := &ResourceCard{Resources: []ResourceType{Shield}}
+	shieldCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
 	barbarian.Hand = []PlayerCard{shieldCard}
+	registerCardsInTestGame(game)
 
-	if err := runner.PlayCard(ctx, barbarian, shieldCard); err != nil {
+	if err := runner.PlayCardSimple(ctx, barbarian.Id, shieldCard.ID()); err != nil {
 		t.Fatalf("barbarian failed to play shield: %v", err)
 	}
 
@@ -179,8 +181,8 @@ func TestRunnerSubscriberFanOutAndUnsubscribe(t *testing.T) {
 
 func TestRunnerCommandErrorPropagation(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin, true)
-	cInHand := &ResourceCard{Resources: []ResourceType{Sword}}
-	cNotInHand := &ResourceCard{Resources: []ResourceType{Shield}}
+	cInHand := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	cNotInHand := &ResourceCard{Id: 6666, Resources: []ResourceType{Shield}}
 	paladin.Hand = []PlayerCard{cInHand}
 
 	game := &Game{
@@ -195,13 +197,14 @@ func TestRunnerCommandErrorPropagation(t *testing.T) {
 	go func() {
 		_ = runner.Run(ctx)
 	}()
+	_ = runner.Start(ctx)
 
 	// Attempt to play card not in hand
-	err := runner.PlayCard(ctx, paladin, cNotInHand)
+	err := runner.PlayCardSimple(ctx, paladin.Id, cNotInHand.ID())
 	if err == nil {
 		t.Fatal("expected error playing card not in hand, got nil")
 	}
-	if err.Error() != "player does not have card in hand" {
+	if err.Error() != "card with id '6666' not found" {
 		t.Errorf("unexpected error message: %v", err)
 	}
 }
@@ -222,7 +225,7 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 
-	sub := runner.Subscribe()
+	_ = runner.Subscribe()
 
 	go func() {
 		_ = runner.Run(ctx)
@@ -243,9 +246,9 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 				if len(p.Hand) > 0 {
 					card := p.Hand[0]
 					if i%2 == 0 {
-						_ = runner.PlayCard(ctx, p, card)
+						_ = runner.PlayCardSimple(ctx, p.Id, card.ID())
 					} else {
-						_ = runner.DiscardCard(ctx, p, []PlayerCard{card})
+						_ = runner.DiscardCards(ctx, p.Id, []CardID{card.ID()})
 					}
 				}
 				time.Sleep(1 * time.Millisecond)
@@ -253,25 +256,8 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 		})
 	}
 
-	// Drain subscriber events in background to prevent buffer stall
-	drainDone := make(chan struct{})
-	go func() {
-		defer close(drainDone)
-		for {
-			select {
-			case _, ok := <-sub:
-				if !ok {
-					return
-				}
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
 	wg.Wait()
 	cancel()
-	<-drainDone
 }
 
 func TestRunnerHelperRespectsCallerContextCancellation(t *testing.T) {
@@ -308,12 +294,13 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 		_ = runner.Run(ctx)
 	}()
 
-	c1 := &ResourceCard{Resources: []ResourceType{Scroll}}
-	c2 := &ResourceCard{Resources: []ResourceType{Scroll}}
-	c3 := &ResourceCard{Resources: []ResourceType{Scroll}}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
 	wizard.Hand = []PlayerCard{c1, c2, c3}
+	registerCardsInTestGame(game)
 
-	err := runner.UseHeroAbility(ctx, wizard, []PlayerCard{c1, c2, c3}, StopTimeAbility{})
+	err := runner.UseHeroAbilitySimple(ctx, wizard.Id, []CardID{c1.ID(), c2.ID(), c3.ID()})
 	if err != nil {
 		t.Fatalf("failed to use ability via runner: %v", err)
 	}
@@ -321,7 +308,7 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 	// Expect HeroAbilityUsedEvent, 3x CardDiscardedEvent, TimeFrozenEvent broadcasted
 	expectEvent(t, sub, func(e Event) bool {
 		evt, ok := e.(HeroAbilityUsedEvent)
-		return ok && evt.ByPlayer == wizard
+		return ok && evt.ByPlayerID == wizard.Id
 	})
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(TimeFrozenEvent); return ok })
 

@@ -6,8 +6,10 @@ type Context interface {
 }
 
 type AbilityContext struct {
-	engine GameEngine
-	Player *Player
+	engine       GameEngine
+	Player       *Player
+	TargetCard   DungeonCard
+	TargetPlayer *Player
 }
 
 func (AbilityContext) isContext() {}
@@ -16,9 +18,11 @@ func (a AbilityContext) Engine() GameEngine {
 }
 
 type CardActionContext struct {
-	engine GameEngine
-	Player *Player
-	Card   PlayerCard
+	engine        GameEngine
+	Player        *Player
+	Card          PlayerCard
+	TargetCard    DungeonCard
+	TargetPlayers []*Player
 }
 
 func (CardActionContext) isContext() {}

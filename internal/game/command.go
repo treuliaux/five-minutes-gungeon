@@ -26,9 +26,11 @@ func (c AddPlayerCmd) Reply() chan error {
 }
 
 type PlayCardCmd struct {
-	Player *Player
-	Card   PlayerCard
-	reply  chan error
+	PlayerID        PlayerID
+	CardID          CardID
+	TargetCardID    CardID
+	TargetPlayerIDs []PlayerID
+	reply           chan error
 }
 
 func (PlayCardCmd) isCommand() {}
@@ -37,9 +39,9 @@ func (c PlayCardCmd) Reply() chan error {
 }
 
 type DiscardCardsCmd struct {
-	Player *Player
-	Cards  []PlayerCard
-	reply  chan error
+	PlayerID PlayerID
+	CardIDs  []CardID
+	reply    chan error
 }
 
 func (DiscardCardsCmd) isCommand() {}
@@ -48,10 +50,11 @@ func (c DiscardCardsCmd) Reply() chan error {
 }
 
 type UseHeroAbilityCmd struct {
-	Player       *Player
-	DiscardCards []PlayerCard
-	Ability      Ability
-	reply        chan error
+	PlayerID       PlayerID
+	DiscardCardIDs []CardID
+	TargetCardID   CardID
+	TargetPlayerID PlayerID
+	reply          chan error
 }
 
 func (UseHeroAbilityCmd) isCommand() {}
@@ -60,11 +63,11 @@ func (c UseHeroAbilityCmd) Reply() chan error {
 }
 
 type SubmitPromptChoiceCmd struct {
-	Player       *Player
-	TargetPlayer *Player
-	Cards        []PlayerCard
-	Resource     *ResourceType
-	reply        chan error
+	PlayerID       PlayerID
+	TargetPlayerID PlayerID
+	CardIDs        []CardID
+	Resource       *ResourceType
+	reply          chan error
 }
 
 func (SubmitPromptChoiceCmd) isCommand() {}
@@ -73,10 +76,10 @@ func (c SubmitPromptChoiceCmd) Reply() chan error {
 }
 
 type UseArtifactCmd struct {
-	Player      *Player
-	Artifact    *ArtifactCard
+	PlayerID    PlayerID
+	ArtifactID  ArtifactID
 	ActionIndex ArtifactActionIndex
-	Target      DungeonCard
+	TargetID    CardID
 	reply       chan error
 }
 

@@ -105,7 +105,7 @@ func (e CrowdFundingEvent) Execute(ctx Context) ([]Event, error) {
 			return nil, fmt.Errorf("artifact is not in play")
 		}
 		target.Used = false
-		events = append(events, ArtifactReEnabledEvent{Artifact: target})
+		events = append(events, ArtifactReEnabledEvent{ArtifactID: target})
 	}
 
 	for _, p := range ctx.Engine().ListPlayers() {
@@ -163,7 +163,7 @@ func (e GimmeAHandEvent) Execute(ctx Context) ([]Event, error) {
 		target.Hand = append(target.Hand, p.Hand...)
 		p.Hand = make([]PlayerCard, 0)
 
-		events = append(events, HandDonatedEvent{From: p, To: target, Cards: transferredCards})
+		events = append(events, HandDonatedEvent{FromPlayerID: p.Id, ToPlayerID: target.Id, CardIDs: pluckCardIDs(transferredCards)})
 	}
 
 	return events, nil
@@ -250,16 +250,17 @@ func (e ABooBooEvent) Execute(ctx Context) ([]Event, error) {
 	return events, nil
 }
 func (e ABooBooEvent) Interaction(ctx *CardEventContext) PendingInteraction {
-	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
+	requiredCounts := make(map[PlayerID]int, len(ctx.Engine().ListPlayers()))
 	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
 	for _, p := range ctx.Engine().ListPlayers() {
 		pendingPlayers[p] = true
-		requiredCounts[p] = 1
+		requiredCounts[p.Id] = 1
 	}
 
 	if len(pendingPlayers) == 0 {
 		return nil
 	}
+
 	return &PlayerDiscardCardsInteraction{
 		card:             ctx.Card,
 		requiredCounts:   requiredCounts,
@@ -301,11 +302,11 @@ func (e TrapDoorEvent) Execute(ctx Context) ([]Event, error) {
 	return events, nil
 }
 func (e TrapDoorEvent) Interaction(ctx *CardEventContext) PendingInteraction {
-	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
+	requiredCounts := make(map[PlayerID]int, len(ctx.Engine().ListPlayers()))
 	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
 	for _, p := range ctx.Engine().ListPlayers() {
 		pendingPlayers[p] = true
-		requiredCounts[p] = 3
+		requiredCounts[p.Id] = 3
 	}
 
 	if len(pendingPlayers) == 0 {
@@ -336,7 +337,7 @@ func (e ConfusionEvent) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
 
-	return allPlayerDonateHands(input), nil
+	return allPlayerDonateHands(input)
 }
 func (e ConfusionEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &PlayerDonatesHandInteraction{
@@ -419,11 +420,11 @@ func (e AnUngodlyAmountOfPorcupinesEvent) Execute(ctx Context) ([]Event, error) 
 	return events, nil
 }
 func (e AnUngodlyAmountOfPorcupinesEvent) Interaction(ctx *CardEventContext) PendingInteraction {
-	requiredCounts := make(map[*Player]int, len(ctx.Engine().ListPlayers()))
+	requiredCounts := make(map[PlayerID]int, len(ctx.Engine().ListPlayers()))
 	pendingPlayers := make(map[*Player]bool, len(ctx.Engine().ListPlayers()))
 	for _, p := range ctx.Engine().ListPlayers() {
 		pendingPlayers[p] = true
-		requiredCounts[p] = 3
+		requiredCounts[p.Id] = 3
 	}
 
 	if len(pendingPlayers) == 0 {
@@ -677,7 +678,7 @@ func (e TailSwipeEvent) Execute(ctx Context) ([]Event, error) {
 		return nil, fmt.Errorf("invalid interaction type, received: %v", input)
 	}
 
-	return allPlayerDonateHands(input), nil
+	return allPlayerDonateHands(input)
 }
 func (e TailSwipeEvent) Interaction(ctx *CardEventContext) PendingInteraction {
 	return &PlayerDonatesHandInteraction{
@@ -730,7 +731,7 @@ func discardAllResourceCardsContaining(player *Player, resource ResourceType) ([
 	return events, nil
 }
 
-func allPlayerDonateHands(input *PlayerDonatesHandInteraction) []Event {
+func allPlayerDonateHands(input *PlayerDonatesHandInteraction) ([]Event, error) {
 	var events []Event
 	newHands := make(map[*Player][]PlayerCard, 6)
 	for sourcePlayer, targetPlayer := range input.CollectedChoices {
@@ -738,13 +739,14 @@ func allPlayerDonateHands(input *PlayerDonatesHandInteraction) []Event {
 		sourcePlayer.Hand = make([]PlayerCard, 0)
 		newHands[targetPlayer] = append(newHands[targetPlayer], transferredCards...)
 
-		events = append(events, HandDonatedEvent{From: sourcePlayer, To: targetPlayer, Cards: transferredCards})
+		events = append(events, HandDonatedEvent{FromPlayerID: sourcePlayer.Id, ToPlayerID: targetPlayer.Id, CardIDs: pluckCardIDs(transferredCards)})
 	}
 
 	for targetPlayer, cards := range newHands {
 		targetPlayer.Hand = append(targetPlayer.Hand, cards...)
 	}
-	return events
+
+	return events, nil
 }
 
 func populatePendingPlayers(ctx *CardEventContext) map[*Player]bool {
