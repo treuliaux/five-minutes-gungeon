@@ -4,7 +4,8 @@ import (
 	"math/rand/v2"
 )
 
-type DeckColor int
+//go:generate go run github.com/fairjungle/enumer -type=DeckColor -json
+type DeckColor uint8
 
 const (
 	NoColor DeckColor = iota

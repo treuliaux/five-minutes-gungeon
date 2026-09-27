@@ -192,8 +192,8 @@ func (p *Player) FlipHeroMat() []Event {
 
 	return []Event{HeroMatFlippedEvent{
 		PlayerID: p.Id,
-		From:     oldHero,
-		To:       p.Hero,
+		From:     oldHero.Class,
+		To:       p.Hero.Class,
 	}}
 }
 

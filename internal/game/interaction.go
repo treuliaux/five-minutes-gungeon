@@ -5,15 +5,16 @@ import (
 	"math/rand/v2"
 )
 
-type InteractionKind string
+//go:generate go run github.com/fairjungle/enumer -type=InteractionKind -json
+type InteractionKind uint8
 
 const (
-	InteractionNoInteraction      InteractionKind = ""
-	InteractionTeamChoicePlayer   InteractionKind = "TeamChoicePlayer"
-	InteractionTeamChoiceResource InteractionKind = "TeamChoiceResource"
-	InteractionTeamChoiceArtifact InteractionKind = "TeamChoiceArtifact"
-	InteractionPlayerDiscardCards InteractionKind = "PlayerDiscardCards"
-	InteractionPlayerDonatesHand  InteractionKind = "PlayerDonatesHand"
+	InteractionNoInteraction InteractionKind = iota
+	InteractionTeamChoicePlayer
+	InteractionTeamChoiceResource
+	InteractionTeamChoiceArtifact
+	InteractionPlayerDiscardCards
+	InteractionPlayerDonatesHand
 )
 
 type PendingInteraction interface {

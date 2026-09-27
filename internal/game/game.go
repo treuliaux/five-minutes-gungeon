@@ -6,7 +6,8 @@ import (
 	"time"
 )
 
-type Status int
+//go:generate go run github.com/fairjungle/enumer -type=Status -json
+type Status uint8
 
 const (
 	Waiting Status = iota

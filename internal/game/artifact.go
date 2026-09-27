@@ -5,7 +5,8 @@ import (
 	"slices"
 )
 
-type ArtifactActionIndex int
+//go:generate go run github.com/fairjungle/enumer -type=ArtifactActionIndex -json
+type ArtifactActionIndex uint8
 
 const (
 	FirstArtifactAction ArtifactActionIndex = iota

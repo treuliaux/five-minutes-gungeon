@@ -8,7 +8,8 @@ type IdentifiableCard interface {
 	ID() CardID
 }
 
-type ResourceType int
+//go:generate go run github.com/fairjungle/enumer -type=ResourceType -json
+type ResourceType uint8
 
 const (
 	NoResource ResourceType = iota
@@ -31,7 +32,9 @@ type PlayerCard interface {
 	isPlayerCard()
 	ID() CardID
 }
-type PlayerCardKind int
+
+//go:generate go run github.com/fairjungle/enumer -type=PlayerCardKind -json
+type PlayerCardKind uint8
 
 const (
 	PlayerCardResource PlayerCardKind = iota
@@ -83,7 +86,8 @@ type DungeonCard interface {
 	ID() CardID
 }
 
-type DungeonCardKind int
+//go:generate go run github.com/fairjungle/enumer -type=DungeonCardKind -json
+type DungeonCardKind uint8
 
 const (
 	CardMonster DungeonCardKind = iota

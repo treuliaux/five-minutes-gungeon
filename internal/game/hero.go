@@ -2,7 +2,8 @@ package game
 
 import "fmt"
 
-type HeroClass int
+//go:generate go run github.com/fairjungle/enumer -type=HeroClass -json
+type HeroClass uint8
 
 const (
 	Sorceress HeroClass = iota
