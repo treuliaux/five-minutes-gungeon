@@ -46,21 +46,21 @@ func TestNewGameSnapshot_FullGameState(t *testing.T) {
 		Used:        true,
 	}
 
+	round := newRoundState(Playing)
+	round.InGameTimer = 45 * time.Second
+	round.RealElapsedTime = 50 * time.Second
+	round.IsTimeFrozen = true
+	round.Dungeon = &Dungeon{Boss: boss, Doors: []DungeonCard{nextDoor}}
+	round.LastPlayedCardTimer = 40 * time.Second
+
 	game := &Game{
-		Players:             []*Player{paladin, barbarian},
-		Status:              Playing,
-		InGameTimer:         45 * time.Second,
-		RealElapsedTime:     50 * time.Second,
-		IsTimeFrozen:        true,
-		IsFightingBoss:      false,
-		Dungeon:             &Dungeon{Boss: boss, Doors: []DungeonCard{nextDoor}},
-		PlayField:           NewPlayfield(),
-		LastPlayedCardTimer: 40 * time.Second,
+		Players:    []*Player{paladin, barbarian},
+		LevelState: round,
 	}
-	game.PlayField.OpenedDoors = []DungeonCard{doorMonster, miniBoss}
-	game.PlayField.ActiveCurses = []*CurseCard{curse}
-	game.PlayField.Field = []PlayerCard{fieldResource, fieldAction}
-	game.PlayField.Artifacts = []*ArtifactCard{artAxe, artScroll}
+	game.LevelState.Playfield.OpenedDoors = []DungeonCard{doorMonster, miniBoss}
+	game.LevelState.Playfield.ActiveCurses = []*CurseCard{curse}
+	game.LevelState.Playfield.Field = []PlayerCard{fieldResource, fieldAction}
+	game.LevelState.Playfield.Artifacts = []*ArtifactCard{artAxe, artScroll}
 
 	snapshot := NewGameSnapshot(game)
 
@@ -404,14 +404,14 @@ func TestRunner_Snapshot(t *testing.T) {
 		Doors: []DungeonCard{door1},
 	}
 
+	round := newRoundState(Playing)
+	round.Dungeon = dungeon
 	game := &Game{
-		Players:   []*Player{paladin},
-		HandSize:  3,
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{paladin},
+		HandSize:   3,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(door1, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door1, game)
 	registerCardsInTestGame(game)
 
 	runner := NewRunner(game)

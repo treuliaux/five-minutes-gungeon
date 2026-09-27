@@ -16,16 +16,15 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 
 	door1 := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	boss := &BossMat{Id: nextCardId(), Name: "Piti Amenou", Resources: []ResourceType{Shield}}
-	dungeon := &Dungeon{
+
+	round := newRoundState(Waiting)
+	round.Dungeon = &Dungeon{
 		Boss:  boss,
 		Doors: []DungeonCard{door1},
 	}
-
 	game := &Game{
-		Players:   []*Player{paladin, barbarian},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Waiting,
+		Players:    []*Player{paladin, barbarian},
+		LevelState: round,
 	}
 
 	runner := NewRunner(game)
@@ -90,13 +89,13 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 		t.Fatal("runner did not exit within timeout after victory")
 	}
 
-	if game.Status != Victory {
-		t.Errorf("expected game status Victory, got %v", game.Status)
+	if game.LevelState.Status != Victory {
+		t.Errorf("expected game status Victory, got %v", game.LevelState.Status)
 	}
 }
 
 func TestRunnerGracefulCancellation(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 	runner := NewRunner(game)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -134,7 +133,7 @@ func TestRunnerGracefulCancellation(t *testing.T) {
 }
 
 func TestRunnerContextTimeout(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 	runner := NewRunner(game)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
@@ -147,7 +146,7 @@ func TestRunnerContextTimeout(t *testing.T) {
 }
 
 func TestRunnerSubscriberFanOutAndUnsubscribe(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 	runner := NewRunner(game)
 
 	ctx := t.Context()
@@ -186,9 +185,8 @@ func TestRunnerCommandErrorPropagation(t *testing.T) {
 	paladin.Hand = []PlayerCard{cInHand}
 
 	game := &Game{
-		Players:   []*Player{paladin},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{paladin},
+		LevelState: newRoundState(Playing),
 	}
 
 	runner := NewRunner(game)
@@ -216,9 +214,8 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 	gladiator, _ := NewPlayer("Gladiator", Gladiator, true)
 
 	game := &Game{
-		Players:   []*Player{paladin, barbarian, valkyrie, gladiator},
-		PlayField: NewPlayfield(),
-		Status:    Waiting,
+		Players:    []*Player{paladin, barbarian, valkyrie, gladiator},
+		LevelState: newRoundState(Waiting),
 	}
 
 	runner := NewRunner(game)
@@ -241,7 +238,7 @@ func TestRunnerConcurrentPlayerCommandsRace(t *testing.T) {
 
 	// Add artifact
 	artAxe := &ArtifactCard{Id: 1, Color: Red, Name: "Battle Axe", MultiAction: true, Action: BattleAxeArtifact{}}
-	game.PlayField.Artifacts = []*ArtifactCard{artAxe}
+	game.LevelState.Playfield.Artifacts = []*ArtifactCard{artAxe}
 
 	// Goroutines for players sending card plays, discards, and abilities
 	for _, p := range players {
@@ -302,15 +299,15 @@ func TestRunnerUseArtifact(t *testing.T) {
 		MultiAction: true,
 	}
 
+	round := newRoundState(Playing)
+	round.Dungeon = dungeon
 	game := &Game{
-		Players:      []*Player{p1},
-		Dungeon:      dungeon,
-		PlayField:    NewPlayfield(),
-		Status:       Playing,
-		UseExtension: true,
+		Players:    []*Player{p1},
+		LevelState: round,
+		Config:     Config{UseExtension: true},
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
-	game.PlayField.Artifacts = []*ArtifactCard{artAxe}
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorMonster, game)
+	game.LevelState.Playfield.Artifacts = []*ArtifactCard{artAxe}
 	registerCardsInTestGame(game)
 
 	runner := NewRunner(game)
@@ -334,7 +331,7 @@ func TestRunnerUseArtifact(t *testing.T) {
 		return ok && evt.CardID == doorMonster.ID()
 	})
 
-	if game.PlayField.HasActiveDoor(doorMonster) {
+	if game.LevelState.Playfield.HasActiveDoor(doorMonster) {
 		t.Error("expected doorMonster to be defeated")
 	}
 }
@@ -351,11 +348,10 @@ func TestRunnerPlayCardTargeting(t *testing.T) {
 	doorPerson2 := &DoorCard{Id: 102, Type: DoorPerson, Name: "Guard 2"}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
-	game.PlayField.OpenedDoors = []DungeonCard{doorPerson1, doorPerson2}
+	game.LevelState.Playfield.OpenedDoors = []DungeonCard{doorPerson1, doorPerson2}
 	registerCardsInTestGame(game)
 
 	runner := NewRunner(game)
@@ -379,10 +375,10 @@ func TestRunnerPlayCardTargeting(t *testing.T) {
 		return ok && evt.CardID == doorPerson2.ID()
 	})
 
-	if game.PlayField.HasActiveDoor(doorPerson2) {
+	if game.LevelState.Playfield.HasActiveDoor(doorPerson2) {
 		t.Error("expected doorPerson2 to be defeated")
 	}
-	if !game.PlayField.HasActiveDoor(doorPerson1) {
+	if !game.LevelState.Playfield.HasActiveDoor(doorPerson1) {
 		t.Error("expected doorPerson1 to remain active")
 	}
 }
@@ -411,14 +407,14 @@ func TestRunnerSubmitPromptChoice(t *testing.T) {
 		Doors: []DungeonCard{nextDoor},
 	}
 
+	round := newRoundState(Playing)
+	round.Dungeon = dungeon
+	round.PendingInteraction = interaction
 	game := &Game{
-		Players:            []*Player{p1, p2},
-		Dungeon:            dungeon,
-		PlayField:          NewPlayfield(),
-		Status:             Playing,
-		PendingInteraction: interaction,
+		Players:    []*Player{p1, p2},
+		LevelState: round,
 	}
-	game.PlayField.OpenedDoors = []DungeonCard{eventCard}
+	game.LevelState.Playfield.OpenedDoors = []DungeonCard{eventCard}
 	registerCardsInTestGame(game)
 
 	runner := NewRunner(game)
@@ -442,7 +438,7 @@ func TestRunnerSubmitPromptChoice(t *testing.T) {
 		return ok && evt.ByPlayerID == p1.Id && evt.CardID == c1.ID()
 	})
 
-	if game.PendingInteraction != nil {
+	if game.LevelState.PendingInteraction != nil {
 		t.Error("expected pending interaction to be cleared")
 	}
 	if p1.HasCardInHand(c1) {
@@ -458,13 +454,13 @@ func TestRunnerSnapshotQuery(t *testing.T) {
 	door := &DoorCard{Id: 201, Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	boss := &BossMat{Id: 202, Name: "Boss"}
 
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{Boss: boss, Doors: []DungeonCard{}}
 	game := &Game{
-		Players:   []*Player{paladin},
-		Dungeon:   &Dungeon{Boss: boss, Doors: []DungeonCard{}},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{paladin},
+		LevelState: round,
 	}
-	game.PlayField.OpenedDoors = []DungeonCard{door}
+	game.LevelState.Playfield.OpenedDoors = []DungeonCard{door}
 	registerCardsInTestGame(game)
 
 	runner := NewRunner(game)
@@ -500,10 +496,9 @@ func TestRunnerInvalidIDsErrorHandling(t *testing.T) {
 	p1.Hand = []PlayerCard{c1}
 
 	game := &Game{
-		Players:      []*Player{p1},
-		PlayField:    NewPlayfield(),
-		Status:       Playing,
-		UseExtension: true,
+		Players:    []*Player{p1},
+		LevelState: newRoundState(Playing),
+		Config:     Config{UseExtension: true},
 	}
 	registerCardsInTestGame(game)
 
@@ -541,7 +536,7 @@ func TestRunnerInvalidIDsErrorHandling(t *testing.T) {
 }
 
 func TestRunnerCommandsOnTerminatedRunner(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 	runner := NewRunner(game)
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -588,7 +583,7 @@ func TestRunnerCommandsOnTerminatedRunner(t *testing.T) {
 }
 
 func TestRunnerHelperRespectsCallerContextCancellation(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 	runner := NewRunner(game)
 
 	// Context that is already cancelled
@@ -606,9 +601,8 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 	paladin, _ := NewPlayer("Arthur", Paladin, true)
 
 	game := &Game{
-		Players:   []*Player{wizard, paladin},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{wizard, paladin},
+		LevelState: newRoundState(Playing),
 	}
 
 	runner := NewRunner(game)
@@ -639,9 +633,71 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 	})
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(TimeFrozenEvent); return ok })
 
-	if !game.IsTimeFrozen {
+	if !game.LevelState.IsTimeFrozen {
 		t.Error("expected game.isTimeFrozen to be true")
 	}
+}
+
+func TestRunnerAdditionalMethods(t *testing.T) {
+	p1, _ := NewPlayer("Arthur", Paladin, true)
+	p2, _ := NewPlayer("Robin", Ranger, true)
+
+	game := &Game{
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Waiting),
+		Config:     Config{UseExtension: true},
+	}
+
+	runner := NewRunner(game)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	go func() {
+		_ = runner.Run(ctx)
+	}()
+
+	// 1. ChangeHero via Runner
+	if err := runner.ChangeHero(ctx, p1.Id, Barbarian); err != nil {
+		t.Fatalf("failed to change hero via runner: %v", err)
+	}
+	if p1.Hero.Class != Barbarian {
+		t.Errorf("expected hero Barbarian, got %v", p1.Hero.Class)
+	}
+
+	// 2. Unsubscribe non-existent subscriber
+	dummySub := make(chan Event)
+	runner.Unsubscribe(dummySub)
+
+	// Transition to Playing state for further commands
+	game.LevelState.Status = Playing
+
+	// 3. PlayCardWithPlayersTarget
+	healCard := &ActionCard{Id: nextCardId(), Name: "Heal", Action: &HealAction{}}
+	p1.Hand = []PlayerCard{healCard}
+	registerCardsInTestGame(game)
+
+	if err := runner.PlayCardWithPlayersTarget(ctx, p1.Id, healCard.ID(), []PlayerID{p2.Id}); err != nil {
+		t.Fatalf("failed PlayCardWithPlayersTarget: %v", err)
+	}
+
+	// 4. UseHeroAbility with Target Card / Target Player
+	p1.Hero = NewBarbarian()
+	p2.Hero = NewHuntress()
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	p2.Hand = []PlayerCard{c1, c2, c3}
+	p1.Deck = &Deck{Cards: []PlayerCard{&ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}}}
+	registerCardsInTestGame(game)
+
+	if err := runner.UseHeroAbilityWithPlayerTarget(ctx, p2.Id, []CardID{c1.ID(), c2.ID(), c3.ID()}, p1.Id); err != nil {
+		t.Fatalf("failed UseHeroAbilityWithPlayerTarget: %v", err)
+	}
+
+	// 5. SubmitPromptChoice variations (Player, ResourceType, Artifact)
+	_ = runner.SubmitPromptChoicePlayer(ctx, p1.Id, p2.Id)
+	_ = runner.SubmitPromptChoiceResourceType(ctx, p1.Id, Sword)
+	_ = runner.SubmitPromptChoiceArtifact(ctx, p1.Id, 1)
 }
 
 // --- Test Helpers ---

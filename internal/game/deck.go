@@ -335,5 +335,5 @@ func (d *Deck) IncludeExtension() *Deck {
 	case NoColor:
 	}
 
-	return d
+	return d.Shuffle()
 }

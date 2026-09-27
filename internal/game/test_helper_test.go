@@ -1,11 +1,11 @@
 package game
 
 func registerCardsInTestGame(g *Game, extraCards ...any) {
-	if g.PlayerCardsMap == nil {
-		g.PlayerCardsMap = make(map[CardID]PlayerCard, 64)
+	if g.LevelState.PlayerCardsMap == nil {
+		g.LevelState.PlayerCardsMap = make(map[CardID]PlayerCard, 64)
 	}
-	if g.DungeonCardsMap == nil {
-		g.DungeonCardsMap = make(map[CardID]DungeonCard, 32)
+	if g.LevelState.DungeonCardsMap == nil {
+		g.LevelState.DungeonCardsMap = make(map[CardID]DungeonCard, 32)
 	}
 	var testCardID uint32 = 1000
 
@@ -22,7 +22,7 @@ func registerCardsInTestGame(g *Game, extraCards ...any) {
 				rc.Id = CardID(testCardID)
 			}
 		}
-		g.PlayerCardsMap[c.ID()] = c
+		g.LevelState.PlayerCardsMap[c.ID()] = c
 	}
 
 	assignDungeonCard := func(c DungeonCard) {
@@ -44,7 +44,7 @@ func registerCardsInTestGame(g *Game, extraCards ...any) {
 				dc.Id = CardID(testCardID)
 			}
 		}
-		g.DungeonCardsMap[c.ID()] = c
+		g.LevelState.DungeonCardsMap[c.ID()] = c
 	}
 
 	for _, p := range g.Players {
@@ -65,22 +65,22 @@ func registerCardsInTestGame(g *Game, extraCards ...any) {
 			}
 		}
 	}
-	if g.PlayField != nil {
-		for _, c := range g.PlayField.OpenedDoors {
+	if g.LevelState.Playfield != nil {
+		for _, c := range g.LevelState.Playfield.OpenedDoors {
 			assignDungeonCard(c)
 		}
-		for _, c := range g.PlayField.ActiveCurses {
+		for _, c := range g.LevelState.Playfield.ActiveCurses {
 			assignDungeonCard(c)
 		}
-		for _, c := range g.PlayField.Field {
+		for _, c := range g.LevelState.Playfield.Field {
 			assignPlayerCard(c)
 		}
 	}
-	if g.Dungeon != nil {
-		if g.Dungeon.Boss != nil {
-			assignDungeonCard(g.Dungeon.Boss)
+	if g.LevelState.Dungeon != nil {
+		if g.LevelState.Dungeon.Boss != nil {
+			assignDungeonCard(g.LevelState.Dungeon.Boss)
 		}
-		for _, c := range g.Dungeon.Doors {
+		for _, c := range g.LevelState.Dungeon.Doors {
 			assignDungeonCard(c)
 		}
 	}

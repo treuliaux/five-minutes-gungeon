@@ -5,8 +5,9 @@ import (
 )
 
 type Dungeon struct {
-	Boss  *BossMat
-	Doors []DungeonCard
+	Boss     *BossMat
+	Doors    []DungeonCard
+	bossList []*BossMat
 }
 
 func NewBaseDungeon(lvl int, nbPlayers int) *Dungeon {
@@ -19,10 +20,14 @@ func NewBaseDungeon(lvl int, nbPlayers int) *Dungeon {
 	}
 	bossMat := bossList[lvl-1]
 
-	return &Dungeon{
-		Boss:  bossMat,
-		Doors: buildDungeonDeck(bossMat, nbPlayers, false),
+	d := &Dungeon{
+		Boss:     bossMat,
+		Doors:    nil,
+		bossList: bossList,
 	}
+	d.Doors = d.buildDungeonDeck(nbPlayers, false)
+
+	return d
 }
 
 func NewExtensionDungeon(lvl int, nbPlayers int) *Dungeon {
@@ -35,10 +40,14 @@ func NewExtensionDungeon(lvl int, nbPlayers int) *Dungeon {
 	}
 	bossMat := bossList[lvl-1]
 
-	return &Dungeon{
-		Boss:  bossMat,
-		Doors: buildDungeonDeck(bossMat, nbPlayers, true),
+	d := &Dungeon{
+		Boss:     bossMat,
+		Doors:    nil,
+		bossList: bossList,
 	}
+	d.Doors = d.buildDungeonDeck(nbPlayers, true)
+
+	return d
 }
 
 func (d *Dungeon) OpenDoor() DungeonCard {
@@ -59,12 +68,15 @@ func (d *Dungeon) PutDoorBelowDeck(card DungeonCard) {
 	}
 }
 
-func buildDungeonDeck(boss *BossMat, nbPlayer int, includeExtension bool) []DungeonCard {
-	dungeonDeck := make([]DungeonCard, 0, boss.DeckSize+boss.AdditionalChallenges+nbPlayer*2)
+func (d *Dungeon) buildDungeonDeck(nbPlayer int, includeExtension bool) []DungeonCard {
+	if len(d.bossList) == 0 {
+		d.bossList = BossList()
+	}
+	dungeonDeck := make([]DungeonCard, 0, d.Boss.DeckSize+d.Boss.AdditionalChallenges+nbPlayer*2)
 	if includeExtension {
-		bossAbilities := slices.Clone(boss.SpecialAbilities)
+		bossAbilities := slices.Clone(d.Boss.SpecialAbilities)
 		if len(bossAbilities) == 0 {
-			bosses := BossList()
+			bosses := slices.Clone(d.bossList[:])
 			for i := range 5 {
 				shuffleCards(bosses[i].SpecialAbilities)
 				bossAbilities = append(bossAbilities, bosses[i].SpecialAbilities[0])
@@ -75,7 +87,7 @@ func buildDungeonDeck(boss *BossMat, nbPlayer int, includeExtension bool) []Dung
 
 	doorsList := DungeonDoorCards()
 	shuffleCards(doorsList)
-	doorsToAdd := boss.DeckSize - len(dungeonDeck)
+	doorsToAdd := d.Boss.DeckSize - len(dungeonDeck)
 	dungeonDeck = append(dungeonDeck, doorsList[:doorsToAdd]...)
 
 	var challengeList []DungeonCard
@@ -91,12 +103,12 @@ func buildDungeonDeck(boss *BossMat, nbPlayer int, includeExtension bool) []Dung
 		challengeList = append(challengeList, c)
 	}
 	shuffleCards(challengeList)
-	if boss.AdditionalChallenges > 0 {
-		if boss.AdditionalChallenges > len(challengeList) {
-			boss.AdditionalChallenges = len(challengeList)
+	if d.Boss.AdditionalChallenges > 0 {
+		if d.Boss.AdditionalChallenges > len(challengeList) {
+			d.Boss.AdditionalChallenges = len(challengeList)
 		}
 		var additionalChallenges []DungeonCard
-		challengeList, additionalChallenges = challengeList[boss.AdditionalChallenges:], challengeList[:boss.AdditionalChallenges]
+		challengeList, additionalChallenges = challengeList[d.Boss.AdditionalChallenges:], challengeList[:d.Boss.AdditionalChallenges]
 		dungeonDeck = append(dungeonDeck, additionalChallenges...)
 	}
 	challengesToAdd := min(nbPlayer*2, len(challengeList))
@@ -107,8 +119,8 @@ func buildDungeonDeck(boss *BossMat, nbPlayer int, includeExtension bool) []Dung
 	return dungeonDeck
 }
 
-func BossList() [7]*BossMat {
-	return [7]*BossMat{
+func BossList() []*BossMat {
+	return []*BossMat{
 		{
 			Id:        nextCardId(),
 			Name:      "Baby Barbarian",

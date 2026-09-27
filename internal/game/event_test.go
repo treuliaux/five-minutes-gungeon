@@ -10,18 +10,17 @@ import (
 // --- Unit Tests for All 20 Event Cards ---
 
 func TestAmbushEvent(t *testing.T) {
+	p1, _ := NewPlayer("P1", Paladin, true)
 	d1 := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	d2 := &DoorCard{Id: nextCardId(), Type: DoorObstacle, Name: "Pit", Resources: []ResourceType{Jump}}
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Name: "Boss"},
 		Doors: []DungeonCard{d1, d2},
 	}
-	p1, _ := NewPlayer("P1", Paladin, true)
 	game := &Game{
-		Players:   []*Player{p1},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1},
+		LevelState: round,
 	}
 	registerCardsInTestGame(game)
 
@@ -37,11 +36,11 @@ func TestAmbushEvent(t *testing.T) {
 	}
 
 	// Should have opened 2 doors onto the playfield
-	if len(game.PlayField.OpenedDoors) != 2 {
-		t.Fatalf("expected 2 opened doors, got %d", len(game.PlayField.OpenedDoors))
+	if len(game.LevelState.Playfield.OpenedDoors) != 2 {
+		t.Fatalf("expected 2 opened doors, got %d", len(game.LevelState.Playfield.OpenedDoors))
 	}
-	if !game.PlayField.HasActiveDoor(d1) || !game.PlayField.HasActiveDoor(d2) {
-		t.Errorf("expected d1 and d2 to be active on playfield, got %v", game.PlayField.OpenedDoors)
+	if !game.LevelState.Playfield.HasActiveDoor(d1) || !game.LevelState.Playfield.HasActiveDoor(d2) {
+		t.Errorf("expected d1 and d2 to be active on playfield, got %v", game.LevelState.Playfield.OpenedDoors)
 	}
 
 	var doorOpenCount int
@@ -66,9 +65,8 @@ func TestDungeonErrorInYourFavorEvent(t *testing.T) {
 	p2.Deck = &Deck{Cards: []PlayerCard{dCard, dCard, dCard}} // only 3 cards in deck
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -103,9 +101,8 @@ func TestSuddenIllnessEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c1}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -124,7 +121,7 @@ func TestSuddenIllnessEvent(t *testing.T) {
 		t.Errorf("expected P1 hand to be refiled to 5 cards and discard to have 2 cards, got hand: %d, discard: %d", len(p1.Hand), p1.Discard.Length())
 	}
 	if len(p2.Hand) != 5 || p2.Discard.Length() != 1 {
-		t.Errorf("expected P2 hand to be refiled to 5 cards to have 1 card, got hand: %d, discard: %d", len(p2.Hand), p2.Discard.Length())
+		t.Errorf("expected P2 hand to be refiled to 5 cards and discard to have 1 card, got hand: %d, discard: %d", len(p2.Hand), p2.Discard.Length())
 	}
 }
 
@@ -137,9 +134,8 @@ func TestCrowdFundingEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c1}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -169,9 +165,8 @@ func TestYetMoreSpikesEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c1}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -217,9 +212,8 @@ func TestGimmeAHandEvent(t *testing.T) {
 	p3.Hand = []PlayerCard{c3}
 
 	game := &Game{
-		Players:   []*Player{p1, p2, p3},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2, p3},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -267,9 +261,8 @@ func TestLockedDoorEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{multiCard, shieldCard}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -314,9 +307,8 @@ func TestABooBooEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c3}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -369,9 +361,8 @@ func TestTrapDoorEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c1, c2} // only 2 cards
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -423,9 +414,8 @@ func TestConfusionEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c3}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -476,9 +466,8 @@ func TestAnUngodlyAmountOfPorcupinesEvent(t *testing.T) {
 	p1.Deck = &Deck{Cards: []PlayerCard{dCard, dCard, dCard, dCard}}
 
 	game := &Game{
-		Players:   []*Player{p1},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -526,9 +515,8 @@ func TestPoisonedMilkEvent(t *testing.T) {
 	p3.Hand = []PlayerCard{c, c}       // size 2
 
 	game := &Game{
-		Players:   []*Player{p1, p2, p3},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2, p3},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -564,9 +552,8 @@ func TestAcidPolishEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{swordCard, swordCard}  // no Shield -> keeps hand
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -595,9 +582,8 @@ func TestWaxedFloorEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c, c, c, c, c}    // 5 cards (<= 5) -> keeps hand
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -627,9 +613,8 @@ func TestCorrosiveSpitEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{swordCard}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -659,9 +644,8 @@ func TestEnsnaredEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{arrowCard}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -691,9 +675,8 @@ func TestMySwordsEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{shieldCard}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -722,9 +705,8 @@ func TestFireBreathEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c, c}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -768,9 +750,8 @@ func TestTailSwipeEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c2}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -810,9 +791,8 @@ func TestATwentySidedBoulderEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -842,7 +822,8 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 	p2.Hand = []PlayerCard{c}
 
 	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Name: "Boss"},
 		Doors: []DungeonCard{nextDoor},
 	}
@@ -850,17 +831,15 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 	eventCard := &EventCard{Id: nextCardId(), Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		HandSize:  2,
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		HandSize:   2,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
 	registerCardsInTestGame(game)
 
 	// Tick before 2 seconds elapsed -> event should NOT resolve yet
-	game.InGameTimer = time.Second * 1
+	game.LevelState.InGameTimer = time.Second * 1
 	events, err := game.Tick(time.Millisecond * 50)
 	if err != nil {
 		t.Fatalf("tick failed: %v", err)
@@ -868,12 +847,12 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 	if len(events) != 0 {
 		t.Errorf("expected no events before 2s elapsed, got %d events", len(events))
 	}
-	if !game.PlayField.HasActiveDoor(eventCard) {
+	if !game.LevelState.Playfield.HasActiveDoor(eventCard) {
 		t.Error("expected eventCard to remain active on playfield before 2s")
 	}
 
 	// Advance timer past 2 seconds -> event auto-resolves, executes effect, and defeats eventCard
-	game.InGameTimer = time.Second * 3
+	game.LevelState.InGameTimer = time.Second * 3
 	events, err = game.Tick(time.Millisecond * 50)
 	if err != nil {
 		t.Fatalf("tick after 2s failed: %v", err)
@@ -888,10 +867,10 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 	}
 
 	// Event card defeated and next door opened
-	if game.PlayField.HasActiveDoor(eventCard) {
+	if game.LevelState.Playfield.HasActiveDoor(eventCard) {
 		t.Error("expected eventCard to be defeated")
 	}
-	if !game.PlayField.HasActiveDoor(nextDoor) {
+	if !game.LevelState.Playfield.HasActiveDoor(nextDoor) {
 		t.Error("expected nextDoor to be opened after event resolution")
 	}
 
@@ -919,25 +898,25 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	eventCard := &EventCard{Id: nextCardId(), Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}}
 
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{Boss: &BossMat{Name: "Boss"}, Doors: []DungeonCard{nextDoor}}
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		HandSize:  2,
-		Dungeon:   &Dungeon{Boss: &BossMat{Name: "Boss"}, Doors: []DungeonCard{nextDoor}},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		HandSize:   2,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
 	registerCardsInTestGame(game)
 
 	// Advance timer to trigger prompt opening
-	game.InGameTimer = time.Second * 3
+	game.LevelState.InGameTimer = time.Second * 3
 	events, err := game.Tick(time.Millisecond * 50)
 	if err != nil {
 		t.Fatalf("tick failed: %v", err)
 	}
 
 	// Verify EventPromptOpenedEvent emitted and PendingInteraction set
-	if game.PendingInteraction == nil {
+	if game.LevelState.PendingInteraction == nil {
 		t.Fatal("expected PendingInteraction to be set")
 	}
 	if len(events) != 1 {
@@ -966,7 +945,7 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 		t.Errorf("expected PlayerEventChoiceSubmittedEvent for P1, got %v", events)
 	}
 	// Interaction is still pending (waiting for P2)
-	if game.PendingInteraction == nil {
+	if game.LevelState.PendingInteraction == nil {
 		t.Fatal("expected PendingInteraction to still be active")
 	}
 
@@ -980,7 +959,7 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	}
 
 	// PendingInteraction cleared
-	if game.PendingInteraction != nil {
+	if game.LevelState.PendingInteraction != nil {
 		t.Error("expected PendingInteraction to be cleared after completion")
 	}
 
@@ -996,10 +975,10 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	}
 
 	// Event card defeated and next door opened
-	if game.PlayField.HasActiveDoor(eventCard) {
+	if game.LevelState.Playfield.HasActiveDoor(eventCard) {
 		t.Error("expected eventCard to be defeated")
 	}
-	if !game.PlayField.HasActiveDoor(nextDoor) {
+	if !game.LevelState.Playfield.HasActiveDoor(nextDoor) {
 		t.Error("expected nextDoor to be opened")
 	}
 }
@@ -1019,23 +998,23 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	eventCard := &EventCard{Id: nextCardId(), Name: "A Boo-Boo", Action: ABooBooEvent{}}
 
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{Boss: &BossMat{Name: "Boss"}, Doors: []DungeonCard{nextDoor}}
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		HandSize:  2,
-		Dungeon:   &Dungeon{Boss: &BossMat{Name: "Boss"}, Doors: []DungeonCard{nextDoor}},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		HandSize:   2,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
 	registerCardsInTestGame(game)
 
 	// Trigger prompt opening
-	game.InGameTimer = time.Second * 3
+	game.LevelState.InGameTimer = time.Second * 3
 	_, err := game.Tick(time.Millisecond * 50)
 	if err != nil {
 		t.Fatalf("tick failed: %v", err)
 	}
-	if game.PendingInteraction == nil {
+	if game.LevelState.PendingInteraction == nil {
 		t.Fatal("expected PendingInteraction for A Boo-Boo")
 	}
 
@@ -1068,7 +1047,7 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 	}
 
 	// Interaction cleared and both players discarded their chosen card
-	if game.PendingInteraction != nil {
+	if game.LevelState.PendingInteraction != nil {
 		t.Error("expected PendingInteraction to be cleared")
 	}
 	if p1.Discard.Length() != 1 || p1.Discard.Cards[0] != c1 {
@@ -1083,7 +1062,7 @@ func TestEventResolutionCycle_MultiPlayerDiscardBarrier(t *testing.T) {
 	if !p2.HasCardInHand(c4) || len(p2.Hand) != 2 {
 		t.Errorf("expected P2 to keep c4 and be refilled to 2 cards, got %v", p2.Hand)
 	}
-	if !game.PlayField.HasActiveDoor(nextDoor) {
+	if !game.LevelState.Playfield.HasActiveDoor(nextDoor) {
 		t.Error("expected nextDoor to be active")
 	}
 }
@@ -1100,18 +1079,18 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	eventCard := &EventCard{Id: nextCardId(), Name: "Locked Door!", Action: LockedDoorEvent{}}
 
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{Boss: &BossMat{Name: "Boss"}, Doors: []DungeonCard{nextDoor}}
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		HandSize:  2,
-		Dungeon:   &Dungeon{Boss: &BossMat{Name: "Boss"}, Doors: []DungeonCard{nextDoor}},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		HandSize:   2,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
 	registerCardsInTestGame(game)
 
 	// Trigger prompt
-	game.InGameTimer = time.Second * 3
+	game.LevelState.InGameTimer = time.Second * 3
 	_, _ = game.Tick(time.Millisecond * 50)
 
 	res := Sword
@@ -1146,7 +1125,7 @@ func TestEventResolutionCycle_TeamChoiceResourceInteraction(t *testing.T) {
 	if p2.HasCardInHand(swordCard) {
 		t.Errorf("expected P2 to have discarded swordCard, got %v", p2.Hand)
 	}
-	if !game.PlayField.HasActiveDoor(nextDoor) {
+	if !game.LevelState.Playfield.HasActiveDoor(nextDoor) {
 		t.Error("expected nextDoor to be opened")
 	}
 }
@@ -1161,14 +1140,14 @@ func TestEventResolutionCycle_CanceledByCancelAction(t *testing.T) {
 	eventCard := &EventCard{Id: nextCardId(), Name: "Sudden Illness", Action: SuddenIllnessEvent{}}
 	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{Boss: &BossMat{Name: "Boss"}, Doors: []DungeonCard{nextDoor}}
 	game := &Game{
-		Players:   []*Player{wizard},
-		HandSize:  1,
-		Dungeon:   &Dungeon{Boss: &BossMat{Name: "Boss"}, Doors: []DungeonCard{nextDoor}},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{wizard},
+		HandSize:   1,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
 	registerCardsInTestGame(game)
 
 	// Before 2 seconds elapses, Wizard plays Cancel card
@@ -1178,10 +1157,10 @@ func TestEventResolutionCycle_CanceledByCancelAction(t *testing.T) {
 	}
 
 	// Event card defeated, effect did not run (hand refilled, not discarded)
-	if game.PlayField.HasActiveDoor(eventCard) {
+	if game.LevelState.Playfield.HasActiveDoor(eventCard) {
 		t.Error("expected eventCard to be defeated by Cancel")
 	}
-	if !game.PlayField.HasActiveDoor(nextDoor) {
+	if !game.LevelState.Playfield.HasActiveDoor(nextDoor) {
 		t.Error("expected nextDoor to be active")
 	}
 
@@ -1206,14 +1185,14 @@ func TestEventResolutionCycle_RunnerIntegration(t *testing.T) {
 	eventCard := &EventCard{Id: nextCardId(), Name: "Yet More Spikes!", Action: YetMoreSpikesEvent{}, OpenedTime: -2 * time.Second}
 	boss := &BossMat{Name: "Boss", Resources: []ResourceType{Scroll}}
 
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{Boss: boss, Doors: []DungeonCard{boss}}
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		HandSize:  2,
-		Dungeon:   &Dungeon{Boss: boss, Doors: []DungeonCard{boss}},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		HandSize:   2,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
 	registerCardsInTestGame(game)
 
 	runner := NewRunner(game)
@@ -1286,23 +1265,22 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 
 	eventCard := &EventCard{Id: nextCardId(), Name: "An Ungodly Amount of Porcupines", Action: AnUngodlyAmountOfPorcupinesEvent{}}
 	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorObstacle, Name: "Trap", Resources: []ResourceType{Jump}}
-	dungeon := &Dungeon{
+
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Name: "Boss"},
 		Doors: []DungeonCard{nextDoor},
 	}
-
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		HandSize:  2,
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		HandSize:   2,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(eventCard, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
 	registerCardsInTestGame(game)
 
 	// Tick after 2s triggers event resolution -> runs Init() which draws 3 cards per player
-	game.InGameTimer = 3 * time.Second
+	game.LevelState.InGameTimer = 3 * time.Second
 	events, err := game.Tick(50 * time.Millisecond)
 	if err != nil {
 		t.Fatalf("tick failed: %v", err)
@@ -1359,13 +1337,13 @@ func TestEventResolutionCycle_HybridDrawAndDiscardPrompt(t *testing.T) {
 	}
 
 	// Event door defeated and next door opened
-	if game.PlayField.HasActiveDoor(eventCard) {
+	if game.LevelState.Playfield.HasActiveDoor(eventCard) {
 		t.Error("expected eventCard to be defeated")
 	}
-	if !game.PlayField.HasActiveDoor(nextDoor) {
+	if !game.LevelState.Playfield.HasActiveDoor(nextDoor) {
 		t.Error("expected nextDoor to be opened")
 	}
-	if game.PendingInteraction != nil {
+	if game.LevelState.PendingInteraction != nil {
 		t.Error("expected PendingInteraction to be cleared")
 	}
 }

@@ -25,6 +25,17 @@ func (c AddPlayerCmd) Reply() chan error {
 	return c.reply
 }
 
+type ChoosePlayerHeroCmd struct {
+	PlayerID PlayerID
+	Class    HeroClass
+	reply    chan error
+}
+
+func (ChoosePlayerHeroCmd) isCommand() {}
+func (c ChoosePlayerHeroCmd) Reply() chan error {
+	return c.reply
+}
+
 type PlayCardCmd struct {
 	PlayerID        PlayerID
 	CardID          CardID

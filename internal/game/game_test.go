@@ -10,13 +10,13 @@ import (
 // --- Game Initialization & Player Management Tests ---
 
 func TestNewGameInitialization(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 
 	if game == nil {
 		t.Fatal("expected NewGame() to return non-nil game instance")
 	}
-	if game.Status != Waiting {
-		t.Errorf("expected initial status to be Waiting, got %v", game.Status)
+	if game.LevelState.Status != Waiting {
+		t.Errorf("expected initial status to be Waiting, got %v", game.LevelState.Status)
 	}
 	if len(game.Players) != 0 {
 		t.Errorf("expected 0 players initially, got %d", len(game.Players))
@@ -27,7 +27,7 @@ func TestNewGameInitialization(t *testing.T) {
 }
 
 func TestGameAddPlayerSuccess(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 
 	events, err := game.Apply(AddPlayerCmd{
 		Name:  "Sir Lancelot",
@@ -60,7 +60,7 @@ func TestGameAddPlayerSuccess(t *testing.T) {
 }
 
 func TestGameAddPlayerDuplicateClassRejected(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 
 	_, err := game.Apply(AddPlayerCmd{Name: "Paladin 1", Class: Paladin})
 	if err != nil {
@@ -77,7 +77,7 @@ func TestGameAddPlayerDuplicateClassRejected(t *testing.T) {
 }
 
 func TestGameAddPlayerWhenNotWaitingRejected(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 	_, _ = game.Apply(AddPlayerCmd{Name: "P1", Class: Paladin})
 	_, _ = game.Apply(AddPlayerCmd{Name: "P2", Class: Barbarian})
 	_, _ = game.Apply(StartCmd{})
@@ -89,7 +89,7 @@ func TestGameAddPlayerWhenNotWaitingRejected(t *testing.T) {
 }
 
 func TestGameAddPlayerUnknownClassRejected(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 
 	_, err := game.Apply(AddPlayerCmd{Name: "Invalid", Class: HeroClass(999)})
 	if err == nil {
@@ -118,7 +118,7 @@ func TestGameStartPlayerCountBoundaries(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			game := NewGame()
+			game := NewGameWithExtension()
 			for i := 0; i < tt.playerCount; i++ {
 				_, err := game.Apply(AddPlayerCmd{
 					Name:  fmt.Sprintf("Player %d", i+1),
@@ -150,8 +150,8 @@ func TestGameCannotStartWithMoreThanSixPlayers(t *testing.T) {
 	p7, _ := NewPlayer("P7", Huntress, true)
 
 	game := &Game{
-		Players: []*Player{p1, p2, p3, p4, p5, p6, p7},
-		Status:  Waiting,
+		Players:    []*Player{p1, p2, p3, p4, p5, p6, p7},
+		LevelState: newRoundState(Waiting),
 	}
 
 	_, err := game.Apply(StartCmd{})
@@ -161,7 +161,7 @@ func TestGameCannotStartWithMoreThanSixPlayers(t *testing.T) {
 }
 
 func TestGameCannotStartTwice(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 	_, _ = game.Apply(AddPlayerCmd{Name: "P1", Class: Paladin})
 	_, _ = game.Apply(AddPlayerCmd{Name: "P2", Class: Barbarian})
 
@@ -169,8 +169,8 @@ func TestGameCannotStartTwice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error on first start: %v", err)
 	}
-	if game.Status != Playing {
-		t.Errorf("expected game status Playing, got %v", game.Status)
+	if game.LevelState.Status != Playing {
+		t.Errorf("expected game status Playing, got %v", game.LevelState.Status)
 	}
 	if len(events) < 2 {
 		t.Fatalf("expected at least GameStartedEvent and DoorOpenedEvent, got %d events", len(events))
@@ -209,7 +209,7 @@ func TestGameHandSizePerPlayerCount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(fmt.Sprintf("%d players hand size %d", tt.playerCount, tt.expectedHandSize), func(t *testing.T) {
-			game := NewGame()
+			game := NewGameWithExtension()
 			classes := []HeroClass{Paladin, Barbarian, Gladiator, Valkyrie, Sorceress, Wizard}
 			for i := 0; i < tt.playerCount; i++ {
 				// Use Paladin and Barbarian which have non-nil preset decks
@@ -257,10 +257,9 @@ func TestPlayCardSuccessAndAutoDraw(t *testing.T) {
 	paladin.Deck = &Deck{Cards: []PlayerCard{cDraw}}
 
 	game := &Game{
-		Players:   []*Player{paladin, barbarian},
-		HandSize:  2,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{paladin, barbarian},
+		HandSize:   2,
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -270,7 +269,7 @@ func TestPlayCardSuccessAndAutoDraw(t *testing.T) {
 	}
 
 	// Verify card was played on field
-	if len(game.PlayField.Field) != 1 || game.PlayField.Field[0] != c1 {
+	if len(game.LevelState.Playfield.Field) != 1 || game.LevelState.Playfield.Field[0] != c1 {
 		t.Errorf("expected card to be on playfield")
 	}
 	// Verify card was removed from hand and auto-drawn back to handSize 2
@@ -305,10 +304,9 @@ func TestPlayCardNotInHandRejected(t *testing.T) {
 	paladin.Hand = []PlayerCard{cInHand}
 
 	game := &Game{
-		Players:   []*Player{paladin},
-		HandSize:  1,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{paladin},
+		HandSize:   1,
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -316,7 +314,7 @@ func TestPlayCardNotInHandRejected(t *testing.T) {
 	if err == nil {
 		t.Error("expected error when playing card not in hand, got nil")
 	}
-	if len(game.PlayField.Field) != 0 {
+	if len(game.LevelState.Playfield.Field) != 0 {
 		t.Errorf("expected field to be empty")
 	}
 	if len(paladin.Hand) != 1 || paladin.Hand[0] != cInHand {
@@ -329,12 +327,12 @@ func TestPlayCardUnfreezesTime(t *testing.T) {
 	card := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
 	wizard.Hand = []PlayerCard{card}
 
+	round := newRoundState(Playing)
+	round.IsTimeFrozen = true
 	game := &Game{
-		Players:      []*Player{wizard},
-		HandSize:     1,
-		IsTimeFrozen: true,
-		PlayField:    NewPlayfield(),
-		Status:       Playing,
+		Players:    []*Player{wizard},
+		HandSize:   1,
+		LevelState: round,
 	}
 	registerCardsInTestGame(game)
 
@@ -342,7 +340,7 @@ func TestPlayCardUnfreezesTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if game.IsTimeFrozen {
+	if game.LevelState.IsTimeFrozen {
 		t.Errorf("expected time to be unfrozen after card play")
 	}
 
@@ -371,8 +369,8 @@ func TestDiscardCardSuccess(t *testing.T) {
 	paladin.Hand = []PlayerCard{c1, c2}
 
 	game := &Game{
-		Players: []*Player{paladin},
-		Status:  Playing,
+		Players:    []*Player{paladin},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -408,8 +406,8 @@ func TestDiscardCardNotInHandRejected(t *testing.T) {
 	paladin.Hand = []PlayerCard{cInHand}
 
 	game := &Game{
-		Players: []*Player{paladin},
-		Status:  Playing,
+		Players:    []*Player{paladin},
+		LevelState: newRoundState(Playing),
 	}
 
 	_, err := game.Apply(DiscardCardsCmd{PlayerID: paladin.Id, CardIDs: []CardID{cNotInHand.ID()}})
@@ -686,16 +684,16 @@ func TestTickTimeoutCausesDefeat(t *testing.T) {
 
 	door := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	boss := &BossMat{Id: nextCardId(), Name: "Boss"}
-	dungeon := &Dungeon{
+
+	round := newRoundState(Waiting)
+	round.Dungeon = &Dungeon{
 		Boss:  boss,
 		Doors: []DungeonCard{door},
 	}
-
 	game := &Game{
-		Players:   []*Player{paladin, barbarian},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Waiting,
+		Players:    []*Player{paladin, barbarian},
+		LevelState: round,
+		level:      1,
 	}
 
 	_, err := game.Apply(StartCmd{})
@@ -708,8 +706,8 @@ func TestTickTimeoutCausesDefeat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected tick error: %v", err)
 	}
-	if game.Status != Playing {
-		t.Errorf("expected game to still be Playing, got %v", game.Status)
+	if game.LevelState.Status != Playing {
+		t.Errorf("expected game to still be Playing, got %v", game.LevelState.Status)
 	}
 	if len(events) != 0 {
 		t.Errorf("expected no events before timeout")
@@ -720,8 +718,8 @@ func TestTickTimeoutCausesDefeat(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected tick error: %v", err)
 	}
-	if game.Status != Defeat {
-		t.Errorf("expected game status Defeat, got %v", game.Status)
+	if game.LevelState.Status != Defeat {
+		t.Errorf("expected game status Defeat, got %v", game.LevelState.Status)
 	}
 	if len(events) != 1 {
 		t.Fatalf("expected 1 event, got %d", len(events))
@@ -741,28 +739,28 @@ func TestTickFrozenTimeDoesNotAdvanceGameTimer(t *testing.T) {
 	paladin, _ := NewPlayer("P1", Paladin, true)
 	barbarian, _ := NewPlayer("P2", Barbarian, true)
 
+	round := newRoundState(Playing)
+	round.IsTimeFrozen = true
+	round.Dungeon = NewBaseDungeon(1, 2)
 	game := &Game{
-		Players:      []*Player{paladin, barbarian},
-		Dungeon:      NewBaseDungeon(1, 2),
-		PlayField:    NewPlayfield(),
-		IsTimeFrozen: true,
-		Status:       Playing,
+		Players:    []*Player{paladin, barbarian},
+		LevelState: round,
 	}
 
 	_, err := game.Tick(10 * time.Minute)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if game.Status != Playing {
-		t.Errorf("expected game to still be Playing because time is frozen, got %v", game.Status)
+	if game.LevelState.Status != Playing {
+		t.Errorf("expected game to still be Playing because time is frozen, got %v", game.LevelState.Status)
 	}
-	if game.InGameTimer != 0 {
-		t.Errorf("expected inGameTimer to remain 0, got %v", game.InGameTimer)
+	if game.LevelState.InGameTimer != 0 {
+		t.Errorf("expected inGameTimer to remain 0, got %v", game.LevelState.InGameTimer)
 	}
 }
 
 func TestTickWhenNotPlayingReturnsError(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 
 	_, err := game.Tick(time.Second)
 	if err == nil {
@@ -778,16 +776,15 @@ func TestFullDungeonProgressionToVictory(t *testing.T) {
 	door1 := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
 	boss := &BossMat{Id: nextCardId(), Name: "Final Boss", Resources: []ResourceType{Shield}}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Waiting)
+	round.Dungeon = &Dungeon{
 		Boss:  boss,
 		Doors: []DungeonCard{door1},
 	}
-
 	game := &Game{
-		Players:   []*Player{paladin, barbarian},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Waiting,
+		Players:    []*Player{paladin, barbarian},
+		LevelState: round,
+		level:      1,
 	}
 
 	// 1. Start Game
@@ -798,7 +795,7 @@ func TestFullDungeonProgressionToVictory(t *testing.T) {
 	if len(startEvents) < 2 {
 		t.Fatalf("expected Start and Door events, got %d", len(startEvents))
 	}
-	if !game.PlayField.HasActiveDoor(door1) {
+	if !game.LevelState.Playfield.HasActiveDoor(door1) {
 		t.Fatal("expected door1 to be active on playfield")
 	}
 
@@ -839,8 +836,8 @@ func TestFullDungeonProgressionToVictory(t *testing.T) {
 		t.Errorf("missing expected events in door resolution: defeated=%v, cleared=%v, bossOpened=%v",
 			foundDoorDefeated, foundFieldCleared, foundBossOpened)
 	}
-	if !game.IsFightingBoss {
-		t.Error("expected game.IsFightingBoss to be true")
+	if !game.LevelState.IsFightingBoss {
+		t.Error("expected game.round.IsFightingBoss to be true")
 	}
 
 	// 4. Play Shield to match Boss requirements
@@ -858,8 +855,8 @@ func TestFullDungeonProgressionToVictory(t *testing.T) {
 		t.Fatalf("failed boss tick: %v", err)
 	}
 
-	if game.Status != Victory {
-		t.Errorf("expected game status Victory, got %v", game.Status)
+	if game.LevelState.Status != Victory {
+		t.Errorf("expected game status Victory, got %v", game.LevelState.Status)
 	}
 
 	foundGameWon := false
@@ -880,16 +877,14 @@ func TestGameWildCardResolvesDoor(t *testing.T) {
 	door1 := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Chimera", Resources: []ResourceType{Sword, Arrow, Shield}}
 	door2 := &DoorCard{Id: nextCardId(), Type: DoorObstacle, Name: "Spike Wall", Resources: []ResourceType{Jump}}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Waiting)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Id: nextCardId(), Name: "Boss", Resources: []ResourceType{Scroll}},
 		Doors: []DungeonCard{door2, door1},
 	}
-
 	game := &Game{
-		Players:   []*Player{paladin, barbarian},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Waiting,
+		Players:    []*Player{paladin, barbarian},
+		LevelState: round,
 	}
 
 	_, _ = game.Apply(StartCmd{})
@@ -941,7 +936,7 @@ func TestGameWildCardResolvesDoor(t *testing.T) {
 	if !foundDoorOpened {
 		t.Error("expected door2 to be opened after door1 defeated")
 	}
-	if !game.PlayField.HasActiveDoor(door2) {
+	if !game.LevelState.Playfield.HasActiveDoor(door2) {
 		t.Error("expected door2 to be the active door on playfield")
 	}
 }
@@ -955,16 +950,14 @@ func TestHeroAbilityTrickShotSuccess(t *testing.T) {
 	doorPerson := &DoorCard{Id: nextCardId(), Type: DoorPerson, Name: "Evil Guard", Resources: []ResourceType{Sword, Shield, Jump}}
 	nextDoor := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Dragon", Resources: []ResourceType{Sword}}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Waiting)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Id: nextCardId(), Name: "Boss"},
 		Doors: []DungeonCard{nextDoor, doorPerson},
 	}
-
 	game := &Game{
-		Players:   []*Player{ranger, paladin},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Waiting,
+		Players:    []*Player{ranger, paladin},
+		LevelState: round,
 	}
 
 	_, _ = game.Apply(StartCmd{})
@@ -989,10 +982,10 @@ func TestHeroAbilityTrickShotSuccess(t *testing.T) {
 	}
 
 	// Verify doorPerson was defeated and nextDoor opened
-	if game.PlayField.HasActiveDoor(doorPerson) {
+	if game.LevelState.Playfield.HasActiveDoor(doorPerson) {
 		t.Error("expected doorPerson to no longer be active")
 	}
-	if !game.PlayField.HasActiveDoor(nextDoor) {
+	if !game.LevelState.Playfield.HasActiveDoor(nextDoor) {
 		t.Error("expected nextDoor to be active")
 	}
 
@@ -1015,11 +1008,10 @@ func TestHeroAbilityTrickShotInvalidClassRejected(t *testing.T) {
 	paladin.Hand = []PlayerCard{c1, c2, c3}
 
 	game := &Game{
-		Players:   []*Player{paladin},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{paladin},
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorPerson, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorPerson, game)
 
 	_, err := game.Apply(UseHeroAbilityCmd{
 		PlayerID:       paladin.Id,
@@ -1044,13 +1036,13 @@ func TestHeroAbilityTrickShotInvalidTargetTypeRejected(t *testing.T) {
 	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Arrow}}
 	ranger.Hand = []PlayerCard{c1, c2, c3}
 
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{Doors: []DungeonCard{}}
 	game := &Game{
-		Players:   []*Player{ranger},
-		PlayField: NewPlayfield(),
-		Dungeon:   &Dungeon{Doors: []DungeonCard{}},
-		Status:    Playing,
+		Players:    []*Player{ranger},
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorMonster, game)
 
 	_, err := game.Apply(UseHeroAbilityCmd{
 		PlayerID:       ranger.Id,
@@ -1072,9 +1064,8 @@ func TestHeroAbilityRequiresExactlyThreeCards(t *testing.T) {
 	ranger.Hand = []PlayerCard{c1, c2}
 
 	game := &Game{
-		Players:   []*Player{ranger},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{ranger},
+		LevelState: newRoundState(Playing),
 	}
 
 	_, err := game.Apply(UseHeroAbilityCmd{
@@ -1094,10 +1085,8 @@ func TestHeroAbilityStopTime(t *testing.T) {
 	wizard.Hand = []PlayerCard{c1, c2, c3}
 
 	game := &Game{
-		Players:      []*Player{wizard},
-		PlayField:    NewPlayfield(),
-		IsTimeFrozen: false,
-		Status:       Playing,
+		Players:    []*Player{wizard},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -1108,7 +1097,7 @@ func TestHeroAbilityStopTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed StopTime: %v", err)
 	}
-	if !game.IsTimeFrozen {
+	if !game.LevelState.IsTimeFrozen {
 		t.Error("expected isTimeFrozen to be true")
 	}
 
@@ -1130,7 +1119,7 @@ func TestHeroAbilityStopTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to play card: %v", err)
 	}
-	if game.IsTimeFrozen {
+	if game.LevelState.IsTimeFrozen {
 		t.Error("expected isTimeFrozen to be false after playing card")
 	}
 	foundUnfrozen := false
@@ -1155,18 +1144,16 @@ func TestHeroAbilitySmite(t *testing.T) {
 	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
 	paladin.Hand = []PlayerCard{c1, c2, c3}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Id: nextCardId(), Name: "Boss"},
 		Doors: []DungeonCard{doorMonster, nextDoor},
 	}
-
 	game := &Game{
-		Players:   []*Player{paladin},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{paladin},
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorMonster, game)
 	registerCardsInTestGame(game)
 
 	// 1. Success on DoorMonster
@@ -1183,7 +1170,7 @@ func TestHeroAbilitySmite(t *testing.T) {
 
 	// 2. Reject non-Monster
 	paladin.Hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.PlayField.AddDungeonCard(doorPerson, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorPerson, game)
 	registerCardsInTestGame(game)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		PlayerID:       paladin.Id,
@@ -1218,18 +1205,16 @@ func TestHeroAbilitySlay(t *testing.T) {
 	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	barbarian.Hand = []PlayerCard{c1, c2, c3}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Id: nextCardId(), Name: "Boss"},
 		Doors: []DungeonCard{doorMonster, nextDoor},
 	}
-
 	game := &Game{
-		Players:   []*Player{barbarian},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{barbarian},
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorMonster, game)
 	registerCardsInTestGame(game)
 
 	// Success on DoorMonster
@@ -1244,7 +1229,7 @@ func TestHeroAbilitySlay(t *testing.T) {
 
 	// Reject non-Monster
 	barbarian.Hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.PlayField.AddDungeonCard(doorObstacle, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorObstacle, game)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		PlayerID:       barbarian.Id,
 		DiscardCardIDs: []CardID{c1.ID(), c2.ID(), c3.ID()},
@@ -1278,18 +1263,16 @@ func TestHeroAbilityTeleport(t *testing.T) {
 	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}}
 	sorceress.Hand = []PlayerCard{c1, c2, c3}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Id: nextCardId(), Name: "Boss"},
 		Doors: []DungeonCard{doorObstacle, nextDoor},
 	}
-
 	game := &Game{
-		Players:   []*Player{sorceress},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{sorceress},
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorObstacle, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorObstacle, game)
 	registerCardsInTestGame(game)
 
 	// Success on DoorObstacle
@@ -1304,7 +1287,7 @@ func TestHeroAbilityTeleport(t *testing.T) {
 
 	// Reject non-Obstacle
 	sorceress.Hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.PlayField.AddDungeonCard(doorPerson, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorPerson, game)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		PlayerID:       sorceress.Id,
 		DiscardCardIDs: []CardID{c1.ID(), c2.ID(), c3.ID()},
@@ -1338,18 +1321,16 @@ func TestHeroAbilityVault(t *testing.T) {
 	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Jump}}
 	ninja.Hand = []PlayerCard{c1, c2, c3}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Id: nextCardId(), Name: "Boss"},
 		Doors: []DungeonCard{doorObstacle, nextDoor},
 	}
-
 	game := &Game{
-		Players:   []*Player{ninja},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{ninja},
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorObstacle, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorObstacle, game)
 	registerCardsInTestGame(game)
 
 	// Success on DoorObstacle
@@ -1364,7 +1345,7 @@ func TestHeroAbilityVault(t *testing.T) {
 
 	// Reject non-Obstacle
 	ninja.Hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorMonster, game)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		PlayerID:       ninja.Id,
 		DiscardCardIDs: []CardID{c1.ID(), c2.ID(), c3.ID()},
@@ -1398,18 +1379,16 @@ func TestHeroAbilityIntimidate(t *testing.T) {
 	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	gladiator.Hand = []PlayerCard{c1, c2, c3}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Id: nextCardId(), Name: "Boss"},
 		Doors: []DungeonCard{doorPerson, nextDoor},
 	}
-
 	game := &Game{
-		Players:   []*Player{gladiator},
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{gladiator},
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(doorPerson, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorPerson, game)
 	registerCardsInTestGame(game)
 
 	// Success on DoorPerson
@@ -1424,7 +1403,7 @@ func TestHeroAbilityIntimidate(t *testing.T) {
 
 	// Reject non-Person
 	gladiator.Hand = []PlayerCard{c1, c2, c3}
-	_, _ = game.PlayField.AddDungeonCard(doorMonster, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(doorMonster, game)
 	_, err = game.Apply(UseHeroAbilityCmd{
 		PlayerID:       gladiator.Id,
 		DiscardCardIDs: []CardID{c1.ID(), c2.ID(), c3.ID()},
@@ -1465,11 +1444,9 @@ func TestHeroAbilityAnimalCompanion(t *testing.T) {
 			&ResourceCard{Id: nextCardId(), Resources: []ResourceType{Scroll}},
 		},
 	}
-
 	game := &Game{
-		Players:   []*Player{huntress, paladin},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{huntress, paladin},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -1555,9 +1532,8 @@ func TestHeroAbilityInspire(t *testing.T) {
 	}
 
 	game := &Game{
-		Players:   []*Player{valkyrie, paladin, barbarian},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{valkyrie, paladin, barbarian},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -1618,9 +1594,8 @@ func TestHeroAbilityPickpocket(t *testing.T) {
 	}
 
 	game := &Game{
-		Players:   []*Player{thief},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{thief},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -1665,16 +1640,16 @@ func TestHeroAbilityForestSpirits(t *testing.T) {
 	c3 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
 	druid.Hand = []PlayerCard{c1, c2, c3}
 
-	game := &Game{
-		Players: []*Player{druid},
-		Status:  Playing,
-		Dungeon: &Dungeon{
-			Boss:  &BossMat{Id: nextCardId()},
-			Doors: make([]DungeonCard, 0),
-		},
-		PlayField: NewPlayfield(),
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
+		Boss:  &BossMat{Id: nextCardId()},
+		Doors: make([]DungeonCard, 0),
 	}
-	_, _ = game.PlayField.AddDungeonCard(&CurseCard{
+	game := &Game{
+		Players:    []*Player{druid},
+		LevelState: round,
+	}
+	_, _ = game.LevelState.Playfield.AddDungeonCard(&CurseCard{
 		Type:   ChallengeCurse,
 		Name:   "Tourbillon de Wazaa",
 		Effect: TimeCannotBeStopped,
@@ -1719,9 +1694,8 @@ func TestHeroAbilitySpiritAnimal(t *testing.T) {
 	paladin.Deck = &Deck{Cards: []PlayerCard{}}
 
 	game := &Game{
-		Players:   []*Player{shaman, paladin},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{shaman, paladin},
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -1794,9 +1768,8 @@ func TestHeroAbilityDiscardCardsMustBeInHand(t *testing.T) {
 	ranger.Hand = []PlayerCard{c1, c2}
 
 	game := &Game{
-		Players:   []*Player{ranger},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{ranger},
+		LevelState: newRoundState(Playing),
 	}
 
 	_, err := game.Apply(UseHeroAbilityCmd{
@@ -1877,11 +1850,10 @@ func TestAbilityEngineMethods(t *testing.T) {
 	door := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin"}
 
 	game := &Game{
-		Players:   []*Player{p1, p2, p3},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2, p3},
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(door, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door, game)
 
 	// 1. listOtherPlayers
 	others := otherPlayers(game.ListPlayers(), p1)
@@ -1890,11 +1862,11 @@ func TestAbilityEngineMethods(t *testing.T) {
 	}
 
 	// 2. hasActiveDoor
-	if !game.PlayField.HasActiveDoor(door) {
+	if !game.LevelState.Playfield.HasActiveDoor(door) {
 		t.Error("expected door to be active")
 	}
 	fakeDoor := &DoorCard{Id: nextCardId(), Type: DoorObstacle, Name: "Fake"}
-	if game.PlayField.HasActiveDoor(fakeDoor) {
+	if game.LevelState.Playfield.HasActiveDoor(fakeDoor) {
 		t.Error("expected fake door not to be active")
 	}
 
@@ -1913,7 +1885,7 @@ func TestAbilityEngineMethods(t *testing.T) {
 // --- Reply Channel & Error Propagation Tests ---
 
 func TestApplyWithReplyChannel(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 	reply := make(chan error, 1)
 
 	// Valid command
@@ -1950,7 +1922,7 @@ func TestApplyWithReplyChannel(t *testing.T) {
 }
 
 func TestApplyWithNilReplyDoesNotPanicOrBlock(t *testing.T) {
-	game := NewGame()
+	game := NewGameWithExtension()
 
 	// Should not block or panic even if reply is nil
 	_, err := game.Apply(AddPlayerCmd{
@@ -2322,12 +2294,11 @@ func TestCurseVoidHandDestroysCardsAndRefills(t *testing.T) {
 	}
 
 	game := &Game{
-		Players:   []*Player{player, player}, // 2 players -> hand size 5
-		HandSize:  5,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{player, player}, // 2 players -> hand size 5
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
 	registerCardsInTestGame(game)
 
 	events, err := game.Apply(PlayCardCmd{PlayerID: player.Id, CardID: actionCard.ID()})
@@ -2387,10 +2358,9 @@ func TestPartialDiscardForcesCyclingAndAllowsRecovery(t *testing.T) {
 	p1.Discard = &Discard{Cards: []PlayerCard{}}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		HandSize:  5,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
 	registerCardsInTestGame(game)
 
@@ -2434,5 +2404,73 @@ func TestPartialDiscardForcesCyclingAndAllowsRecovery(t *testing.T) {
 	}
 	if p1.Discard.Length() != 0 {
 		t.Errorf("expected 0 cards remaining in discard, got %d", p1.Discard.Length())
+	}
+}
+
+func TestGameEngineHelpersAndValidation(t *testing.T) {
+	// 1. NewGame default constructor
+	baseGame := NewGame()
+	if baseGame.Config.UseExtension {
+		t.Error("expected NewGame() to have UseExtension=false")
+	}
+
+	// 2. Playfield IsFightingBoss and DoorsOnly
+	pf := NewPlayfield()
+	boss := &BossMat{Name: "Boss"}
+	door := &DoorCard{Type: DoorMonster, Name: "Goblin"}
+	dungeon := &Dungeon{Boss: boss}
+
+	if pf.IsFightingBoss(dungeon) {
+		t.Error("expected IsFightingBoss=false when empty")
+	}
+	pf.OpenedDoors = []DungeonCard{door}
+	if pf.IsFightingBoss(dungeon) {
+		t.Error("expected IsFightingBoss=false with monster door")
+	}
+	if len(pf.DoorsOnly()) != 1 {
+		t.Errorf("expected 1 door in DoorsOnly, got %d", len(pf.DoorsOnly()))
+	}
+	pf.OpenedDoors = []DungeonCard{boss}
+	if !pf.IsFightingBoss(dungeon) {
+		t.Error("expected IsFightingBoss=true with boss door")
+	}
+
+	// 3. ClearStopTimeCurse
+	levelState := newRoundState(Playing)
+	p1, _ := NewPlayer("Arthur", Paladin, true)
+	levelState.CurseExpectingDiscards[p1] = 2
+	levelState.ClearStopTimeCurse()
+	if len(levelState.CurseExpectingDiscards) != 0 {
+		t.Error("expected CurseExpectingDiscards to be cleared")
+	}
+
+	// 4. PlayersByIDs helper
+	p2, _ := NewPlayer("Robin", Ranger, true)
+	game := &Game{
+		Players:    []*Player{p1, p2},
+		LevelState: levelState,
+	}
+	found, err := game.PlayersByIDs([]PlayerID{p1.Id, p2.Id})
+	if err != nil || len(found) != 2 {
+		t.Errorf("expected to find 2 players by ID, got %v (err: %v)", found, err)
+	}
+	_, err = game.PlayersByIDs([]PlayerID{"unknown"})
+	if !errors.Is(err, ErrPlayerNotFound) {
+		t.Errorf("expected ErrPlayerNotFound for invalid ID, got %v", err)
+	}
+
+	// 5. ChoosePlayerHero validations
+	// Cannot change hero once Playing
+	_, err = game.Apply(ChoosePlayerHeroCmd{PlayerID: p1.Id, Class: Barbarian})
+	if !errors.Is(err, ErrGameAlreadyStarted) {
+		t.Errorf("expected ErrGameAlreadyStarted when playing, got %v", err)
+	}
+
+	// In Waiting state: validate Extension disabled for Druid/Shaman
+	game.LevelState.Status = Waiting
+	game.Config.UseExtension = false
+	_, err = game.Apply(ChoosePlayerHeroCmd{PlayerID: p1.Id, Class: Druid})
+	if !errors.Is(err, ErrGameExtensionDisabled) {
+		t.Errorf("expected ErrGameExtensionDisabled for Druid when UseExtension=false, got %v", err)
 	}
 }

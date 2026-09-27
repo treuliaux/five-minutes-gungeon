@@ -36,6 +36,12 @@ type PlayerAddedEvent struct {
 
 func (PlayerAddedEvent) isEvent() {}
 
+type PlayerChangedHeroEvent struct {
+	Player PlayerDTO
+}
+
+func (PlayerChangedHeroEvent) isEvent() {}
+
 type CardPlayedEvent struct {
 	ByPlayerID PlayerID
 	CardID     CardID
@@ -208,3 +214,23 @@ type PlayerHandVoidedEvent struct {
 }
 
 func (PlayerHandVoidedEvent) isEvent() {}
+
+type DungeonDefeated struct {
+	Boss     DungeonCardDTO
+	NextBoss DungeonCardDTO
+}
+
+func (DungeonDefeated) isEvent() {}
+
+type DungeonPrevailed struct {
+	Boss     DungeonCardDTO
+	NextBoss DungeonCardDTO
+}
+
+func (DungeonPrevailed) isEvent() {}
+
+type CampaignEnded struct {
+	Boss DungeonCardDTO
+}
+
+func (CampaignEnded) isEvent() {}

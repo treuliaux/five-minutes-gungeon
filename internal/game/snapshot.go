@@ -24,31 +24,43 @@ type GameSnapshotDTO struct {
 func NewGameSnapshot(g *Game) GameSnapshotDTO {
 	var boss *DungeonCardDTO
 	var remainingDoors int
-	if g.Dungeon != nil {
-		if g.Dungeon.Boss != nil {
-			b := DungeonCardToDTO(g.Dungeon.Boss)
+	if g.LevelState != nil && g.LevelState.Dungeon != nil {
+		if g.LevelState.Dungeon.Boss != nil {
+			b := DungeonCardToDTO(g.LevelState.Dungeon.Boss)
 			boss = &b
 		}
-		remainingDoors = len(g.Dungeon.Doors)
+		remainingDoors = len(g.LevelState.Dungeon.Doors)
 	}
 
+	var status Status
+	var inGameTimer time.Duration
+	var totalDuration time.Duration
+	var isTimeFrozen bool
+	var isFightingBoss bool
 	var openedDoors []DungeonCardDTO
 	var activeCurses []DungeonCardDTO
 	var playedField []PlayerCardDTO
 	var artifacts []ArtifactDTO
-	if g.PlayField != nil {
-		openedDoors = DungeonCardsToDTO(g.PlayField.OpenedDoors)
-		activeCurses = DungeonCardsToDTO(g.PlayField.ActiveCurses)
-		playedField = PlayerCardsToDTO(g.PlayField.Field)
-		artifacts = ArtifactsToDTO(g.PlayField.Artifacts)
+	var pendingInteractionDTO *PendingInteractionDTO
+	if g.LevelState != nil && g.LevelState.Playfield != nil {
+		status = g.LevelState.Status
+		inGameTimer = g.LevelState.InGameTimer
+		totalDuration = g.LevelState.RealElapsedTime
+		isTimeFrozen = g.LevelState.IsTimeFrozen
+		isFightingBoss = g.LevelState.IsFightingBoss
+		openedDoors = DungeonCardsToDTO(g.LevelState.Playfield.OpenedDoors)
+		activeCurses = DungeonCardsToDTO(g.LevelState.Playfield.ActiveCurses)
+		playedField = PlayerCardsToDTO(g.LevelState.Playfield.Field)
+		artifacts = ArtifactsToDTO(g.LevelState.Playfield.Artifacts)
+		pendingInteractionDTO = PendingInteractionToDTO(g.LevelState.PendingInteraction)
 	}
 
 	return GameSnapshotDTO{
-		Status:              g.Status,
-		InGameTimer:         g.InGameTimer,
-		TotalDuration:       g.RealElapsedTime,
-		IsTimeFrozen:        g.IsTimeFrozen,
-		IsFightingBoss:      g.IsFightingBoss,
+		Status:              status,
+		InGameTimer:         inGameTimer,
+		TotalDuration:       totalDuration,
+		IsTimeFrozen:        isTimeFrozen,
+		IsFightingBoss:      isFightingBoss,
 		RemainingDoorsCount: remainingDoors,
 		Boss:                boss,
 		Players:             PlayersToDTO(g.Players),
@@ -56,7 +68,7 @@ func NewGameSnapshot(g *Game) GameSnapshotDTO {
 		ActiveCurses:        activeCurses,
 		PlayedField:         playedField,
 		Artifacts:           artifacts,
-		PendingInteraction:  PendingInteractionToDTO(g.PendingInteraction),
+		PendingInteraction:  pendingInteractionDTO,
 	}
 }
 

@@ -18,7 +18,7 @@ type Player struct {
 
 func NewPlayer(name string, class HeroClass, includeExtension bool) (*Player, error) {
 	if !includeExtension && (class == Druid || class == Shaman) {
-		return nil, fmt.Errorf("druid/shaman is not available without the extension enabled")
+		return nil, ErrGameExtensionDisabled
 	}
 	hero, err := NewHeroFromHeroClass(class)
 	if err != nil {
@@ -38,6 +38,12 @@ func NewPlayer(name string, class HeroClass, includeExtension bool) (*Player, er
 		Discard: NewDiscard(),
 		Hand:    make([]PlayerCard, 0),
 	}, nil
+}
+
+func (p *Player) PrepareForNextLevel() {
+	p.Deck = nil
+	p.Discard = NewDiscard()
+	p.Hand = make([]PlayerCard, 0)
 }
 
 func (p *Player) RemoveCardFromHand(card PlayerCard) {

@@ -116,7 +116,7 @@ func (p *Playfield) AddDungeonCard(card DungeonCard, g *Game) ([]Event, error) {
 		if p.IsDoorsFull() {
 			return nil, fmt.Errorf("cannot add more than two dungeon cards")
 		}
-		c.OpenedTime = g.InGameTimer
+		c.OpenedTime = g.LevelState.InGameTimer
 		p.OpenedDoors = append(p.OpenedDoors, c)
 
 		return []Event{DoorOpenedEvent{CardID: c.ID()}}, nil

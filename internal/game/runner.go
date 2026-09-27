@@ -54,7 +54,7 @@ func (r *Runner) Run(ctx context.Context) error {
 		for _, event := range events {
 			r.broadcast(event)
 		}
-		if r.game.Status == Victory || r.game.Status == Defeat {
+		if r.game.LevelState.Status == Victory || r.game.LevelState.Status == Defeat {
 			r.subscriptionsLock.Lock()
 			r.canSubscribe = false
 			r.subscriptionsLock.Unlock()
@@ -100,6 +100,13 @@ func (r *Runner) Unsubscribe(sub <-chan Event) {
 func (r *Runner) AddPlayer(ctx context.Context, name string, class HeroClass) error {
 	reply := make(chan error, 1)
 	cmd := AddPlayerCmd{Name: name, Class: class, reply: reply}
+
+	return guardedCmdCallAndReply(ctx, r, cmd, reply)
+}
+
+func (r *Runner) ChangeHero(ctx context.Context, actorId PlayerID, class HeroClass) error {
+	reply := make(chan error, 1)
+	cmd := ChoosePlayerHeroCmd{PlayerID: actorId, Class: class, reply: reply}
 
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }

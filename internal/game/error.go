@@ -10,7 +10,6 @@ var (
 	ErrCardNotFound              = errors.New("card not found")
 	ErrCardNotInHand             = errors.New("card not in hand")
 	ErrGameNotPlaying            = errors.New("game is not in playing state")
-	ErrGameNotWaiting            = errors.New("game is not in waiting state")
 	ErrGameAlreadyStarted        = errors.New("game has already started")
 	ErrGameIncorrectPlayerNumber = errors.New("game has incorrect number of players")
 	ErrGameExtensionDisabled     = errors.New("extension is disabled")
@@ -18,7 +17,9 @@ var (
 	ErrExpectedTarget            = errors.New("expected target")
 	ErrNoPendingInteraction      = errors.New("no pending player interaction")
 	ErrPendingInteraction        = errors.New("pending player interaction")
+	ErrSmartTargeting            = errors.New("no candidate found")
 	ErrClassAlreadyPicked        = errors.New("class already picked")
+	ErrArtifactAlreadyUsed       = errors.New("class already picked")
 )
 
 type AmbiguousTargetError[T any] struct {

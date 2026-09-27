@@ -17,21 +17,20 @@ func TestCurseActivationLifecycle(t *testing.T) {
 	}
 
 	game := &Game{
-		Players:   []*Player{p1},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1},
+		LevelState: newRoundState(Playing),
 	}
 
-	events, err := game.PlayField.AddDungeonCard(curse, game)
+	events, err := game.LevelState.Playfield.AddDungeonCard(curse, game)
 	if err != nil {
 		t.Fatalf("failed to add curse to playfield: %v", err)
 	}
 
 	// Should be placed in ActiveCurses, not OpenedDoors
-	if !slices.Contains(game.PlayField.ActiveCurses, curse) {
+	if !slices.Contains(game.LevelState.Playfield.ActiveCurses, curse) {
 		t.Errorf("expected curse to be in ActiveCurses")
 	}
-	if slices.Contains(game.PlayField.OpenedDoors, DungeonCard(curse)) {
+	if slices.Contains(game.LevelState.Playfield.OpenedDoors, DungeonCard(curse)) {
 		t.Errorf("curse should not be in OpenedDoors")
 	}
 
@@ -67,18 +66,17 @@ func TestCurseRemovalLifecycle(t *testing.T) {
 	}
 
 	game := &Game{
-		Players:   []*Player{p1},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1},
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
 
-	events, err := game.PlayField.RemoveDungeonCard(game, curse)
+	events, err := game.LevelState.Playfield.RemoveDungeonCard(game, curse)
 	if err != nil {
 		t.Fatalf("failed to remove curse: %v", err)
 	}
 
-	if slices.Contains(game.PlayField.ActiveCurses, curse) {
+	if slices.Contains(game.LevelState.Playfield.ActiveCurses, curse) {
 		t.Errorf("expected curse to be removed from ActiveCurses")
 	}
 	if game.HasActiveCurseEffect(TimeCannotBeStopped) {
@@ -99,15 +97,14 @@ func TestCurseRemovalLifecycle(t *testing.T) {
 func TestOpenDoorContinuesOnCurse(t *testing.T) {
 	curse := &CurseCard{Type: ChallengeCurse, Name: "A Curse", Effect: TimeCannotBeStopped}
 	door := &DoorCard{Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
-	dungeon := &Dungeon{
+
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Name: "Boss"},
 		Doors: []DungeonCard{door, curse}, // curse is on top (end of slice)
 	}
-
 	game := &Game{
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		LevelState: round,
 	}
 
 	events, err := game.OpenDoor()
@@ -116,14 +113,14 @@ func TestOpenDoorContinuesOnCurse(t *testing.T) {
 	}
 
 	// Both curse and door should have been drawn
-	if !slices.Contains(game.PlayField.ActiveCurses, curse) {
+	if !slices.Contains(game.LevelState.Playfield.ActiveCurses, curse) {
 		t.Error("expected curse to be active")
 	}
-	if !game.PlayField.HasActiveDoor(door) {
+	if !game.LevelState.Playfield.HasActiveDoor(door) {
 		t.Error("expected door to be opened")
 	}
-	if len(game.PlayField.OpenedDoors) != 1 {
-		t.Errorf("expected 1 opened door, got %d", len(game.PlayField.OpenedDoors))
+	if len(game.LevelState.Playfield.OpenedDoors) != 1 {
+		t.Errorf("expected 1 opened door, got %d", len(game.LevelState.Playfield.OpenedDoors))
 	}
 
 	var curseActivatedFound, doorOpenedCount int
@@ -159,12 +156,11 @@ func TestCurseTimeCannotBeStopped(t *testing.T) {
 	}
 
 	game := &Game{
-		Players:   []*Player{p1, p1},
-		HandSize:  5,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p1},
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
 
 	events, err := game.StopTime(p1)
 	if err == nil {
@@ -179,7 +175,7 @@ func TestCurseTimeCannotBeStopped(t *testing.T) {
 		t.Errorf("expected TimeCannotBeStopped curse error, got %v", curseErr.Curse)
 	}
 
-	if game.IsTimeFrozen {
+	if game.LevelState.IsTimeFrozen {
 		t.Error("expected time not to be frozen")
 	}
 
@@ -220,13 +216,12 @@ func TestCurseActionsCannotBePlayed(t *testing.T) {
 	door := &DoorCard{Id: 6549873, Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
-		Players:   []*Player{p1, p1},
-		HandSize:  5,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p1},
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
-	_, _ = game.PlayField.AddDungeonCard(door, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door, game)
 	registerCardsInTestGame(game)
 
 	// Playing action card should fail with curse violation
@@ -243,13 +238,13 @@ func TestCurseActionsCannotBePlayed(t *testing.T) {
 		t.Errorf("expected ActionsCannotBePlayed curse error, got %v", curseErr.Curse)
 	}
 
-	// Action card must not be leaked into PlayField.Field
-	if slices.Contains(game.PlayField.Field, PlayerCard(actionCard)) {
+	// Action card must not be leaked into Playfield.Field
+	if slices.Contains(game.LevelState.Playfield.Field, PlayerCard(actionCard)) {
 		t.Error("illegal action card must not be added to playfield")
 	}
 
 	// Door must still be alive
-	if !game.PlayField.HasActiveDoor(door) {
+	if !game.LevelState.Playfield.HasActiveDoor(door) {
 		t.Error("door should not be defeated")
 	}
 
@@ -293,13 +288,12 @@ func TestCurseAbilitiesCannotBePlayed(t *testing.T) {
 	door := &DoorCard{Id: 1005, Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
-		Players:   []*Player{p1, p1},
-		HandSize:  5,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p1},
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
-	_, _ = game.PlayField.AddDungeonCard(door, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door, game)
 	registerCardsInTestGame(game)
 
 	events, err := game.Apply(UseHeroAbilityCmd{
@@ -320,7 +314,7 @@ func TestCurseAbilitiesCannotBePlayed(t *testing.T) {
 	}
 
 	// Door should still be active
-	if !game.PlayField.HasActiveDoor(door) {
+	if !game.LevelState.Playfield.HasActiveDoor(door) {
 		t.Error("door should not be defeated by blocked ability")
 	}
 
@@ -363,13 +357,12 @@ func TestCurseHandSizeLimitedToThree(t *testing.T) {
 	door := &DoorCard{Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
-		Players:   []*Player{p1, p1},
-		HandSize:  5,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p1},
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
-	_, _ = game.PlayField.AddDungeonCard(door, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door, game)
 	registerCardsInTestGame(game)
 
 	// TargetHandSize should now be 3
@@ -434,13 +427,12 @@ func TestCurseHandSizeLimitedToThreeBlocksHeroAbility(t *testing.T) {
 	door := &DoorCard{Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
-		Players:   []*Player{p1, p1},
-		HandSize:  5,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p1},
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
-	_, _ = game.PlayField.AddDungeonCard(door, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door, game)
 	registerCardsInTestGame(game)
 
 	_, err := game.Apply(UseHeroAbilityCmd{
@@ -494,13 +486,12 @@ func TestCurseFlippedHeroMat(t *testing.T) {
 	}
 
 	game := &Game{
-		Players:   []*Player{p1, p2},
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{p1, p2},
+		LevelState: newRoundState(Playing),
 	}
 
 	// Add curse -> triggers Apply hook -> flips hero mats
-	events, err := game.PlayField.AddDungeonCard(curse, game)
+	events, err := game.LevelState.Playfield.AddDungeonCard(curse, game)
 	if err != nil {
 		t.Fatalf("failed to add curse: %v", err)
 	}
@@ -521,7 +512,7 @@ func TestCurseFlippedHeroMat(t *testing.T) {
 	}
 
 	// Remove curse -> triggers Cure hook -> reverts hero mats
-	cureEvents, err := game.PlayField.RemoveDungeonCard(game, curse)
+	cureEvents, err := game.LevelState.Playfield.RemoveDungeonCard(game, curse)
 	if err != nil {
 		t.Fatalf("failed to remove curse: %v", err)
 	}
@@ -568,14 +559,12 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 	door := &DoorCard{Type: DoorMonster, Name: "Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
-		Players:                []*Player{p1, p2},
-		HandSize:               5,
-		PlayField:              NewPlayfield(),
-		Status:                 Playing,
-		CurseExpectingDiscards: make(map[*Player]int),
+		Players:    []*Player{p1, p2},
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
-	_, _ = game.PlayField.AddDungeonCard(door, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door, game)
 	registerCardsInTestGame(game)
 
 	// Stopping time activates debt of 3 discards per player
@@ -584,9 +573,9 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 		t.Fatalf("expected StopTime to succeed: %v", err)
 	}
 
-	if game.CurseExpectingDiscards[p1] != 3 || game.CurseExpectingDiscards[p2] != 3 {
+	if game.LevelState.CurseExpectingDiscards[p1] != 3 || game.LevelState.CurseExpectingDiscards[p2] != 3 {
 		t.Fatalf("expected 3 discards debt for both players, got P1: %d, P2: %d",
-			game.CurseExpectingDiscards[p1], game.CurseExpectingDiscards[p2])
+			game.LevelState.CurseExpectingDiscards[p1], game.LevelState.CurseExpectingDiscards[p2])
 	}
 
 	// P1 attempts to play card without fulfilling discard debt -> triggers penalty
@@ -604,7 +593,7 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 	}
 
 	// P1 debt should be cleared after voiding
-	if _, exists := game.CurseExpectingDiscards[p1]; exists {
+	if _, exists := game.LevelState.CurseExpectingDiscards[p1]; exists {
 		t.Error("expected P1 debt to be cleared after voiding")
 	}
 
@@ -613,15 +602,15 @@ func TestCurseThreeDiscardsWhenTimeStops(t *testing.T) {
 	if err != nil {
 		t.Fatalf("discard 1 card failed: %v", err)
 	}
-	if game.CurseExpectingDiscards[p2] != 2 {
-		t.Errorf("expected P2 debt to be 2, got %d", game.CurseExpectingDiscards[p2])
+	if game.LevelState.CurseExpectingDiscards[p2] != 2 {
+		t.Errorf("expected P2 debt to be 2, got %d", game.LevelState.CurseExpectingDiscards[p2])
 	}
 
 	_, err = game.Apply(DiscardCardsCmd{PlayerID: p2.Id, CardIDs: []CardID{p2.Hand[0].ID(), p2.Hand[1].ID()}})
 	if err != nil {
 		t.Fatalf("discard 2 cards failed: %v", err)
 	}
-	if _, exists := game.CurseExpectingDiscards[p2]; exists {
+	if _, exists := game.LevelState.CurseExpectingDiscards[p2]; exists {
 		t.Errorf("expected P2 debt to be cleared after discarding 3 cards in total")
 	}
 
@@ -657,31 +646,29 @@ func TestCurseThreeDiscardsWhenTimeStopsCured(t *testing.T) {
 	}
 
 	game := &Game{
-		Players:                []*Player{p1, p2},
-		HandSize:               5,
-		PlayField:              NewPlayfield(),
-		Status:                 Playing,
-		CurseExpectingDiscards: make(map[*Player]int),
+		Players:    []*Player{p1, p2},
+		HandSize:   5,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
 	registerCardsInTestGame(game)
 
 	_, err := game.StopTime(p1)
 	if err != nil {
 		t.Fatalf("StopTime failed: %v", err)
 	}
-	if len(game.CurseExpectingDiscards) != 2 {
-		t.Fatalf("expected 2 players with debts, got %d", len(game.CurseExpectingDiscards))
+	if len(game.LevelState.CurseExpectingDiscards) != 2 {
+		t.Fatalf("expected 2 players with debts, got %d", len(game.LevelState.CurseExpectingDiscards))
 	}
 
 	// Cure curse -> Cure hook calls ClearStopTimeCurse()
-	_, err = game.PlayField.RemoveDungeonCard(game, curse)
+	_, err = game.LevelState.Playfield.RemoveDungeonCard(game, curse)
 	if err != nil {
 		t.Fatalf("RemoveDungeonCard failed: %v", err)
 	}
 
-	if len(game.CurseExpectingDiscards) != 0 {
-		t.Errorf("expected debts map to be empty after cure, got %d", len(game.CurseExpectingDiscards))
+	if len(game.LevelState.CurseExpectingDiscards) != 0 {
+		t.Errorf("expected debts map to be empty after cure, got %d", len(game.LevelState.CurseExpectingDiscards))
 	}
 }
 
@@ -697,17 +684,15 @@ func TestCurseDoorsOpenInPairs(t *testing.T) {
 		Effect: DoorsOpenInPairs,
 	}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  boss,
 		Doors: []DungeonCard{d3, d2, d1}, // d1 is on top (end of slice), then d2
 	}
-
 	game := &Game{
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
 	registerCardsInTestGame(game)
 
 	// OpenDoor under DoorsOpenInPairs should open 2 doors
@@ -716,11 +701,11 @@ func TestCurseDoorsOpenInPairs(t *testing.T) {
 		t.Fatalf("OpenDoor failed: %v", err)
 	}
 
-	if len(game.PlayField.OpenedDoors) != 2 {
-		t.Fatalf("expected 2 opened doors on playfield, got %d", len(game.PlayField.OpenedDoors))
+	if len(game.LevelState.Playfield.OpenedDoors) != 2 {
+		t.Fatalf("expected 2 opened doors on playfield, got %d", len(game.LevelState.Playfield.OpenedDoors))
 	}
-	if !game.PlayField.HasActiveDoor(d1) || !game.PlayField.HasActiveDoor(d2) {
-		t.Errorf("expected d1 and d2 to be opened, got %v", game.PlayField.OpenedDoors)
+	if !game.LevelState.Playfield.HasActiveDoor(d1) || !game.LevelState.Playfield.HasActiveDoor(d2) {
+		t.Errorf("expected d1 and d2 to be opened, got %v", game.LevelState.Playfield.OpenedDoors)
 	}
 }
 
@@ -740,20 +725,18 @@ func TestDruidForestSpiritsCyclesCurseToBottom(t *testing.T) {
 	door1 := &DoorCard{Type: DoorMonster, Name: "Monster 1", Resources: []ResourceType{Sword}}
 	door2 := &DoorCard{Type: DoorMonster, Name: "Monster 2", Resources: []ResourceType{Sword}}
 
-	dungeon := &Dungeon{
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
 		Boss:  &BossMat{Name: "Boss"},
 		Doors: []DungeonCard{door1, door2},
 	}
-
 	game := &Game{
-		Players:   []*Player{druid, druid},
-		HandSize:  5,
-		Dungeon:   dungeon,
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		Players:    []*Player{druid, druid},
+		HandSize:   5,
+		LevelState: round,
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
-	_, _ = game.PlayField.AddDungeonCard(door1, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door1, game)
 	registerCardsInTestGame(game)
 
 	// Druid uses ForestSpiritsAbility targeting curse
@@ -767,13 +750,13 @@ func TestDruidForestSpiritsCyclesCurseToBottom(t *testing.T) {
 	}
 
 	// Curse should be removed from ActiveCurses
-	if slices.Contains(game.PlayField.ActiveCurses, curse) {
+	if slices.Contains(game.LevelState.Playfield.ActiveCurses, curse) {
 		t.Error("expected curse to be removed from ActiveCurses")
 	}
 
 	// Curse should be at the bottom of dungeon deck
-	if len(dungeon.Doors) == 0 || dungeon.Doors[0] != curse {
-		t.Errorf("expected curse to be at the bottom of dungeon doors, got %v", dungeon.Doors)
+	if len(round.Dungeon.Doors) == 0 || round.Dungeon.Doors[0] != curse {
+		t.Errorf("expected curse to be at the bottom of dungeon doors, got %v", round.Dungeon.Doors)
 	}
 
 	// CurseRemovedEvent and DungeonCardSentToBottomEvent should be emitted
@@ -799,11 +782,10 @@ func TestCurseQueryWithDoorsFilter(t *testing.T) {
 	door := &DoorCard{Type: DoorMonster, Name: "A Monster", Resources: []ResourceType{Sword}}
 
 	game := &Game{
-		PlayField: NewPlayfield(),
-		Status:    Playing,
+		LevelState: newRoundState(Playing),
 	}
-	_, _ = game.PlayField.AddDungeonCard(curse, game)
-	_, _ = game.PlayField.AddDungeonCard(door, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(curse, game)
+	_, _ = game.LevelState.Playfield.AddDungeonCard(door, game)
 	registerCardsInTestGame(game)
 
 	// Filter with AddCurses
@@ -831,16 +813,15 @@ func TestPassiveSocialCurses(t *testing.T) {
 	for _, curse := range socialCurses {
 		t.Run(curse.Name, func(t *testing.T) {
 			game := &Game{
-				PlayField: NewPlayfield(),
-				Status:    Playing,
+				LevelState: newRoundState(Playing),
 			}
 
-			addEvents, err := game.PlayField.AddDungeonCard(curse, game)
+			addEvents, err := game.LevelState.Playfield.AddDungeonCard(curse, game)
 			registerCardsInTestGame(game)
 			if err != nil {
 				t.Fatalf("failed to add %s: %v", curse.Name, err)
 			}
-			if !slices.Contains(game.PlayField.ActiveCurses, curse) {
+			if !slices.Contains(game.LevelState.Playfield.ActiveCurses, curse) {
 				t.Errorf("expected %s to be in ActiveCurses", curse.Name)
 			}
 			if !game.HasActiveCurseEffect(curse.Effect) {
@@ -857,11 +838,11 @@ func TestPassiveSocialCurses(t *testing.T) {
 				t.Errorf("expected CurseActivatedEvent for %s", curse.Name)
 			}
 
-			remEvents, err := game.PlayField.RemoveDungeonCard(game, curse)
+			remEvents, err := game.LevelState.Playfield.RemoveDungeonCard(game, curse)
 			if err != nil {
 				t.Fatalf("failed to remove %s: %v", curse.Name, err)
 			}
-			if slices.Contains(game.PlayField.ActiveCurses, curse) {
+			if slices.Contains(game.LevelState.Playfield.ActiveCurses, curse) {
 				t.Errorf("expected %s to be removed from ActiveCurses", curse.Name)
 			}
 

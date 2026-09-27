@@ -13,72 +13,6 @@ func nextCardId() CardID {
 	return CardID(globalCardIdIdx.Add(1))
 }
 
-func (g *Game) PlayerByID(id PlayerID) (*Player, error) {
-	for _, player := range g.Players {
-		if player.Id != id {
-			continue
-		}
-
-		return player, nil
-	}
-
-	return nil, ErrPlayerNotFound
-}
-
-func (g *Game) PlayersByIDs(ids []PlayerID) ([]*Player, error) {
-	players := make([]*Player, len(ids))
-	idx := 0
-	for _, player := range g.Players {
-		if !slices.Contains(ids, player.Id) {
-			continue
-		}
-		players[idx] = player
-		idx++
-	}
-	if len(players) != len(ids) {
-		return nil, ErrPlayerNotFound
-	}
-
-	return players, nil
-}
-func (g *Game) PlayerCardByID(id CardID) (PlayerCard, error) {
-	if card, ok := g.PlayerCardsMap[id]; ok {
-		return card, nil
-	}
-
-	return nil, ErrCardNotFound
-}
-func (g *Game) PlayerCardsByIDs(ids []CardID) ([]PlayerCard, error) {
-	cards := make([]PlayerCard, len(ids))
-	for i, id := range ids {
-		c, err := g.PlayerCardByID(id)
-		if err != nil {
-			return nil, err
-		}
-		cards[i] = c
-	}
-
-	return cards, nil
-}
-func (g *Game) DungeonCardByID(id CardID) (DungeonCard, error) {
-	if card, ok := g.DungeonCardsMap[id]; ok {
-		return card, nil
-	}
-
-	return nil, ErrCardNotFound
-}
-func (g *Game) ArtifactByID(id ArtifactID) (*ArtifactCard, error) {
-	for _, card := range g.PlayField.Artifacts {
-		if card.ID() != id {
-			continue
-		}
-
-		return card, nil
-	}
-
-	return nil, ErrCardNotFound
-}
-
 func pluckCardIDs[T IdentifiableCard](cards []T) []CardID {
 	cardIDs := make([]CardID, len(cards))
 	for i, c := range cards {
@@ -112,7 +46,7 @@ func smartTargeting[T any](source any, candidates []T) (T, error) {
 	var zero T
 	switch len(candidates) {
 	case 0:
-		return zero, fmt.Errorf("no candidate found")
+		return zero, ErrSmartTargeting
 	case 1:
 		return candidates[0], nil
 	default:
@@ -161,4 +95,17 @@ func shuffleCards[T any](cards []T) {
 	rand.Shuffle(len(cards), func(i, j int) {
 		cards[i], cards[j] = cards[j], cards[i]
 	})
+}
+
+func uniqueCards[T IdentifiableCard](inputSlice []T) []T {
+	uniqueSlice := make([]T, 0, len(inputSlice))
+	seen := make(map[CardID]bool, len(inputSlice))
+	for _, element := range inputSlice {
+		if !seen[element.ID()] {
+			uniqueSlice = append(uniqueSlice, element)
+			seen[element.ID()] = true
+		}
+	}
+
+	return uniqueSlice
 }
