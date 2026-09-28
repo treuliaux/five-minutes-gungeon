@@ -91,7 +91,7 @@ func TestGameAddPlayerWhenNotWaitingRejected(t *testing.T) {
 func TestGameAddPlayerUnknownClassRejected(t *testing.T) {
 	game := NewGameWithExtension()
 
-	_, err := game.Apply(AddPlayerCmd{Name: "Invalid", Class: HeroClass(999)})
+	_, err := game.Apply(AddPlayerCmd{Name: "Invalid", Class: HeroClass(255)})
 	if err == nil {
 		t.Error("expected error for unknown hero class, got nil")
 	}
@@ -2409,7 +2409,7 @@ func TestPartialDiscardForcesCyclingAndAllowsRecovery(t *testing.T) {
 
 func TestGameEngineHelpersAndValidation(t *testing.T) {
 	// 1. NewGame default constructor
-	baseGame := NewGame()
+	baseGame := NewGame(Config{})
 	if baseGame.Config.UseExtension {
 		t.Error("expected NewGame() to have UseExtension=false")
 	}
@@ -2461,7 +2461,7 @@ func TestGameEngineHelpersAndValidation(t *testing.T) {
 
 	// 5. ChoosePlayerHero validations
 	// Cannot change hero once Playing
-	_, err = game.Apply(ChoosePlayerHeroCmd{PlayerID: p1.Id, Class: Barbarian})
+	_, err = game.Apply(ChangeHeroCmd{PlayerID: p1.Id, Class: Barbarian})
 	if !errors.Is(err, ErrGameAlreadyStarted) {
 		t.Errorf("expected ErrGameAlreadyStarted when playing, got %v", err)
 	}
@@ -2469,7 +2469,7 @@ func TestGameEngineHelpersAndValidation(t *testing.T) {
 	// In Waiting state: validate Extension disabled for Druid/Shaman
 	game.LevelState.Status = Waiting
 	game.Config.UseExtension = false
-	_, err = game.Apply(ChoosePlayerHeroCmd{PlayerID: p1.Id, Class: Druid})
+	_, err = game.Apply(ChangeHeroCmd{PlayerID: p1.Id, Class: Druid})
 	if !errors.Is(err, ErrGameExtensionDisabled) {
 		t.Errorf("expected ErrGameExtensionDisabled for Druid when UseExtension=false, got %v", err)
 	}

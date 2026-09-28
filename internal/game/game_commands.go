@@ -10,6 +10,11 @@ func (g *Game) addPlayer(cmd AddPlayerCmd) ([]Event, error) {
 		return nil, ErrGameAlreadyStarted
 	}
 	if slices.ContainsFunc(g.Players, func(player *Player) bool {
+		return player.Id == PlayerID(cmd.Name)
+	}) {
+		return nil, ErrPlayerAlreadyExists
+	}
+	if slices.ContainsFunc(g.Players, func(player *Player) bool {
 		return player.Hero.Color == ColorFromHeroClass(cmd.Class)
 	}) {
 		return nil, ErrClassAlreadyPicked
@@ -23,7 +28,7 @@ func (g *Game) addPlayer(cmd AddPlayerCmd) ([]Event, error) {
 	return []Event{PlayerAddedEvent{PlayerID: player.Id}}, nil
 }
 
-func (g *Game) choosePlayerHero(cmd ChoosePlayerHeroCmd) ([]Event, error) {
+func (g *Game) changePlayerHero(cmd ChangeHeroCmd) ([]Event, error) {
 	if g.LevelState.Status == Playing {
 		return nil, ErrGameAlreadyStarted
 	}
@@ -34,7 +39,9 @@ func (g *Game) choosePlayerHero(cmd ChoosePlayerHeroCmd) ([]Event, error) {
 	if err != nil {
 		return nil, err
 	}
-
+	if p.Hero.Class == cmd.Class {
+		return nil, nil
+	}
 	if slices.ContainsFunc(otherPlayers(g.Players, p), func(player *Player) bool {
 		return player.Hero.Color == ColorFromHeroClass(cmd.Class)
 	}) {

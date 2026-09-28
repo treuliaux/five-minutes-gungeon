@@ -25,14 +25,14 @@ func (c AddPlayerCmd) Reply() chan error {
 	return c.reply
 }
 
-type ChoosePlayerHeroCmd struct {
+type ChangeHeroCmd struct {
 	PlayerID PlayerID
 	Class    HeroClass
 	reply    chan error
 }
 
-func (ChoosePlayerHeroCmd) isCommand() {}
-func (c ChoosePlayerHeroCmd) Reply() chan error {
+func (ChangeHeroCmd) isCommand() {}
+func (c ChangeHeroCmd) Reply() chan error {
 	return c.reply
 }
 

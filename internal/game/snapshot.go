@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+type GameSnapshot interface {
+	isSnapshot()
+}
+
 type GameSnapshotDTO struct {
 	Status              Status                 `json:"status"`
 	InGameTimer         time.Duration          `json:"inGameTimer"`
@@ -20,6 +24,8 @@ type GameSnapshotDTO struct {
 	Artifacts           []ArtifactDTO          `json:"artifacts"`
 	PendingInteraction  *PendingInteractionDTO `json:"pendingInteraction,omitempty"`
 }
+
+func (GameSnapshotDTO) isSnapshot() {}
 
 func NewGameSnapshot(g *Game) GameSnapshotDTO {
 	var boss *DungeonCardDTO

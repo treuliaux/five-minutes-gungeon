@@ -62,11 +62,11 @@ func NewGameWithExtension() *Game {
 	}
 }
 
-func NewGame() *Game {
+func NewGame(cfg Config) *Game {
 	return &Game{
 		LevelState: newRoundState(Waiting),
 		level:      1,
-		Config:     Config{UseExtension: false, ResetLevelOnDefeat: true},
+		Config:     cfg,
 	}
 }
 
@@ -125,8 +125,8 @@ func (g *Game) Apply(cmd Command) ([]Event, error) {
 	switch cmd := cmd.(type) {
 	case AddPlayerCmd:
 		events, err = g.addPlayer(cmd)
-	case ChoosePlayerHeroCmd:
-		events, err = g.choosePlayerHero(cmd)
+	case ChangeHeroCmd:
+		events, err = g.changePlayerHero(cmd)
 	case StartCmd:
 		events, err = g.start()
 	case PlayCardCmd:

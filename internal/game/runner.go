@@ -106,7 +106,7 @@ func (r *Runner) AddPlayer(ctx context.Context, name string, class HeroClass) er
 
 func (r *Runner) ChangeHero(ctx context.Context, actorId PlayerID, class HeroClass) error {
 	reply := make(chan error, 1)
-	cmd := ChoosePlayerHeroCmd{PlayerID: actorId, Class: class, reply: reply}
+	cmd := ChangeHeroCmd{PlayerID: actorId, Class: class, reply: reply}
 
 	return guardedCmdCallAndReply(ctx, r, cmd, reply)
 }

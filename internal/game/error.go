@@ -19,7 +19,8 @@ var (
 	ErrPendingInteraction        = errors.New("pending player interaction")
 	ErrSmartTargeting            = errors.New("no candidate found")
 	ErrClassAlreadyPicked        = errors.New("class already picked")
-	ErrArtifactAlreadyUsed       = errors.New("class already picked")
+	ErrPlayerAlreadyExists       = errors.New("player already exists")
+	ErrArtifactAlreadyUsed       = errors.New("artifact already used")
 )
 
 type AmbiguousTargetError[T any] struct {
