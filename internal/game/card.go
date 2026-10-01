@@ -43,6 +43,7 @@ const (
 
 type ResourceCard struct {
 	Id        CardID
+	Name      string
 	Resources []ResourceType
 }
 

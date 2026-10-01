@@ -7,20 +7,25 @@ import (
 	"github.com/treuliaux/five-minutes-gungeon/internal/game"
 )
 
-type selectHeroModel struct {
+type selectPlayerModel struct {
 	cursor  int
-	choice  game.HeroClass
-	choices []game.HeroClass
+	choice  game.PlayerID
+	choices []game.PlayerID
 }
 
-func newSelectHeroModel() selectHeroModel {
-	return selectHeroModel{
-		choices: game.HeroClassValues(),
-		choice:  game.HeroClassValues()[0],
+func newSelectPlayerModel(players []game.PlayerID) selectPlayerModel {
+	choice := game.PlayerID("")
+	if len(players) > 0 {
+		choice = players[0]
+	}
+
+	return selectPlayerModel{
+		choices: players,
+		choice:  choice,
 	}
 }
 
-func (m selectHeroModel) Update(msg tea.Msg) (selectHeroModel, tea.Cmd) {
+func (m selectPlayerModel) Update(msg tea.Msg) (selectPlayerModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -30,12 +35,18 @@ func (m selectHeroModel) Update(msg tea.Msg) (selectHeroModel, tea.Cmd) {
 			return m, nil
 
 		case "down":
+			if len(m.choices) == 0 {
+				return m, nil
+			}
 			m.cursor = (m.cursor + 1) % len(m.choices)
 			if m.cursor >= len(m.choices) {
 				m.cursor = 0
 			}
 
 		case "up":
+			if len(m.choices) == 0 {
+				return m, nil
+			}
 			m.cursor = (m.cursor - 1) % len(m.choices)
 			if m.cursor < 0 {
 				m.cursor = len(m.choices) - 1
@@ -46,9 +57,9 @@ func (m selectHeroModel) Update(msg tea.Msg) (selectHeroModel, tea.Cmd) {
 	return m, nil
 }
 
-func (m selectHeroModel) View() string {
+func (m selectPlayerModel) View() string {
 	s := strings.Builder{}
-	s.WriteString("Pick your hero:\n\n")
+	s.WriteString("Pick a player:\n\n")
 
 	for i := range m.choices {
 		if m.cursor == i {
@@ -56,7 +67,7 @@ func (m selectHeroModel) View() string {
 		} else {
 			s.WriteString("( ) ")
 		}
-		s.WriteString(m.choices[i].String())
+		s.WriteString(string(m.choices[i]))
 		s.WriteString("\n")
 	}
 

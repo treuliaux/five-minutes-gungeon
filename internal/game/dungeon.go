@@ -127,8 +127,7 @@ func BossList() []*BossMat {
 			Resources: []ResourceType{Sword, Sword, Arrow, Arrow, Jump, Jump, Jump},
 			DeckSize:  20,
 			SpecialAbilities: []DungeonCard{
-				&EventCard{
-					Id: nextCardId(), Type: ChallengeEvent, Name: "Poisoned Milk", Action: &PoisonedMilkEvent{}, Extension: true},
+				&EventCard{Id: nextCardId(), Type: ChallengeEvent, Name: "Poisoned Milk", Action: &PoisonedMilkEvent{}, Extension: true},
 				&CurseCard{Id: nextCardId(), Type: ChallengeCurse, Name: "Cursed Blanket", Effect: PlayersCanOnlyUseOneHandToPlay},
 				&CurseCard{Id: nextCardId(), Type: ChallengeCurse, Name: "Cursed Blocks", Effect: HandSizeLimitedToThree},
 				&CurseCard{Id: nextCardId(), Type: ChallengeCurse, Name: "Cursed Blocks", Effect: HandSizeLimitedToThree},

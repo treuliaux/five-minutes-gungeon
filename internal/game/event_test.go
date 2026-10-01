@@ -834,6 +834,7 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 		Players:    []*Player{p1, p2},
 		HandSize:   2,
 		LevelState: round,
+		Config:     Config{EventReactionTime: 2},
 	}
 	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
 	registerCardsInTestGame(game)
@@ -844,8 +845,10 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("tick failed: %v", err)
 	}
-	if len(events) != 0 {
-		t.Errorf("expected no events before 2s elapsed, got %d events", len(events))
+	for _, e := range events {
+		if _, ok := e.(TimerTickEvent); !ok {
+			t.Errorf("expected only TimerTickEvent before 2s elapsed, got %T", e)
+		}
 	}
 	if !game.LevelState.Playfield.HasActiveDoor(eventCard) {
 		t.Error("expected eventCard to remain active on playfield before 2s")
@@ -919,12 +922,15 @@ func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	if game.LevelState.PendingInteraction == nil {
 		t.Fatal("expected PendingInteraction to be set")
 	}
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(events))
+	var promptEvent *EventPromptOpenedEvent
+	for _, e := range events {
+		if pe, ok := e.(EventPromptOpenedEvent); ok {
+			promptEvent = &pe
+			break
+		}
 	}
-	promptEvent, ok := events[0].(EventPromptOpenedEvent)
-	if !ok || promptEvent.Kind != InteractionTeamChoicePlayer {
-		t.Fatalf("expected EventPromptOpenedEvent with InteractionTeamChoicePlayer, got %v", events[0])
+	if promptEvent == nil || promptEvent.Kind != InteractionTeamChoicePlayer {
+		t.Fatalf("expected EventPromptOpenedEvent with InteractionTeamChoicePlayer, got %v", events)
 	}
 
 	// Normal card playing must be blocked while interaction is pending

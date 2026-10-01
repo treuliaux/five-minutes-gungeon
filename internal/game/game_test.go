@@ -709,8 +709,10 @@ func TestTickTimeoutCausesDefeat(t *testing.T) {
 	if game.LevelState.Status != Playing {
 		t.Errorf("expected game to still be Playing, got %v", game.LevelState.Status)
 	}
-	if len(events) != 0 {
-		t.Errorf("expected no events before timeout")
+	for _, e := range events {
+		if _, ok := e.(TimerTickEvent); !ok {
+			t.Errorf("expected only TimerTickEvent before timeout, got %T", e)
+		}
 	}
 
 	// Advance remaining 1 second (total: 5m0s) - should defeat
@@ -721,11 +723,14 @@ func TestTickTimeoutCausesDefeat(t *testing.T) {
 	if game.LevelState.Status != Defeat {
 		t.Errorf("expected game status Defeat, got %v", game.LevelState.Status)
 	}
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(events))
+	var gameLostFound bool
+	for _, e := range events {
+		if _, ok := e.(GameLostEvent); ok {
+			gameLostFound = true
+		}
 	}
-	if _, ok := events[0].(GameLostEvent); !ok {
-		t.Errorf("expected GameLostEvent, got %T", events[0])
+	if !gameLostFound {
+		t.Errorf("expected GameLostEvent in events, got %v", events)
 	}
 
 	// Subsequent ticks on ended game should be no-ops

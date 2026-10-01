@@ -44,8 +44,8 @@ type lobbyModel struct {
 	cursorIdx    int
 	lobbyActions []LobbyAction
 
-	addPlayerForm addPlayerForm
-	//changeHeroForm changeHeroForm
+	addPlayerForm  addPlayerForm
+	changeHeroForm changeHeroForm
 
 	controller client.GameController
 	ctx        context.Context
@@ -54,13 +54,14 @@ type lobbyModel struct {
 
 func newLobbyModel() lobbyModel {
 	lobbyActions := make([]LobbyAction, 3)
-	lobbyActions[0] = StartGameAction
-	lobbyActions[1] = AddPlayerAction
+	lobbyActions[0] = AddPlayerAction
+	lobbyActions[1] = StartGameAction
 	lobbyActions[2] = ChangeHeroAction
 
 	return lobbyModel{
-		lobbyActions:  lobbyActions,
-		addPlayerForm: newAddPlayerForm(),
+		lobbyActions:   lobbyActions,
+		addPlayerForm:  newAddPlayerForm(),
+		changeHeroForm: newChangeHeroForm(nil),
 	}
 }
 
@@ -73,10 +74,100 @@ func (m lobbyModel) Update(msg tea.Msg) (lobbyModel, tea.Cmd) {
 		return m.updateAddPlayerForm(msg)
 
 	case lobbyStateChangeHero:
-		//return m.updateChangeHeroForm(msg)
+		return m.updateChangeHeroForm(msg)
 	}
 
 	return m, nil
+}
+
+func (m lobbyModel) updateMenu(msg tea.Msg) (lobbyModel, tea.Cmd) {
+	if msg, ok := msg.(tea.KeyPressMsg); ok {
+		switch msg.String() {
+		case "up":
+			m.cursorIdx = (m.cursorIdx - 1) % len(m.lobbyActions)
+			if m.cursorIdx < 0 {
+				m.cursorIdx = len(m.lobbyActions) - 1
+			}
+
+		case "down":
+			m.cursorIdx = (m.cursorIdx + 1) % len(m.lobbyActions)
+
+		case "space", "enter":
+			switch m.lobbyActions[m.cursorIdx] {
+			case StartGameAction:
+				if err := m.controller.Dispatch(m.ctx, game.StartCmd{}); err != nil {
+					return m, forwardError(err)
+				}
+			case AddPlayerAction:
+				m.state = lobbyStateAddPlayer
+				m.addPlayerForm = newAddPlayerForm()
+
+				return m, m.addPlayerForm.nameInput.Focus()
+			case ChangeHeroAction:
+				snapshot, ok := m.snapshot.(game.GameSnapshotDTO)
+				if !ok || len(snapshot.Players) == 0 {
+					break
+				}
+				playerIDs := make([]game.PlayerID, len(snapshot.Players))
+				for i, player := range snapshot.Players {
+					playerIDs[i] = player.Id
+				}
+
+				m.state = lobbyStateChangeHero
+				m.changeHeroForm = newChangeHeroForm(playerIDs)
+
+				return m, nil
+			}
+		}
+	}
+
+	return m, nil
+}
+
+func (m lobbyModel) updateAddPlayerForm(msg tea.Msg) (lobbyModel, tea.Cmd) {
+	var cmd tea.Cmd
+
+	m.addPlayerForm, cmd = m.addPlayerForm.Update(msg)
+	if m.addPlayerForm.Canceled {
+		m.state = lobbyStateMenu
+		m.addPlayerForm = newAddPlayerForm()
+
+		return m, nil
+	}
+	if m.addPlayerForm.Submitted {
+		m.state = lobbyStateMenu
+		addCmd := game.AddPlayerCmd{Name: m.addPlayerForm.nameInput.Value(), Class: m.addPlayerForm.heroInput.choice}
+		if err := m.controller.Dispatch(m.ctx, addCmd); err != nil {
+			return m, forwardError(err)
+		}
+		m.addPlayerForm = newAddPlayerForm()
+
+		return m, nil
+	}
+
+	return m, cmd
+}
+
+func (m lobbyModel) updateChangeHeroForm(msg tea.Msg) (lobbyModel, tea.Cmd) {
+	var cmd tea.Cmd
+
+	m.changeHeroForm, cmd = m.changeHeroForm.Update(msg)
+	if m.changeHeroForm.Canceled {
+		m.state = lobbyStateMenu
+
+		return m, nil
+	}
+	if m.changeHeroForm.Submitted {
+		m.state = lobbyStateMenu
+		addCmd := game.ChangeHeroCmd{PlayerID: m.changeHeroForm.playerInput.choice, Class: m.changeHeroForm.heroInput.choice}
+		if err := m.controller.Dispatch(m.ctx, addCmd); err != nil {
+			return m, forwardError(err)
+		}
+
+		return m, nil
+	}
+
+	return m, cmd
 }
 
 func (m lobbyModel) View() string {
@@ -114,63 +205,8 @@ func (m lobbyModel) View() string {
 		s.WriteString(m.addPlayerForm.View())
 
 	case lobbyStateChangeHero:
-		//s.WriteString(m.changeHeroForm.View())
+		s.WriteString(m.changeHeroForm.View())
 	}
 
 	return s.String()
-}
-
-func (m lobbyModel) updateAddPlayerForm(msg tea.Msg) (lobbyModel, tea.Cmd) {
-	var cmd tea.Cmd
-
-	m.addPlayerForm, cmd = m.addPlayerForm.Update(msg)
-	if m.addPlayerForm.Canceled {
-		m.state = lobbyStateMenu
-		m.addPlayerForm = newAddPlayerForm()
-
-		return m, nil
-	}
-	if m.addPlayerForm.Submitted {
-		m.state = lobbyStateMenu
-		addCmd := game.AddPlayerCmd{Name: m.addPlayerForm.nameInput.Value(), Class: m.addPlayerForm.heroInput.choice}
-		if err := m.controller.Dispatch(m.ctx, addCmd); err != nil {
-			return m, forwardError(err)
-		}
-		m.addPlayerForm = newAddPlayerForm()
-
-		return m, nil
-	}
-
-	return m, cmd
-}
-
-func (m lobbyModel) updateMenu(msg tea.Msg) (lobbyModel, tea.Cmd) {
-	if msg, ok := msg.(tea.KeyPressMsg); ok {
-		switch msg.String() {
-		case "up":
-			m.cursorIdx = (m.cursorIdx - 1) % len(m.lobbyActions)
-
-		case "down":
-			m.cursorIdx = (m.cursorIdx + 1) % len(m.lobbyActions)
-
-		case "space", "enter":
-			switch m.lobbyActions[m.cursorIdx] {
-			case StartGameAction:
-				if err := m.controller.Dispatch(m.ctx, game.StartCmd{}); err != nil {
-					return m, forwardError(err)
-				}
-			case AddPlayerAction:
-				m.state = lobbyStateAddPlayer
-				m.addPlayerForm = newAddPlayerForm()
-
-				return m, m.addPlayerForm.nameInput.Focus()
-			case ChangeHeroAction:
-				m.state = lobbyStateChangeHero
-
-				return m, nil
-			}
-		}
-	}
-
-	return m, nil
 }

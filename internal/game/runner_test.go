@@ -79,18 +79,123 @@ func TestRunnerFullMatchLifecycle(t *testing.T) {
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(FieldClearedEvent); return ok })
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(GameWonEvent); return ok })
 
-	// 4. Verify runner completes cleanly
-	select {
-	case err := <-errCh:
-		if err != nil {
-			t.Errorf("expected runner to exit with nil, got: %v", err)
-		}
-	case <-time.After(2 * time.Second):
-		t.Fatal("runner did not exit within timeout after victory")
-	}
-
+	// 4. Verify runner remains alive after victory and exits upon cancellation
 	if game.LevelState.Status != Victory {
 		t.Errorf("expected game status Victory, got %v", game.LevelState.Status)
+	}
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("expected runner to stay running after victory, but exited with: %v", err)
+	case <-time.After(50 * time.Millisecond):
+		// Expected: runner stays alive
+	}
+
+	// Cancel context to stop runner cleanly
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("expected context.Canceled, got: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("runner did not exit within timeout after cancellation")
+	}
+}
+
+func TestRunnerNextLevelProgression(t *testing.T) {
+	paladin, _ := NewPlayer("Arthur", Paladin, true)
+	barbarian, _ := NewPlayer("Conan", Barbarian, true)
+
+	door1 := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	boss := &BossMat{Id: nextCardId(), Name: "Piti Amenou", Resources: []ResourceType{Shield}}
+
+	round := newRoundState(Waiting)
+	round.Dungeon = &Dungeon{
+		Boss:  boss,
+		Doors: []DungeonCard{door1},
+	}
+	game := &Game{
+		Players:    []*Player{paladin, barbarian},
+		LevelState: round,
+		level:      1,
+	}
+
+	runner := NewRunner(game)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	sub := runner.Subscribe()
+
+	errCh := make(chan error, 1)
+	go func() {
+		errCh <- runner.Run(ctx)
+	}()
+
+	// 1. Start level 1
+	if err := runner.Start(ctx); err != nil {
+		t.Fatalf("failed to start game via runner: %v", err)
+	}
+
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(GameStartedEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(DoorOpenedEvent); return ok })
+
+	// Beat door1
+	swordCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	paladin.Hand = []PlayerCard{swordCard}
+	registerCardsInTestGame(game)
+	if err := runner.PlayCardSimple(ctx, paladin.Id, swordCard.ID()); err != nil {
+		t.Fatalf("paladin failed to play sword: %v", err)
+	}
+
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(CardPlayedEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(DoorDefeatedEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(FieldClearedEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(DoorOpenedEvent); return ok })
+
+	// Beat Boss
+	shieldCard := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	barbarian.Hand = []PlayerCard{shieldCard}
+	registerCardsInTestGame(game)
+	if err := runner.PlayCardSimple(ctx, barbarian.Id, shieldCard.ID()); err != nil {
+		t.Fatalf("barbarian failed to play shield: %v", err)
+	}
+
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(CardPlayedEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(DoorDefeatedEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(FieldClearedEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(GameWonEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(DungeonDefeated); return ok })
+
+	if game.LevelState.Status != Victory {
+		t.Fatalf("expected game status Victory, got %v", game.LevelState.Status)
+	}
+
+	// 2. Start level 2 via same running Runner instance
+	if err := runner.Start(ctx); err != nil {
+		t.Fatalf("failed to start next level via runner: %v", err)
+	}
+
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(GameStartedEvent); return ok })
+	expectEvent(t, sub, func(e Event) bool { _, ok := e.(DoorOpenedEvent); return ok })
+
+	if game.LevelState.Status != Playing {
+		t.Errorf("expected game status Playing for level 2, got %v", game.LevelState.Status)
+	}
+	if game.level != 2 {
+		t.Errorf("expected level 2, got %d", game.level)
+	}
+
+	// Clean exit
+	cancel()
+	select {
+	case err := <-errCh:
+		if !errors.Is(err, context.Canceled) {
+			t.Errorf("expected context.Canceled, got: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("runner did not exit within timeout after cancellation")
 	}
 }
 

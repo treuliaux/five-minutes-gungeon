@@ -102,6 +102,7 @@ func (m setupModel) buildGameConfig() game.Config {
 			cfg.ResetLevelOnDefeat = opt.Value
 		}
 	}
+	cfg.EventReactionTime = 10
 
 	return cfg
 }

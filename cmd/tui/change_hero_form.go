@@ -3,46 +3,40 @@ package main
 import (
 	"strings"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
+	"github.com/treuliaux/five-minutes-gungeon/internal/game"
 )
 
-type addPlayerFocusedField int
+type changeHeroFocusedField int
 
 const (
-	focusedAddPlayerName addPlayerFocusedField = iota
-	focusedAddPlayerHero
+	focusedChangeHeroPlayer changeHeroFocusedField = iota
+	focusedChangeHeroHero
 )
 
-type addPlayerForm struct {
-	nameInput    textinput.Model
+type changeHeroForm struct {
+	playerInput  selectPlayerModel
 	heroInput    selectHeroModel
-	focusedField addPlayerFocusedField
+	focusedField changeHeroFocusedField
 	Submitted    bool
 	Canceled     bool
 }
 
-func newAddPlayerForm() addPlayerForm {
-	ti := textinput.New()
-	ti.Placeholder = "Player name"
-	ti.Focus()
-	ti.CharLimit = 26
-	ti.SetWidth(26)
-
-	return addPlayerForm{
-		nameInput:    ti,
+func newChangeHeroForm(players []game.PlayerID) changeHeroForm {
+	return changeHeroForm{
+		playerInput:  newSelectPlayerModel(players),
 		heroInput:    newSelectHeroModel(),
-		focusedField: focusedAddPlayerName,
+		focusedField: focusedChangeHeroPlayer,
 	}
 }
 
-func (f addPlayerForm) Update(msg tea.Msg) (addPlayerForm, tea.Cmd) {
+func (f changeHeroForm) Update(msg tea.Msg) (changeHeroForm, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch f.focusedField {
-	case focusedAddPlayerName:
-		f.nameInput, cmd = f.nameInput.Update(msg)
-	case focusedAddPlayerHero:
+	case focusedChangeHeroPlayer:
+		f.playerInput, cmd = f.playerInput.Update(msg)
+	case focusedChangeHeroHero:
 		f.heroInput, cmd = f.heroInput.Update(msg)
 	}
 
@@ -55,19 +49,17 @@ func (f addPlayerForm) Update(msg tea.Msg) (addPlayerForm, tea.Cmd) {
 			return f, nil
 
 		case "tab", "shift+tab":
-			if f.focusedField == focusedAddPlayerName {
-				f.focusedField = focusedAddPlayerHero
-				f.nameInput.Blur()
+			if f.focusedField == focusedChangeHeroPlayer {
+				f.focusedField = focusedChangeHeroHero
 			} else {
-				f.focusedField = focusedAddPlayerName
-				cmd = f.nameInput.Focus()
+				f.focusedField = focusedChangeHeroHero
 			}
 			return f, cmd
 
 		case "enter":
-			name := strings.TrimSpace(f.nameInput.Value())
-			if f.focusedField == focusedAddPlayerName && name != "" {
-				f.focusedField = focusedAddPlayerHero
+			name := strings.TrimSpace(string(f.playerInput.choice))
+			if f.focusedField == focusedChangeHeroPlayer && name != "" {
+				f.focusedField = focusedChangeHeroHero
 
 				return f, nil
 			}
@@ -85,15 +77,14 @@ func (f addPlayerForm) Update(msg tea.Msg) (addPlayerForm, tea.Cmd) {
 	return f, cmd
 }
 
-func (f addPlayerForm) View() string {
+func (f changeHeroForm) View() string {
 	var s strings.Builder
-	s.WriteString("=== Add New Player ===\n\n")
+	s.WriteString("=== Choose hero for player ===\n\n")
 
 	// Name field
 	var nameField strings.Builder
-	nameField.WriteString("Player Name:\n")
-	nameField.WriteString(f.nameInput.View())
-	if f.focusedField == focusedAddPlayerName {
+	nameField.WriteString(f.playerInput.View())
+	if f.focusedField == focusedChangeHeroPlayer {
 		s.WriteString(focusedModelStyle.Render(nameField.String()))
 	} else {
 		s.WriteString(modelStyle.Render(nameField.String()))
@@ -104,7 +95,7 @@ func (f addPlayerForm) View() string {
 	// Class selector
 	var classField strings.Builder
 	classField.WriteString(f.heroInput.View())
-	if f.focusedField == focusedAddPlayerHero {
+	if f.focusedField == focusedChangeHeroHero {
 		s.WriteString(focusedModelStyle.Render(classField.String()))
 	} else {
 		s.WriteString(modelStyle.Render(classField.String()))

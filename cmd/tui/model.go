@@ -4,21 +4,13 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/treuliaux/five-minutes-gungeon/internal/client"
 	"github.com/treuliaux/five-minutes-gungeon/internal/game"
-)
-
-var (
-	spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("63"))
-	helpStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Margin(1, 0)
-	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("88"))
-	dotStyle     = helpStyle.UnsetMargins()
-	appStyle     = lipgloss.NewStyle().Margin(1, 2, 0, 2)
-	debugStyle   = lipgloss.NewStyle().Margin(0, 2)
 )
 
 type Model struct {
@@ -32,11 +24,18 @@ type Model struct {
 	play  playModel
 
 	spinner               spinner.Model
-	lastReceivedEvents    []game.Event
-	lastReceivedSnapshots []game.GameSnapshot
-	lastReceivedErrors    []error
+	lastReceivedEvents    []timedEntry[game.Event]
+	lastReceivedSnapshots []timedEntry[game.GameSnapshot]
+	lastReceivedErrors    []timedEntry[error]
+	startTime             time.Time
 
 	error string
+}
+
+type timedEntry[T any] struct {
+	data       T
+	receivedAt time.Duration
+	valid      bool
 }
 
 type RunningStep int
@@ -56,9 +55,10 @@ func NewModel() Model {
 		lobby:                 newLobbyModel(),
 		play:                  newPlayModel(),
 		spinner:               s,
-		lastReceivedEvents:    make([]game.Event, 5),
-		lastReceivedSnapshots: make([]game.GameSnapshot, 5),
-		lastReceivedErrors:    make([]error, 5),
+		lastReceivedEvents:    make([]timedEntry[game.Event], 5),
+		lastReceivedSnapshots: make([]timedEntry[game.GameSnapshot], 5),
+		lastReceivedErrors:    make([]timedEntry[error], 5),
+		startTime:             time.Now(),
 	}
 }
 
@@ -95,32 +95,54 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(askForSnapshot(m.controller), waitForEvent(m.controller.Events()))
 
 	case errMsg:
-		m.lastReceivedErrors = append(m.lastReceivedErrors[1:], msg.err)
+		entry := timedEntry[error]{data: msg.err, receivedAt: time.Now().Sub(m.startTime), valid: true}
+		m.lastReceivedErrors = append(m.lastReceivedErrors[1:], entry)
 
 		return m, nil
 
 	// Treat incoming event and wait for next one
 	case gameEventMsg:
-		m.lastReceivedEvents = append(m.lastReceivedEvents[1:], msg)
+		if _, ok := msg.(game.TimerTickEvent); !ok {
+			entry := timedEntry[game.Event]{data: msg, receivedAt: time.Now().Sub(m.startTime), valid: true}
+			m.lastReceivedEvents = append(m.lastReceivedEvents[1:], entry)
+		}
 		if _, ok := msg.(game.GameStartedEvent); ok {
 			m.step = Playing
 		}
+
+		cmds := []tea.Cmd{waitForEvent(m.controller.Events())}
 
 		var cmd tea.Cmd
 		switch m.step {
 		case Lobby:
 			m.lobby, cmd = m.lobby.Update(msg)
+			cmds = append(cmds, askForSnapshot(m.controller))
 		case Playing:
-			m.play, cmd = m.play.Update(msg)
+			switch ev := msg.(type) {
+			case game.TimerTickEvent:
+				m.play.timer = ev.TimeLeftDuration
+			default:
+				m.play, cmd = m.play.Update(msg)
+				cmds = append(cmds, askForSnapshot(m.controller))
+			}
 		default:
 		}
+		if cmd != nil {
+			cmds = append(cmds, cmd)
+		}
 
-		return m, tea.Batch(cmd, askForSnapshot(m.controller), waitForEvent(m.controller.Events()))
+		return m, tea.Batch(cmds...)
 
 	case snapshotMsg:
-		m.lastReceivedSnapshots = append(m.lastReceivedSnapshots[1:], msg)
-		m.lobby.snapshot = msg
-		m.play.snapshot = msg
+		entry := timedEntry[game.GameSnapshot]{data: msg, receivedAt: time.Now().Sub(m.startTime), valid: true}
+		m.lastReceivedSnapshots = append(m.lastReceivedSnapshots[1:], entry)
+		switch m.step {
+		case Lobby:
+			m.lobby.snapshot = msg
+		case Playing:
+			m.play.snapshot = msg
+		default:
+		}
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -161,63 +183,4 @@ func (m Model) View() tea.View {
 	total.WriteString(lipgloss.JoinVertical(lipgloss.Left, debug.String(), screen.String()))
 
 	return tea.NewView(appStyle.Render(total.String()))
-}
-
-func (m Model) debugView() strings.Builder {
-	var eventsView strings.Builder
-	eventsView.WriteString(m.spinner.View())
-	eventsView.WriteString(" Receiving events...")
-	eventsView.WriteString("\n\n")
-	for _, evt := range m.lastReceivedEvents {
-		if evt == nil {
-			eventsView.WriteString(dotStyle.Render(strings.Repeat(".", 40)))
-			eventsView.WriteString("\n")
-
-			continue
-		}
-		eventsView.WriteString(dotStyle.Render(formatDebug(fmt.Sprintf("%T", evt), 40)))
-		eventsView.WriteString("\n")
-	}
-	eventsView.WriteString("\n")
-
-	var snapshotsView strings.Builder
-	snapshotsView.WriteString(m.spinner.View())
-	snapshotsView.WriteString(" Receiving snapshots...")
-	snapshotsView.WriteString("\n\n")
-	for _, snp := range m.lastReceivedSnapshots {
-		if snp == nil {
-			snapshotsView.WriteString(dotStyle.Render(strings.Repeat(".", 40)))
-			snapshotsView.WriteString("\n")
-
-			continue
-		}
-		snapshotsView.WriteString(dotStyle.Render(formatDebug(fmt.Sprintf("%T", snp), 40)))
-		snapshotsView.WriteString("\n")
-	}
-	snapshotsView.WriteString("\n")
-
-	var errorsView strings.Builder
-	errorsView.WriteString(m.spinner.View())
-	errorsView.WriteString(" Receiving errors...")
-	errorsView.WriteString("\n\n")
-	for _, err := range m.lastReceivedErrors {
-		if err == nil {
-			errorsView.WriteString(dotStyle.Render(strings.Repeat(".", 40)))
-			errorsView.WriteString("\n")
-
-			continue
-		}
-		errorsView.WriteString(errorStyle.Render(formatDebug(fmt.Sprintf("%v", err.Error()), 40)))
-		errorsView.WriteString("\n")
-	}
-	errorsView.WriteString("\n")
-
-	var debug strings.Builder
-	debug.WriteString(lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		debugStyle.Render(eventsView.String()),
-		debugStyle.Render(snapshotsView.String()),
-		debugStyle.Render(errorsView.String()),
-	))
-	return debug
 }

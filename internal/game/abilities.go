@@ -5,6 +5,7 @@ import "fmt"
 type Ability interface {
 	isAbility()
 	Execute(ctx Context) ([]Event, error)
+	Name() string
 }
 
 // Ranger
@@ -24,6 +25,9 @@ func (a TrickShotAbility) Execute(ctx Context) ([]Event, error) {
 	}
 
 	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorPerson))
+}
+func (a TrickShotAbility) Name() string {
+	return "Trick Shot"
 }
 
 // Huntress
@@ -52,6 +56,9 @@ func (a AnimalCompanionAbility) Execute(ctx Context) ([]Event, error) {
 	}
 
 	return target.DrawCardsFromDeck(4)
+}
+func (a AnimalCompanionAbility) Name() string {
+	return "Animal Companion"
 }
 
 // Valkyrie
@@ -82,6 +89,9 @@ func (InspireAbility) Execute(ctx Context) ([]Event, error) {
 
 	return events, nil
 }
+func (a InspireAbility) Name() string {
+	return "Inspire"
+}
 
 // Paladin
 
@@ -100,6 +110,9 @@ func (a SmiteAbility) Execute(ctx Context) ([]Event, error) {
 	}
 
 	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorMonster))
+}
+func (a SmiteAbility) Name() string {
+	return "Smite"
 }
 
 // Wizard
@@ -121,6 +134,9 @@ func (StopTimeAbility) Execute(ctx Context) ([]Event, error) {
 
 	return ctx.Engine().StopTime(aCtx.Player)
 }
+func (a StopTimeAbility) Name() string {
+	return "Stop Time"
+}
 
 // Sorceress
 
@@ -139,6 +155,9 @@ func (a TeleportAbility) Execute(ctx Context) ([]Event, error) {
 	}
 
 	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorObstacle))
+}
+func (a TeleportAbility) Name() string {
+	return "Teleport"
 }
 
 // Barbarian
@@ -159,6 +178,9 @@ func (a SlayAbility) Execute(ctx Context) ([]Event, error) {
 
 	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorMonster))
 }
+func (a SlayAbility) Name() string {
+	return "Slay"
+}
 
 // Gladiator
 
@@ -177,6 +199,9 @@ func (a IntimidateAbility) Execute(ctx Context) ([]Event, error) {
 	}
 
 	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorPerson))
+}
+func (a IntimidateAbility) Name() string {
+	return "Intimidate"
 }
 
 // Ninja
@@ -197,6 +222,9 @@ func (a VaultAbility) Execute(ctx Context) ([]Event, error) {
 
 	return defeatDoorByFilter(ctx.Engine(), aCtx.Player, aCtx.TargetCard, NewDoorsFilter().AddDoors(DoorObstacle))
 }
+func (a VaultAbility) Name() string {
+	return "Vault"
+}
 
 // Thief
 
@@ -216,6 +244,9 @@ func (PickpocketAbility) Execute(ctx Context) ([]Event, error) {
 	}
 
 	return aCtx.Player.DrawCardsFromDeck(5)
+}
+func (a PickpocketAbility) Name() string {
+	return "Pickpocket"
 }
 
 // Druid
@@ -249,6 +280,9 @@ func (a ForestSpiritsAbility) Execute(ctx Context) ([]Event, error) {
 
 	return ctx.Engine().SendDungeonCardBottomDungeon(target)
 }
+func (a ForestSpiritsAbility) Name() string {
+	return "Forest Spirits"
+}
 
 // Shaman
 
@@ -279,6 +313,9 @@ func (a SpiritAnimalAbility) Execute(ctx Context) ([]Event, error) {
 	}
 
 	return target.Heal(3)
+}
+func (a SpiritAnimalAbility) Name() string {
+	return "Spirit Animal"
 }
 
 func checkPlayerClass(player *Player, class HeroClass) bool {

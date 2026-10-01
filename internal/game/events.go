@@ -1,8 +1,16 @@
 package game
 
+import "time"
+
 type Event interface {
 	isEvent()
 }
+
+type TimerTickEvent struct {
+	TimeLeftDuration time.Duration
+}
+
+func (TimerTickEvent) isEvent() {}
 
 type GameStartedEvent struct {
 }
@@ -84,13 +92,6 @@ type CurseRemovedEvent struct {
 }
 
 func (CurseRemovedEvent) isEvent() {}
-
-type ActionCardPlayedEvent struct {
-	ByPlayerID PlayerID `json:"byPlayerId"`
-	CardID     CardID   `json:"cardId"`
-}
-
-func (ActionCardPlayedEvent) isEvent() {}
 
 type EventCounteredEvent struct {
 	ByPlayerID     PlayerID   `json:"byPlayerId"`

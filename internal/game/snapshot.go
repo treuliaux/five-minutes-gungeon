@@ -16,6 +16,7 @@ type GameSnapshotDTO struct {
 	IsTimeFrozen        bool                   `json:"isTimeFrozen"`
 	IsFightingBoss      bool                   `json:"isFightingBoss"`
 	RemainingDoorsCount int                    `json:"remainingDoorsCount"`
+	Level               int                    `json:"level"`
 	Boss                *DungeonCardDTO        `json:"boss,omitempty"`
 	Players             []PlayerDTO            `json:"players"`
 	OpenedDoors         []DungeonCardDTO       `json:"openedDoors"`
@@ -68,6 +69,7 @@ func NewGameSnapshot(g *Game) GameSnapshotDTO {
 		IsTimeFrozen:        isTimeFrozen,
 		IsFightingBoss:      isFightingBoss,
 		RemainingDoorsCount: remainingDoors,
+		Level:               g.level,
 		Boss:                boss,
 		Players:             PlayersToDTO(g.Players),
 		OpenedDoors:         openedDoors,
@@ -79,13 +81,14 @@ func NewGameSnapshot(g *Game) GameSnapshotDTO {
 }
 
 type PlayerDTO struct {
-	Id        PlayerID        `json:"id"`
-	Name      string          `json:"name"`
-	HeroClass HeroClass       `json:"heroClass"`
-	HeroName  string          `json:"heroName"`
-	DeckCount int             `json:"deckCount"`
-	Hand      []PlayerCardDTO `json:"hand"`
-	Discard   []PlayerCardDTO `json:"discard"`
+	Id          PlayerID        `json:"id"`
+	Name        string          `json:"name"`
+	HeroClass   HeroClass       `json:"heroClass"`
+	HeroName    string          `json:"heroName"`
+	AbilityName string          `json:"abilityName"`
+	DeckCount   int             `json:"deckCount"`
+	Hand        []PlayerCardDTO `json:"hand"`
+	Discard     []PlayerCardDTO `json:"discard"`
 }
 
 type DungeonCardDTO struct {
@@ -150,19 +153,22 @@ func PlayerToDTO(p *Player) PlayerDTO {
 	}
 	var heroClass HeroClass
 	var heroName string
+	var heroAbility string
 	if p.Hero != nil {
 		heroClass = p.Hero.Class
 		heroName = p.Hero.Name
+		heroAbility = p.Hero.Ability.Name()
 	}
 
 	return PlayerDTO{
-		Id:        p.Id,
-		Name:      p.Name,
-		HeroClass: heroClass,
-		HeroName:  heroName,
-		Hand:      hand,
-		Discard:   discard,
-		DeckCount: deckCount,
+		Id:          p.Id,
+		Name:        p.Name,
+		HeroClass:   heroClass,
+		HeroName:    heroName,
+		AbilityName: heroAbility,
+		Hand:        hand,
+		Discard:     discard,
+		DeckCount:   deckCount,
 	}
 }
 
@@ -237,6 +243,7 @@ func PlayerCardToDTO(card PlayerCard) PlayerCardDTO {
 	switch c := card.(type) {
 	case *ResourceCard:
 		kind = PlayerCardResource
+		name = c.Name
 		resources = c.Resources
 	case *ActionCard:
 		kind = PlayerCardAction

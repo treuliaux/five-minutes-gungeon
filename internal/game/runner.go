@@ -54,13 +54,6 @@ func (r *Runner) Run(ctx context.Context) error {
 		for _, event := range events {
 			r.broadcast(event)
 		}
-		if r.game.LevelState.Status == Victory || r.game.LevelState.Status == Defeat {
-			r.subscriptionsLock.Lock()
-			r.canSubscribe = false
-			r.subscriptionsLock.Unlock()
-
-			return nil
-		}
 	}
 }
 

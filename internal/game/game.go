@@ -58,7 +58,7 @@ func NewGameWithExtension() *Game {
 	return &Game{
 		LevelState: newRoundState(Waiting),
 		level:      1,
-		Config:     Config{UseExtension: true, ResetLevelOnDefeat: true},
+		Config:     Config{UseExtension: true, ResetLevelOnDefeat: true, EventReactionTime: 2},
 	}
 }
 
@@ -72,6 +72,7 @@ func NewGame(cfg Config) *Game {
 
 func (g *Game) Tick(delta time.Duration) ([]Event, error) {
 	g.LevelState.RealElapsedTime += delta
+	events := []Event{TimerTickEvent{TimeLeftDuration: gameDuration - g.LevelState.InGameTimer}}
 	if g.LevelState.Status == Victory || g.LevelState.Status == Defeat {
 		return nil, nil
 	}
@@ -85,12 +86,13 @@ func (g *Game) Tick(delta time.Duration) ([]Event, error) {
 	if g.LevelState.InGameTimer >= gameDuration {
 		g.defeat()
 
-		return []Event{GameLostEvent{}}, nil
+		return append(events, GameLostEvent{}), nil
 	}
 	if g.LevelState.PendingInteraction != nil {
-		return nil, nil
+		return events, nil
 	}
-	events, err := g.resolveActiveEvents()
+	resolveActiveEventsEvents, err := g.resolveActiveEvents()
+	events = append(events, resolveActiveEventsEvents...)
 	if err != nil {
 		return events, err
 	}
@@ -272,7 +274,7 @@ func (g *Game) resolveActiveEvents() ([]Event, error) {
 		if !ok || eventCard.Action == nil {
 			continue
 		}
-		if g.LevelState.InGameTimer-eventCard.OpenedTime < 2*time.Second {
+		if g.LevelState.InGameTimer-eventCard.OpenedTime < time.Duration(g.Config.EventReactionTime)*time.Second {
 			return nil, nil
 		}
 
