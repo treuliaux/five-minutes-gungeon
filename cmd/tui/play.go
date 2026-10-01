@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +43,7 @@ func (a PlayAction) String() string {
 }
 
 type playModel struct {
+	lastPlayerActions    []game.CardPlayedEvent
 	currentPlayerIdx     int
 	selectedCards        map[game.CardID]bool
 	currentPlayerHandRow int
@@ -48,24 +51,23 @@ type playModel struct {
 	controller client.GameController
 	ctx        context.Context
 
-	snapshot game.GameSnapshot
+	snapshot game.GameSnapshotDTO
 	timer    time.Duration
 }
 
 func newPlayModel() playModel {
 	return playModel{
-		selectedCards: make(map[game.CardID]bool),
+		selectedCards:     make(map[game.CardID]bool),
+		lastPlayerActions: make([]game.CardPlayedEvent, 8),
 	}
 }
 
 func (m playModel) Update(msg tea.Msg) (playModel, tea.Cmd) {
-	snapshot, ok := m.snapshot.(game.GameSnapshotDTO)
-	if !ok {
+	if m.snapshot.Status == game.Waiting {
 		return m, nil
 	}
 
 	var cmds []tea.Cmd
-
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		switch msg.String() {
 		case "up":
@@ -82,16 +84,16 @@ func (m playModel) Update(msg tea.Msg) (playModel, tea.Cmd) {
 				cmds = append(cmds, cmd)
 			}
 		case "tab":
-			m.currentPlayerIdx = (m.currentPlayerIdx + 1) % len(snapshot.Players)
-			if m.currentPlayerIdx > len(snapshot.Players)-1 {
+			m.currentPlayerIdx = (m.currentPlayerIdx + 1) % len(m.snapshot.Players)
+			if m.currentPlayerIdx > len(m.snapshot.Players)-1 {
 				m.currentPlayerIdx = 0
 			}
 			m.selectedCards = make(map[game.CardID]bool)
 			m.currentPlayerHandRow = 0
 		case "shift+tab":
-			m.currentPlayerIdx = (m.currentPlayerIdx - 1) % len(snapshot.Players)
+			m.currentPlayerIdx = (m.currentPlayerIdx - 1) % len(m.snapshot.Players)
 			if m.currentPlayerIdx < 0 {
-				m.currentPlayerIdx = len(snapshot.Players) - 1
+				m.currentPlayerIdx = len(m.snapshot.Players) - 1
 			}
 			m.selectedCards = make(map[game.CardID]bool)
 			m.currentPlayerHandRow = 0
@@ -108,25 +110,24 @@ func (m playModel) Update(msg tea.Msg) (playModel, tea.Cmd) {
 }
 
 func (m playModel) View() string {
-	snapshot, ok := m.snapshot.(game.GameSnapshotDTO)
-	if !ok {
+	if m.snapshot.Status == game.Waiting {
 		return ""
 	}
 
-	if snapshot.Status == game.Victory {
+	if m.snapshot.Status == game.Victory {
 		return "VICTORY!!"
 	}
 
-	if snapshot.Status == game.Defeat {
+	if m.snapshot.Status == game.Defeat {
 		return "DEFEAT (noobs)"
 	}
 
 	header := m.renderHeaderHUD()
 
-	doorsAndCurses := lipgloss.JoinHorizontal(
+	doorsAndActionHistory := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		m.renderOpenedDoors(),
-		//lipgloss.JoinVertical(lipgloss.Left, m.renderActiveCurses(), m.renderPlayedField()),
+		lipgloss.JoinVertical(lipgloss.Left, m.renderPlayedHistory(), m.renderPlayfield()),
 	)
 
 	//teamRow := lipgloss.JoinHorizontal(
@@ -141,7 +142,7 @@ func (m playModel) View() string {
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		header,
-		doorsAndCurses,
+		doorsAndActionHistory,
 		//teamRow,
 		playerRow,
 		//footer,
@@ -149,21 +150,17 @@ func (m playModel) View() string {
 }
 
 func (m playModel) renderHeaderHUD() string {
-	snapshot, ok := m.snapshot.(game.GameSnapshotDTO)
-	if !ok {
-		return ""
-	}
 	var hud strings.Builder
 
 	var col1 strings.Builder
-	col1.WriteString(fmt.Sprintf("DUNGEON: Floor %d (DUNGEON NAME)\n", snapshot.Level))
+	col1.WriteString(fmt.Sprintf("DUNGEON: Floor %d (DUNGEON NAME)\n", m.snapshot.Level))
 	fighting := "NO"
-	if snapshot.IsFightingBoss {
+	if m.snapshot.IsFightingBoss {
 		fighting = "YES"
 	}
 	bossName := "None"
-	if snapshot.Boss != nil {
-		bossName = snapshot.Boss.Name
+	if m.snapshot.Boss != nil {
+		bossName = m.snapshot.Boss.Name
 	}
 	col1.WriteString(fmt.Sprintf("BOSS: %s (Fighting: %s)", bossName, fighting))
 
@@ -172,7 +169,7 @@ func (m playModel) renderHeaderHUD() string {
 	timer.WriteString(fmt.Sprintf("TIME REMAINING: "))
 	timeRemainingSeconds := int(m.timer.Seconds())
 	timeRemainingString := fmt.Sprintf("%d:%02d", timeRemainingSeconds/60, timeRemainingSeconds%60)
-	if snapshot.IsTimeFrozen {
+	if m.snapshot.IsTimeFrozen {
 		timer.WriteString(timerFrozenStyle.Render(fmt.Sprintf("[ %s ] ❄ FROZEN", timeRemainingString)))
 	} else if timeRemainingSeconds < 60 {
 		timer.WriteString(timerLowStyle.Render(fmt.Sprintf("[ %s ]", timeRemainingString)))
@@ -180,11 +177,11 @@ func (m playModel) renderHeaderHUD() string {
 		timer.WriteString(timerStyle.Render(fmt.Sprintf("[ %s ]", timeRemainingString)))
 	}
 	col2.WriteString(fmt.Sprintf("%s\n", timer.String()))
-	col2.WriteString(fmt.Sprintf("STATUS: %s", strings.ToUpper(snapshot.Status.String())))
+	col2.WriteString(fmt.Sprintf("STATUS: %s", strings.ToUpper(m.snapshot.Status.String())))
 
 	var col3 strings.Builder
-	col3.WriteString(fmt.Sprintf("DOORS LEFT: [ %d ]\n", snapshot.RemainingDoorsCount))
-	col3.WriteString(fmt.Sprintf("TEAM CARDS IN PLAY: %d", len(snapshot.PlayedField)))
+	col3.WriteString(fmt.Sprintf("DOORS LEFT: [ %d ]\n", m.snapshot.RemainingDoorsCount))
+	col3.WriteString(fmt.Sprintf("TEAM CARDS IN PLAY: %d", len(m.snapshot.PlayedField)))
 
 	hud.WriteString(hudStyle.Render(lipgloss.JoinHorizontal(
 		lipgloss.Left,
@@ -258,30 +255,7 @@ func (m playModel) renderPlayerCard(card game.PlayerCardDTO, idx int) string {
 	case game.PlayerCardResource:
 		cardBody.WriteString("[Resource]\n\n\n")
 		for _, r := range card.Resources {
-			switch r {
-			case game.NoResource:
-			case game.Sword:
-				cardBody.WriteString("🗡️ ")
-			case game.Arrow:
-				cardBody.WriteString("🏹 ")
-			case game.Shield:
-				cardBody.WriteString("🛡️ ")
-			case game.Jump:
-				cardBody.WriteString("🦵 ")
-			case game.Scroll:
-				cardBody.WriteString("📜 ")
-			case game.WildCard:
-			case game.InfiniteSword:
-				cardBody.WriteString("🗡️♾️ ")
-			case game.InfiniteArrow:
-				cardBody.WriteString("🏹♾️ ")
-			case game.InfiniteShield:
-				cardBody.WriteString("🛡️♾️ ")
-			case game.InfiniteJump:
-				cardBody.WriteString("🦵♾️ ")
-			case game.InfiniteScroll:
-				cardBody.WriteString("📜♾️ ")
-			}
+			cardBody.WriteString(fmt.Sprintf("%s ", resourceTypeToIcon(r)))
 		}
 	case game.PlayerCardAction:
 		cardBody.WriteString("[Action]\n\n")
@@ -303,15 +277,10 @@ func (m playModel) renderPlayerCard(card game.PlayerCardDTO, idx int) string {
 }
 
 func (m playModel) renderOpenedDoors() string {
-	snapshot, ok := m.snapshot.(game.GameSnapshotDTO)
-	if !ok {
-		return ""
-	}
-
 	var doors strings.Builder
 
-	openedDoors := make([]string, len(snapshot.OpenedDoors))
-	for i, d := range snapshot.OpenedDoors {
+	openedDoors := make([]string, len(m.snapshot.OpenedDoors))
+	for i, d := range m.snapshot.OpenedDoors {
 		openedDoors[i] = m.renderDoor(d, i+1)
 	}
 	doors.WriteString(lipgloss.JoinVertical(lipgloss.Left, openedDoors...))
@@ -321,7 +290,7 @@ func (m playModel) renderOpenedDoors() string {
 	openedDoorsBoxTitle.WriteString(strings.Repeat("─", (screenWidth/2)+5-len(openedDoorsBoxTitle.String())) + "┐\n")
 
 	var openedDoorsBox strings.Builder
-	openedDoorsBox.WriteString(openedDoorsHeaderStyle.Render(doors.String()))
+	openedDoorsBox.WriteString(doors.String())
 
 	var box strings.Builder
 	box.WriteString(openedDoorsBoxTitle.String() + openedDoorsStyle.Render(openedDoorsBox.String()))
@@ -339,23 +308,16 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 	doorBody.WriteString(fmt.Sprintf("%s: %s\n", dungeonCardKindToString(door.Kind), door.Name))
 	doorBody.WriteString("Required:")
 	for _, r := range door.Resources {
-		switch r {
-		case game.NoResource:
-		case game.Sword:
-			doorBody.WriteString("🗡️ ")
-		case game.Arrow:
-			doorBody.WriteString("🏹 ")
-		case game.Shield:
-			doorBody.WriteString("🛡️ ")
-		case game.Jump:
-			doorBody.WriteString("🦵 ")
-		case game.Scroll:
-			doorBody.WriteString("📜 ")
-		default:
-		}
+		doorBody.WriteString(resourceTypeToIcon(r))
 	}
 	doorBody.WriteString("\n")
 	doorBody.WriteString("Field Met: ")
+	dispatchedResources := m.dispatchResources()[door.Id]
+	if len(dispatchedResources) > 0 {
+		for _, required := range dispatchedResources {
+			doorBody.WriteString(fmt.Sprintf("%s ", resourceTypeToIcon(required)))
+		}
+	}
 
 	var box strings.Builder
 	box.WriteString(doorHeader.String() + doorStyle.Render(doorBody.String()))
@@ -364,12 +326,7 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 }
 
 func (m playModel) currentPlayer() game.PlayerDTO {
-	snapshot, ok := m.snapshot.(game.GameSnapshotDTO)
-	if !ok {
-		return game.PlayerDTO{}
-	}
-
-	return snapshot.Players[m.currentPlayerIdx]
+	return m.snapshot.Players[m.currentPlayerIdx]
 }
 
 func (m playModel) toggleSelectCard(i int) {
@@ -390,17 +347,17 @@ func (m playModel) toggleSelectCard(i int) {
 
 func (m playModel) playSelectedCards() tea.Cmd {
 	for cID := range m.selectedCards {
-		isAction := false
+		skip := false
 		for _, c := range m.currentPlayer().Hand {
 			if c.Id != cID {
 				continue
 			}
-			if c.Kind == game.PlayerCardAction {
-				isAction = true
+			if c.Kind == game.PlayerCardAction && c.TargetType != game.TargetNone && (c.TargetType != game.TargetCard || len(m.snapshot.OpenedDoors) != 1) {
+				skip = true
 				break
 			}
 		}
-		if isAction {
+		if skip {
 			continue
 		}
 		err := m.controller.Dispatch(m.ctx, game.PlayCardCmd{
@@ -416,6 +373,101 @@ func (m playModel) playSelectedCards() tea.Cmd {
 	}
 
 	return nil
+}
+
+func (m playModel) renderPlayedHistory() string {
+	var playedHistoryBoxTitle strings.Builder
+	playedHistoryBoxTitle.WriteString("┌── PLAYERS ACTIONS ")
+	playedHistoryBoxTitle.WriteString(strings.Repeat("─", (screenWidth/2)+5-len(playedHistoryBoxTitle.String())) + "┐\n")
+
+	var entries []string
+	for i := range slices.Backward(m.lastPlayerActions) {
+		e := m.lastPlayerActions[i]
+		if e.Card.Id == 0 || e.ByPlayer.Id == "" {
+			continue
+		}
+
+		var entry strings.Builder
+		entry.WriteString(fmt.Sprintf("%s played: [", e.ByPlayer.Name))
+		switch e.Card.Kind {
+		case game.PlayerCardResource:
+			for _, r := range e.Card.Resources {
+				entry.WriteString(resourceTypeToIcon(r))
+			}
+		case game.PlayerCardAction:
+			entry.WriteString(e.Card.Name)
+		}
+		entry.WriteString("]")
+		entries = append(entries, entry.String())
+	}
+
+	var col1, col2 strings.Builder
+	for i, e := range entries {
+		if i < 4 {
+			if col1.Len() > 0 {
+				col1.WriteString("\n")
+			}
+			col1.WriteString(e)
+			continue
+		}
+		if col2.Len() > 0 {
+			col2.WriteString("\n")
+		}
+		col2.WriteString(e)
+	}
+
+	var playedHistoryBox strings.Builder
+	playedHistoryBox.WriteString(lipgloss.JoinHorizontal(
+		lipgloss.Left,
+		lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, len(entries) > 4, false, false).Width((screenWidth / 4)).Render(col1.String()),
+		lipgloss.NewStyle().Padding(0, 0, 0, 1).Render(col2.String()),
+	))
+
+	var box strings.Builder
+	box.WriteString(playedHistoryBoxTitle.String() + playedHistoryStyle.Render(playedHistoryBox.String()))
+
+	return box.String()
+}
+
+func (m playModel) renderPlayfield() string {
+	var playfieldBoxTitle strings.Builder
+	playfieldBoxTitle.WriteString("┌── PLAYFIELD ")
+	playfieldBoxTitle.WriteString(strings.Repeat("─", (screenWidth/2)+5-len(playfieldBoxTitle.String())) + "┐\n")
+
+	listResources := make(map[game.ResourceType]int)
+	listActions := make(map[string]int)
+	for _, c := range m.snapshot.PlayedField {
+		for _, r := range c.Resources {
+			listResources[r]++
+		}
+		if c.Kind != game.PlayerCardResource {
+			listActions[c.Name]++
+		}
+	}
+
+	resources := slices.Sorted(maps.Keys(listResources))
+	var columns []string
+	for i := 0; i < len(resources); i += 4 {
+		end := min(i+4, len(resources))
+
+		var column strings.Builder
+		for _, r := range resources[i:end] {
+			column.WriteString(
+				fmt.Sprintf("%s x%d\n", resourceTypeToIcon(r), listResources[r]),
+			)
+		}
+		columns = append(columns, strings.TrimSuffix(column.String(), "\n"))
+	}
+
+	var playfieldBox strings.Builder
+	playfieldBox.WriteString(
+		lipgloss.JoinHorizontal(lipgloss.Top, columns...),
+	)
+
+	var box strings.Builder
+	box.WriteString(playfieldBoxTitle.String() + playfieldStyle.Render(playfieldBox.String()))
+
+	return box.String()
 }
 
 func dungeonCardKindToString(kind game.DungeonCardKind) string {
@@ -437,4 +489,82 @@ func dungeonCardKindToString(kind game.DungeonCardKind) string {
 	}
 
 	return ""
+}
+
+func resourceTypeToIcon(rt game.ResourceType) string {
+	switch rt {
+	case game.Sword:
+		return "🗡️"
+	case game.Arrow:
+		return "🏹"
+	case game.Shield:
+		return "🛡️"
+	case game.Jump:
+		return "🦵"
+	case game.Scroll:
+		return "📜"
+	case game.WildCard:
+		return "⭐"
+	case game.InfiniteSword:
+		return "🗡️♾️"
+	case game.InfiniteArrow:
+		return "🏹♾️"
+	case game.InfiniteShield:
+		return "🛡️♾️"
+	case game.InfiniteJump:
+		return "🦵♾️"
+	case game.InfiniteScroll:
+		return "📜♾️"
+	default:
+		return ""
+	}
+}
+
+func (m playModel) dispatchResources() map[game.CardID][]game.ResourceType {
+	requirements := m.snapshot.OpenedDoors
+	playedCards := m.snapshot.PlayedField
+
+	result := make(map[game.CardID][]game.ResourceType)
+	available := make(map[game.ResourceType]int)
+	for _, card := range playedCards {
+		for _, resource := range card.Resources {
+			available[resource]++
+		}
+	}
+
+	// First pass: exact matches.
+	for _, card := range requirements {
+		for _, required := range card.Resources {
+			if available[required] == 0 {
+				continue
+			}
+			result[card.Id] = append(result[card.Id], required)
+			available[required]--
+		}
+	}
+
+	// Second pass: fill remaining requirements with jokers.
+	for _, card := range requirements {
+		assigned := make(map[game.ResourceType]int)
+
+		for _, resource := range result[card.Id] {
+			assigned[resource]++
+		}
+
+		for _, required := range card.Resources {
+			if assigned[required] > 0 {
+				assigned[required]--
+				continue
+			}
+
+			if available[game.WildCard] == 0 {
+				continue
+			}
+
+			result[card.Id] = append(result[card.Id], game.WildCard)
+			available[game.WildCard]--
+		}
+	}
+
+	return result
 }

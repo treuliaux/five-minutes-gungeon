@@ -25,8 +25,8 @@ func (p *Playfield) AddPlayerCard(player *Player, card PlayerCard) ([]Event, err
 	p.Field = append(p.Field, card)
 
 	return []Event{CardPlayedEvent{
-		ByPlayerID: player.Id,
-		CardID:     card.ID(),
+		ByPlayer: PlayerToDTO(player),
+		Card:     PlayerCardToDTO(card),
 	}}, nil
 }
 

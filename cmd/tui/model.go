@@ -109,6 +109,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if _, ok := msg.(game.GameStartedEvent); ok {
 			m.step = Playing
 		}
+		if ev, ok := msg.(game.CardPlayedEvent); ok {
+			m.play.lastPlayerActions = append(m.play.lastPlayerActions[1:], ev)
+		}
 
 		cmds := []tea.Cmd{waitForEvent(m.controller.Events())}
 
@@ -138,9 +141,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.lastReceivedSnapshots = append(m.lastReceivedSnapshots[1:], entry)
 		switch m.step {
 		case Lobby:
-			m.lobby.snapshot = msg
+			snapshot, ok := msg.(game.GameSnapshotDTO)
+			if !ok {
+				return m, nil
+			}
+			m.lobby.snapshot = snapshot
 		case Playing:
-			m.play.snapshot = msg
+			snapshot, ok := msg.(game.GameSnapshotDTO)
+			if !ok {
+				return m, nil
+			}
+			m.play.snapshot = snapshot
 		default:
 		}
 

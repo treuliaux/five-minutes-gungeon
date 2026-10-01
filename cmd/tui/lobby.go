@@ -49,7 +49,7 @@ type lobbyModel struct {
 
 	controller client.GameController
 	ctx        context.Context
-	snapshot   game.GameSnapshot
+	snapshot   game.GameSnapshotDTO
 }
 
 func newLobbyModel() lobbyModel {
@@ -104,12 +104,11 @@ func (m lobbyModel) updateMenu(msg tea.Msg) (lobbyModel, tea.Cmd) {
 
 				return m, m.addPlayerForm.nameInput.Focus()
 			case ChangeHeroAction:
-				snapshot, ok := m.snapshot.(game.GameSnapshotDTO)
-				if !ok || len(snapshot.Players) == 0 {
+				if len(m.snapshot.Players) == 0 {
 					break
 				}
-				playerIDs := make([]game.PlayerID, len(snapshot.Players))
-				for i, player := range snapshot.Players {
+				playerIDs := make([]game.PlayerID, len(m.snapshot.Players))
+				for i, player := range m.snapshot.Players {
 					playerIDs[i] = player.Id
 				}
 
@@ -171,20 +170,15 @@ func (m lobbyModel) updateChangeHeroForm(msg tea.Msg) (lobbyModel, tea.Cmd) {
 }
 
 func (m lobbyModel) View() string {
-	snapshot, ok := m.snapshot.(game.GameSnapshotDTO)
-	if !ok {
-		snapshot = game.GameSnapshotDTO{}
-	}
-
 	var s strings.Builder
 
 	// Render Lobby Header & Current Player Roster from Snapshot
 	s.WriteString("=== Game Lobby ===\n\n")
 	s.WriteString("Connected Players:\n")
-	if len(snapshot.Players) == 0 {
+	if len(m.snapshot.Players) == 0 {
 		s.WriteString("  (No players added yet)\n")
 	} else {
-		for _, p := range snapshot.Players {
+		for _, p := range m.snapshot.Players {
 			s.WriteString(fmt.Sprintf("  • %s (%s)\n", p.Name, p.HeroClass))
 		}
 	}

@@ -62,12 +62,18 @@ var (
 var (
 	cardStyle         = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(24).Height(7)
 	selectedCardStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).BorderForeground(lipgloss.Cyan).Padding(0, 1).Width(24).Height(7)
-	cardHeaderStyle   = lipgloss.NewStyle().Bold(true)
 )
 
 var (
-	openedDoorsStyle       = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(11)
-	openedDoorsHeaderStyle = lipgloss.NewStyle().Bold(true)
+	openedDoorsStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(11)
+)
+
+var (
+	playedHistoryStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(5)
+)
+
+var (
+	playfieldStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(5)
 )
 
 var (

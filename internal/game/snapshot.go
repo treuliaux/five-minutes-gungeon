@@ -105,6 +105,7 @@ type PlayerCardDTO struct {
 	Name        string         `json:"name"`
 	Description string         `json:"description"`
 	Resources   []ResourceType `json:"resources"`
+	TargetType  TargetType     `json:"targetType"`
 }
 
 type ArtifactDTO struct {
@@ -239,16 +240,19 @@ func PlayerCardToDTO(card PlayerCard) PlayerCardDTO {
 	var name string
 	var description string
 	var resources []ResourceType
+	var targetType TargetType
 
 	switch c := card.(type) {
 	case *ResourceCard:
 		kind = PlayerCardResource
 		name = c.Name
 		resources = c.Resources
+		targetType = TargetNone
 	case *ActionCard:
 		kind = PlayerCardAction
 		name = c.Name
 		description = c.Description
+		targetType = c.TargetType
 	}
 
 	return PlayerCardDTO{
@@ -257,6 +261,7 @@ func PlayerCardToDTO(card PlayerCard) PlayerCardDTO {
 		Name:        name,
 		Description: description,
 		Resources:   resources,
+		TargetType:  targetType,
 	}
 }
 

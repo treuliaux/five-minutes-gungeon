@@ -291,7 +291,7 @@ func TestPlayCardSuccessAndAutoDraw(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected CardPlayedEvent, got %T", events[0])
 	}
-	if playedEvt.ByPlayerID != paladin.Id || playedEvt.CardID != c1.ID() {
+	if playedEvt.ByPlayer.Id != paladin.Id || playedEvt.Card.Id != c1.ID() {
 		t.Errorf("mismatch in CardPlayedEvent attributes")
 	}
 }

@@ -5,6 +5,17 @@ import (
 	"slices"
 )
 
+//go:generate go run github.com/fairjungle/enumer -type=TargetType -json
+type TargetType uint8
+
+const (
+	TargetNone TargetType = iota
+	TargetCard
+	TargetCurse
+	TargetPlayer
+	TargetTwoPlayers
+)
+
 type CardAction interface {
 	isCardAction()
 	Execute(ctx Context) ([]Event, error)

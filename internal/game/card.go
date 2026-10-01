@@ -57,6 +57,7 @@ type ActionCard struct {
 	Name        string
 	Description string
 	Action      CardAction
+	TargetType  TargetType
 	Extension   bool
 }
 

@@ -298,6 +298,7 @@ func (g *Game) resolveActiveEvents() ([]Event, error) {
 			}
 			return append(events, promptEvent), nil
 		}
+		// TODO: Ambush will fail as there's no room for the event + 2 doors
 		resolveEvents, err := g.LevelState.Playfield.ResolveEvent(ctx)
 		events = append(events, resolveEvents...)
 		if err != nil {

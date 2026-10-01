@@ -51,8 +51,8 @@ type PlayerChangedHeroEvent struct {
 func (PlayerChangedHeroEvent) isEvent() {}
 
 type CardPlayedEvent struct {
-	ByPlayerID PlayerID `json:"byPlayerId"`
-	CardID     CardID   `json:"cardId"`
+	ByPlayer PlayerDTO     `json:"byPlayer"`
+	Card     PlayerCardDTO `json:"card"`
 }
 
 func (CardPlayedEvent) isEvent() {}
