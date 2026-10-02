@@ -142,7 +142,7 @@ type DoorOpenedEvent struct {
 func (DoorOpenedEvent) isEvent() {}
 
 type HeroAbilityUsedEvent struct {
-	ByPlayerID PlayerID `json:"byPlayerId"`
+	ByPlayer PlayerDTO `json:"byPlayer"`
 }
 
 func (HeroAbilityUsedEvent) isEvent() {}

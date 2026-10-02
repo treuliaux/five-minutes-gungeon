@@ -734,7 +734,7 @@ func TestRunnerUseHeroAbility(t *testing.T) {
 	// Expect HeroAbilityUsedEvent, 3x CardDiscardedEvent, TimeFrozenEvent broadcasted
 	expectEvent(t, sub, func(e Event) bool {
 		evt, ok := e.(HeroAbilityUsedEvent)
-		return ok && evt.ByPlayerID == wizard.Id
+		return ok && evt.ByPlayer.Id == wizard.Id
 	})
 	expectEvent(t, sub, func(e Event) bool { _, ok := e.(TimeFrozenEvent); return ok })
 

@@ -81,14 +81,15 @@ func NewGameSnapshot(g *Game) GameSnapshotDTO {
 }
 
 type PlayerDTO struct {
-	Id          PlayerID        `json:"id"`
-	Name        string          `json:"name"`
-	HeroClass   HeroClass       `json:"heroClass"`
-	HeroName    string          `json:"heroName"`
-	AbilityName string          `json:"abilityName"`
-	DeckCount   int             `json:"deckCount"`
-	Hand        []PlayerCardDTO `json:"hand"`
-	Discard     []PlayerCardDTO `json:"discard"`
+	Id                 PlayerID        `json:"id"`
+	Name               string          `json:"name"`
+	HeroClass          HeroClass       `json:"heroClass"`
+	HeroName           string          `json:"heroName"`
+	AbilityName        string          `json:"abilityName"`
+	AbilityDescription string          `json:"AbilityDescription"`
+	DeckCount          int             `json:"deckCount"`
+	Hand               []PlayerCardDTO `json:"hand"`
+	Discard            []PlayerCardDTO `json:"discard"`
 }
 
 type DungeonCardDTO struct {
@@ -155,21 +156,24 @@ func PlayerToDTO(p *Player) PlayerDTO {
 	var heroClass HeroClass
 	var heroName string
 	var heroAbility string
+	var heroAbilityDescription string
 	if p.Hero != nil {
 		heroClass = p.Hero.Class
 		heroName = p.Hero.Name
 		heroAbility = p.Hero.Ability.Name()
+		heroAbilityDescription = p.Hero.AbilityDescription
 	}
 
 	return PlayerDTO{
-		Id:          p.Id,
-		Name:        p.Name,
-		HeroClass:   heroClass,
-		HeroName:    heroName,
-		AbilityName: heroAbility,
-		Hand:        hand,
-		Discard:     discard,
-		DeckCount:   deckCount,
+		Id:                 p.Id,
+		Name:               p.Name,
+		HeroClass:          heroClass,
+		HeroName:           heroName,
+		AbilityName:        heroAbility,
+		AbilityDescription: heroAbilityDescription,
+		Hand:               hand,
+		Discard:            discard,
+		DeckCount:          deckCount,
 	}
 }
 

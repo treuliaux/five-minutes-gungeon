@@ -78,8 +78,8 @@ func NewYellowDeck() *Deck {
 	}
 	cards = append(cards,
 		&ActionCard{Id: nextCardId(), Name: "Holy Hand Grenade", Description: "Defeat any card", Action: HolyHandGrenadeAction{}, TargetType: TargetCard},
-		&ActionCard{Id: nextCardId(), Name: "Heal", Description: "Target player put their [Discard] atop their Deck", Action: HealAction{}, TargetType: TargetPlayer},
-		&ActionCard{Id: nextCardId(), Name: "Health Potion", Description: "All players draw 3 cards from their [Discard]", Action: HealthPotionAction{}, TargetType: TargetNone},
+		&ActionCard{Id: nextCardId(), Name: "Heal", Description: "Target player put their [Discard Pile] atop their [Deck]", Action: HealAction{}, TargetType: TargetPlayer},
+		&ActionCard{Id: nextCardId(), Name: "Health Potion", Description: "All players draw 3 cards from their [Discard Pile]", Action: HealthPotionAction{}, TargetType: TargetNone},
 		&ActionCard{Id: nextCardId(), Name: "Divine Shield", Description: "[Freeze] timer - All players draw a card", Action: DivineShieldAction{}, TargetType: TargetNone},
 		&ActionCard{Id: nextCardId(), Name: "Divine Shield", Description: "[Freeze] timer - All players draw a card", Action: DivineShieldAction{}, TargetType: TargetNone},
 		&ActionCard{Id: nextCardId(), Name: "Smite", Description: "Defeat a [Monster]", Action: SmiteAction{}, TargetType: TargetCard},
@@ -160,8 +160,8 @@ func NewGreenDeck() *Deck {
 	}
 	cards = append(cards,
 		&ActionCard{Id: nextCardId(), Name: "Snipe", Description: "Defeat a [Person]", Action: SnipeAction{}, TargetType: TargetCard},
-		&ActionCard{Id: nextCardId(), Name: "Healing Herbs", Description: "Choose a player - They draw 4 cards from their [Discard]", Action: HealingHerbsAction{}, TargetType: TargetPlayer},
-		&ActionCard{Id: nextCardId(), Name: "Healing Herbs", Description: "Choose a player - They draw 4 cards from their [Discard]", Action: HealingHerbsAction{}, TargetType: TargetPlayer},
+		&ActionCard{Id: nextCardId(), Name: "Healing Herbs", Description: "Choose a player - They draw 4 cards from their [Discard Pile]", Action: HealingHerbsAction{}, TargetType: TargetPlayer},
+		&ActionCard{Id: nextCardId(), Name: "Healing Herbs", Description: "Choose a player - They draw 4 cards from their [Discard Pile]", Action: HealingHerbsAction{}, TargetType: TargetPlayer},
 		&ActionCard{Id: nextCardId(), Name: "Wild Card", Description: "Counts as any [Resource]", Action: WildCardAction{}, TargetType: TargetNone},
 		&ActionCard{Id: nextCardId(), Name: "Wild Card", Description: "Counts as any [Resource]", Action: WildCardAction{}, TargetType: TargetNone},
 		&ActionCard{Id: nextCardId(), Name: "Wild Card", Description: "Counts as any [Resource]", Action: WildCardAction{}, TargetType: TargetNone},
@@ -294,8 +294,8 @@ func NewBlackDeck() *Deck {
 		&ActionCard{Id: nextCardId(), Name: "Living Vines", Description: "Defeat an [Person]", Action: LivingVinesAction{}, TargetType: TargetCard},
 		&ActionCard{Id: nextCardId(), Name: "Cleanse", Description: "Cure a [Curse]", Action: CleanseAction{}, TargetType: TargetCurse},
 		&ActionCard{Id: nextCardId(), Name: "Cleanse", Description: "Cure a [Curse]", Action: CleanseAction{}, TargetType: TargetCurse},
-		&ActionCard{Id: nextCardId(), Name: "Ancient Healing", Description: "Every player draw 2 cards from their [Discard]", Action: AncientHealingAction{}, TargetType: TargetNone},
-		&ActionCard{Id: nextCardId(), Name: "Ancient Healing", Description: "Every player draw 2 cards from their [Discard]", Action: AncientHealingAction{}, TargetType: TargetNone},
+		&ActionCard{Id: nextCardId(), Name: "Ancient Healing", Description: "Every player draw 2 cards from their [Discard Pile]", Action: AncientHealingAction{}, TargetType: TargetNone},
+		&ActionCard{Id: nextCardId(), Name: "Ancient Healing", Description: "Every player draw 2 cards from their [Discard Pile]", Action: AncientHealingAction{}, TargetType: TargetNone},
 	)
 	d := &Deck{
 		Color: Black,
@@ -325,7 +325,7 @@ func (d *Deck) IncludeExtension() *Deck {
 	case Yellow:
 		d.Cards = append(d.Cards,
 			&ActionCard{Id: nextCardId(), Name: "Mystic Rune", Description: "Every player draw 1 card for each active [Curse]", Action: MysticRuneAction{}, TargetType: TargetNone},
-			&ActionCard{Id: nextCardId(), Name: "Rally", Description: "Draw every cards from your [Discard] that has a 🗡️ or a 🛡️", Action: RallyAction{}, TargetType: TargetNone},
+			&ActionCard{Id: nextCardId(), Name: "Rally", Description: "Draw every cards from your [Discard Pile] that has a 🗡️ or a 🛡️", Action: RallyAction{}, TargetType: TargetNone},
 		)
 	case Red:
 		d.Cards = append(d.Cards,

@@ -70,7 +70,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		k := msg.String()
-		if k == "q" || k == "ctrl+c" {
+		if k == "ctrl+c" {
 			if m.controller != nil {
 				_ = m.controller.Close()
 			}
@@ -110,7 +110,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.step = Playing
 		}
 		if ev, ok := msg.(game.CardPlayedEvent); ok {
-			m.play.lastPlayerActions = append(m.play.lastPlayerActions[1:], ev)
+			m.play.lastPlayerActions = append(m.play.lastPlayerActions[1:], PlayerActionEntry{CardPlayed: ev})
+		}
+		if ev, ok := msg.(game.HeroAbilityUsedEvent); ok {
+			m.play.lastPlayerActions = append(m.play.lastPlayerActions[1:], PlayerActionEntry{AbilityUsed: ev})
 		}
 
 		cmds := []tea.Cmd{waitForEvent(m.controller.Events())}

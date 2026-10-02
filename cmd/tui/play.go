@@ -43,7 +43,7 @@ func (a PlayAction) String() string {
 }
 
 type playModel struct {
-	lastPlayerActions    []game.CardPlayedEvent
+	lastPlayerActions    []PlayerActionEntry
 	currentPlayerIdx     int
 	selectedCards        map[game.CardID]bool
 	currentPlayerHandRow int
@@ -55,10 +55,15 @@ type playModel struct {
 	timer    time.Duration
 }
 
+type PlayerActionEntry struct {
+	CardPlayed  game.CardPlayedEvent
+	AbilityUsed game.HeroAbilityUsedEvent
+}
+
 func newPlayModel() playModel {
 	return playModel{
 		selectedCards:     make(map[game.CardID]bool),
-		lastPlayerActions: make([]game.CardPlayedEvent, 8),
+		lastPlayerActions: make([]PlayerActionEntry, 8),
 	}
 }
 
@@ -67,19 +72,26 @@ func (m playModel) Update(msg tea.Msg) (playModel, tea.Cmd) {
 		return m, nil
 	}
 
+	m.currentPlayerHandRow = min(m.currentPlayerHandRow, ((len(m.currentPlayer().Hand)+4)/5)-1)
+
 	var cmds []tea.Cmd
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		switch msg.String() {
 		case "up":
 			handSize := len(m.currentPlayer().Hand)
-			rows := (handSize + 4) / 5
-			m.currentPlayerHandRow = (m.currentPlayerHandRow - 1 + rows) % rows
+			rowsIdx := (handSize + 4) / 5
+			m.currentPlayerHandRow = (m.currentPlayerHandRow - 1 + rowsIdx) % rowsIdx
 		case "down":
 			handSize := len(m.currentPlayer().Hand)
-			rows := (handSize + 4) / 5
-			m.currentPlayerHandRow = (m.currentPlayerHandRow + 1) % rows
+			rowsIdx := (handSize + 4) / 5
+			m.currentPlayerHandRow = (m.currentPlayerHandRow + 1) % rowsIdx
 		case "space":
 			cmd := m.playSelectedCards()
+			if cmd != nil {
+				cmds = append(cmds, cmd)
+			}
+		case "a":
+			cmd := m.useHeroAbility()
 			if cmd != nil {
 				cmds = append(cmds, cmd)
 			}
@@ -137,7 +149,7 @@ func (m playModel) View() string {
 	//)
 	//
 	playerRow := m.renderPlayerDashboard()
-	//footer := m.renderFooterKeybindings()
+	footer := m.renderFooterKeybindings()
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -145,7 +157,7 @@ func (m playModel) View() string {
 		doorsAndActionHistory,
 		//teamRow,
 		playerRow,
-		//footer,
+		footer,
 	)
 }
 
@@ -167,11 +179,13 @@ func (m playModel) renderHeaderHUD() string {
 	var col2 strings.Builder
 	var timer strings.Builder
 	timer.WriteString(fmt.Sprintf("TIME REMAINING: "))
-	timeRemainingSeconds := int(m.timer.Seconds())
-	timeRemainingString := fmt.Sprintf("%d:%02d", timeRemainingSeconds/60, timeRemainingSeconds%60)
+	minutes := int(m.timer.Minutes())
+	seconds := int(m.timer.Seconds()) % 60
+	milliseconds := int(m.timer.Milliseconds()) % 1000
+	timeRemainingString := fmt.Sprintf("%d:%02d:%02d", minutes, seconds, milliseconds/10)
 	if m.snapshot.IsTimeFrozen {
-		timer.WriteString(timerFrozenStyle.Render(fmt.Sprintf("[ %s ] ❄ FROZEN", timeRemainingString)))
-	} else if timeRemainingSeconds < 60 {
+		timer.WriteString(timerFrozenStyle.Render(fmt.Sprintf("[ %s ] ❄  FROZEN", timeRemainingString)))
+	} else if int(m.timer.Seconds()) < 60 {
 		timer.WriteString(timerLowStyle.Render(fmt.Sprintf("[ %s ]", timeRemainingString)))
 	} else {
 		timer.WriteString(timerStyle.Render(fmt.Sprintf("[ %s ]", timeRemainingString)))
@@ -208,23 +222,27 @@ func (m playModel) renderPlayerDashboard() string {
 	hudCol1.WriteString(fmt.Sprintf("Deck: [🂠 %d cards]", player.DeckCount))
 
 	var hudCol2 strings.Builder
-	hudCol2.WriteString(fmt.Sprintf("Discard: [🗑️ %d cards (Top: XXX)]", len(player.Discard)))
+	topDiscard := "None"
+	if len(player.Discard) > 0 {
+		topDiscard = player.Discard[len(player.Discard)-1].Name
+	}
+	hudCol2.WriteString(fmt.Sprintf("Discard: [🗑️ %d cards (Top: %s)]", len(player.Discard), topDiscard))
 
 	var hudCol3 strings.Builder
-	hudCol3.WriteString(fmt.Sprintf("Ability: [ %s ]", player.AbilityName))
+	hudCol3.WriteString(fmt.Sprintf("Ability: [%s] %s", player.AbilityName, player.AbilityDescription))
 
 	var hud strings.Builder
 	hud.WriteString(hudHeader.String())
 	hud.WriteString(playerHudStyle.Render(lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		hudColStyle.Width(35).Render(hudCol1.String()),
-		hudColStyle.Width(50).Render(hudCol2.String()),
+		hudColStyle.Width(23).Render(hudCol1.String()),
+		hudColStyle.Width(51).Render(hudCol2.String()),
 		hudLastColStyle.Render(hudCol3.String()),
 	)))
 	hud.WriteString("\n")
 
 	var playerHand strings.Builder
-	rowsCount := min((len(player.Hand)+4)/5, 1)
+	rowsCount := max((len(player.Hand)+4)/5, 1)
 	playerHand.WriteString(fmt.Sprintf("YOUR HAND (Row: %d/%d - Selected: %d - Total: %d):\n", m.currentPlayerHandRow+1, rowsCount, len(m.selectedCards), len(player.Hand)))
 
 	start := m.currentPlayerHandRow * 5
@@ -246,7 +264,6 @@ func (m playModel) renderPlayerCard(card game.PlayerCardDTO, idx int) string {
 	var cardHeader strings.Builder
 	cardHeader.WriteString("┌─ ")
 	cardHeader.WriteString(fmt.Sprintf("[%d]", idx))
-	//cardHeader.WriteString(cardHeaderStyle.Render(cardBoxTitle))
 	cardHeader.WriteString(" " + strings.Repeat("─", 16) + "┐")
 
 	var cardBody strings.Builder
@@ -306,17 +323,31 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 
 	var doorBody strings.Builder
 	doorBody.WriteString(fmt.Sprintf("%s: %s\n", dungeonCardKindToString(door.Kind), door.Name))
-	doorBody.WriteString("Required:")
-	for _, r := range door.Resources {
-		doorBody.WriteString(resourceTypeToIcon(r))
-	}
-	doorBody.WriteString("\n")
-	doorBody.WriteString("Field Met: ")
-	dispatchedResources := m.dispatchResources()[door.Id]
-	if len(dispatchedResources) > 0 {
-		for _, required := range dispatchedResources {
-			doorBody.WriteString(fmt.Sprintf("%s ", resourceTypeToIcon(required)))
+	doorBody.WriteString("Required: ")
+	switch door.Kind {
+	case game.CardMonster:
+		fallthrough
+	case game.CardObstacle:
+		fallthrough
+	case game.CardPerson:
+		fallthrough
+	case game.CardMiniBoss:
+		fallthrough
+	case game.CardBoss:
+		for _, r := range door.Resources {
+			doorBody.WriteString(resourceTypeToIcon(r))
 		}
+		doorBody.WriteString("\n")
+		doorBody.WriteString("Field Met: ")
+		dispatchedResources := m.dispatchResources()[door.Id]
+		if len(dispatchedResources) > 0 {
+			for _, required := range dispatchedResources {
+				doorBody.WriteString(fmt.Sprintf("%s", resourceTypeToIcon(required)))
+			}
+		}
+	case game.CardEvent:
+		doorBody.WriteString(door.Description)
+	case game.CardCurse:
 	}
 
 	var box strings.Builder
@@ -357,18 +388,43 @@ func (m playModel) playSelectedCards() tea.Cmd {
 				break
 			}
 		}
-		if skip {
-			continue
+		if !skip {
+			err := m.controller.Dispatch(m.ctx, game.PlayCardCmd{
+				PlayerID:        m.currentPlayer().Id,
+				CardID:          cID,
+				TargetCardID:    0,
+				TargetPlayerIDs: nil,
+			})
+			if err != nil {
+				return forwardError(err)
+			}
 		}
-		err := m.controller.Dispatch(m.ctx, game.PlayCardCmd{
-			PlayerID:        m.currentPlayer().Id,
-			CardID:          cID,
-			TargetCardID:    0,
-			TargetPlayerIDs: nil,
-		})
-		if err != nil {
-			return forwardError(err)
-		}
+		delete(m.selectedCards, cID)
+	}
+
+	return nil
+}
+
+func (m playModel) useHeroAbility() tea.Cmd {
+	if len(m.selectedCards) != 3 {
+		return nil
+	}
+	cardIDs := make([]game.CardID, 3)
+	i := 0
+	for cID := range maps.Keys(m.selectedCards) {
+		cardIDs[i] = cID
+		i++
+	}
+	err := m.controller.Dispatch(m.ctx, game.UseHeroAbilityCmd{
+		PlayerID:       m.currentPlayer().Id,
+		DiscardCardIDs: cardIDs,
+		TargetCardID:   0,
+		TargetPlayerID: "",
+	})
+	if err != nil {
+		return forwardError(err)
+	}
+	for cID := range maps.Keys(m.selectedCards) {
 		delete(m.selectedCards, cID)
 	}
 
@@ -380,48 +436,41 @@ func (m playModel) renderPlayedHistory() string {
 	playedHistoryBoxTitle.WriteString("┌── PLAYERS ACTIONS ")
 	playedHistoryBoxTitle.WriteString(strings.Repeat("─", (screenWidth/2)+5-len(playedHistoryBoxTitle.String())) + "┐\n")
 
-	var entries []string
+	var playedHistoryBox strings.Builder
+
 	for i := range slices.Backward(m.lastPlayerActions) {
 		e := m.lastPlayerActions[i]
-		if e.Card.Id == 0 || e.ByPlayer.Id == "" {
+		if (e.CardPlayed.Card.Id == 0 || e.CardPlayed.ByPlayer.Id == "") && e.AbilityUsed.ByPlayer.Name == "" {
 			continue
+		}
+
+		playerName := e.CardPlayed.ByPlayer.Name
+		if e.AbilityUsed.ByPlayer.Name != "" {
+			playerName = e.AbilityUsed.ByPlayer.Name
 		}
 
 		var entry strings.Builder
-		entry.WriteString(fmt.Sprintf("%s played: [", e.ByPlayer.Name))
-		switch e.Card.Kind {
-		case game.PlayerCardResource:
-			for _, r := range e.Card.Resources {
-				entry.WriteString(resourceTypeToIcon(r))
+		entry.WriteString(fmt.Sprintf("%s played: [", playerName))
+		switch {
+		case e.CardPlayed.Card.Id != 0 && e.CardPlayed.ByPlayer.Id != "":
+			switch e.CardPlayed.Card.Kind {
+			case game.PlayerCardResource:
+				for _, r := range e.CardPlayed.Card.Resources {
+					entry.WriteString(resourceTypeToIcon(r))
+				}
+			case game.PlayerCardAction:
+				entry.WriteString(e.CardPlayed.Card.Name)
 			}
-		case game.PlayerCardAction:
-			entry.WriteString(e.Card.Name)
+		case e.AbilityUsed.ByPlayer.Name != "":
+			entry.WriteString(e.AbilityUsed.ByPlayer.AbilityName)
 		}
 		entry.WriteString("]")
-		entries = append(entries, entry.String())
-	}
 
-	var col1, col2 strings.Builder
-	for i, e := range entries {
-		if i < 4 {
-			if col1.Len() > 0 {
-				col1.WriteString("\n")
-			}
-			col1.WriteString(e)
-			continue
+		if playedHistoryBox.Len() > 0 {
+			playedHistoryBox.WriteString("\n")
 		}
-		if col2.Len() > 0 {
-			col2.WriteString("\n")
-		}
-		col2.WriteString(e)
+		playedHistoryBox.WriteString(entry.String())
 	}
-
-	var playedHistoryBox strings.Builder
-	playedHistoryBox.WriteString(lipgloss.JoinHorizontal(
-		lipgloss.Left,
-		lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, len(entries) > 4, false, false).Width((screenWidth / 4)).Render(col1.String()),
-		lipgloss.NewStyle().Padding(0, 0, 0, 1).Render(col2.String()),
-	))
 
 	var box strings.Builder
 	box.WriteString(playedHistoryBoxTitle.String() + playedHistoryStyle.Render(playedHistoryBox.String()))
@@ -445,24 +494,12 @@ func (m playModel) renderPlayfield() string {
 		}
 	}
 
-	resources := slices.Sorted(maps.Keys(listResources))
-	var columns []string
-	for i := 0; i < len(resources); i += 4 {
-		end := min(i+4, len(resources))
-
-		var column strings.Builder
-		for _, r := range resources[i:end] {
-			column.WriteString(
-				fmt.Sprintf("%s x%d\n", resourceTypeToIcon(r), listResources[r]),
-			)
-		}
-		columns = append(columns, strings.TrimSuffix(column.String(), "\n"))
-	}
-
 	var playfieldBox strings.Builder
-	playfieldBox.WriteString(
-		lipgloss.JoinHorizontal(lipgloss.Top, columns...),
-	)
+
+	resources := slices.Sorted(maps.Keys(listResources))
+	for _, r := range resources {
+		playfieldBox.WriteString(fmt.Sprintf("%s x%d ", resourceTypeToIcon(r), listResources[r]))
+	}
 
 	var box strings.Builder
 	box.WriteString(playfieldBoxTitle.String() + playfieldStyle.Render(playfieldBox.String()))
@@ -567,4 +604,11 @@ func (m playModel) dispatchResources() map[game.CardID][]game.ResourceType {
 	}
 
 	return result
+}
+
+func (m playModel) renderFooterKeybindings() string {
+	var footer strings.Builder
+	footer.WriteString("[1-5] Select Card   •   [SPACE] Play Cards   •   [A] Hero Ability   •   [U] Use Artifact   •   [Ctrl+C] Quit")
+
+	return footerStyle.Render(footer.String())
 }

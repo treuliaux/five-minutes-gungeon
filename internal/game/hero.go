@@ -21,10 +21,11 @@ const (
 )
 
 type Hero struct {
-	Color   DeckColor
-	Class   HeroClass
-	Name    string
-	Ability Ability
+	Color              DeckColor
+	Class              HeroClass
+	Name               string
+	Ability            Ability
+	AbilityDescription string
 }
 
 func NewHeroFromHeroClass(class HeroClass) (*Hero, error) {
@@ -79,109 +80,121 @@ func ColorFromHeroClass(class HeroClass) DeckColor {
 
 func NewSorceress() *Hero {
 	return &Hero{
-		Color:   Blue,
-		Class:   Sorceress,
-		Name:    "Sorceress",
-		Ability: TeleportAbility{},
+		Color:              Blue,
+		Class:              Sorceress,
+		Name:               "Sorceress",
+		Ability:            TeleportAbility{},
+		AbilityDescription: "Defeat an [Obstacle]",
 	}
 }
 
 func NewWizard() *Hero {
 	return &Hero{
-		Color:   Blue,
-		Class:   Wizard,
-		Name:    "Wizard",
-		Ability: StopTimeAbility{},
+		Color:              Blue,
+		Class:              Wizard,
+		Name:               "Wizard",
+		Ability:            StopTimeAbility{},
+		AbilityDescription: "Pause time until someone plays a card",
 	}
 }
 
 func NewHuntress() *Hero {
 	return &Hero{
-		Color:   Green,
-		Class:   Huntress,
-		Name:    "Huntress",
-		Ability: AnimalCompanionAbility{},
+		Color:              Green,
+		Class:              Huntress,
+		Name:               "Huntress",
+		Ability:            AnimalCompanionAbility{},
+		AbilityDescription: "Choose another player to draw 4 cards",
 	}
 }
 
 func NewRanger() *Hero {
 	return &Hero{
-		Color:   Green,
-		Class:   Ranger,
-		Name:    "Ranger",
-		Ability: TrickShotAbility{},
+		Color:              Green,
+		Class:              Ranger,
+		Name:               "Ranger",
+		Ability:            TrickShotAbility{},
+		AbilityDescription: "Defeat a [Person]",
 	}
 }
 
 func NewNinja() *Hero {
 	return &Hero{
-		Color:   Purple,
-		Class:   Ninja,
-		Name:    "Ninja",
-		Ability: VaultAbility{},
+		Color:              Purple,
+		Class:              Ninja,
+		Name:               "Ninja",
+		Ability:            VaultAbility{},
+		AbilityDescription: "Defeat an [Obstacle]",
 	}
 }
 
 func NewThief() *Hero {
 	return &Hero{
-		Color:   Purple,
-		Class:   Thief,
-		Name:    "Thief",
-		Ability: PickpocketAbility{},
+		Color:              Purple,
+		Class:              Thief,
+		Name:               "Thief",
+		Ability:            PickpocketAbility{},
+		AbilityDescription: "Draw 5 cards",
 	}
 }
 
 func NewPaladin() *Hero {
 	return &Hero{
-		Color:   Yellow,
-		Class:   Paladin,
-		Name:    "Paladin",
-		Ability: SmiteAbility{},
+		Color:              Yellow,
+		Class:              Paladin,
+		Name:               "Paladin",
+		Ability:            SmiteAbility{},
+		AbilityDescription: "Defeat a [Monster]",
 	}
 }
 
 func NewValkyrie() *Hero {
 	return &Hero{
-		Color:   Yellow,
-		Class:   Valkyrie,
-		Name:    "Valkyrie",
-		Ability: InspireAbility{},
+		Color:              Yellow,
+		Class:              Valkyrie,
+		Name:               "Valkyrie",
+		Ability:            InspireAbility{},
+		AbilityDescription: "Make everyone else draw 2 cards",
 	}
 }
 
 func NewBarbarian() *Hero {
 	return &Hero{
-		Color:   Red,
-		Class:   Barbarian,
-		Name:    "Barbarian",
-		Ability: SlayAbility{},
+		Color:              Red,
+		Class:              Barbarian,
+		Name:               "Barbarian",
+		Ability:            SlayAbility{},
+		AbilityDescription: "Defeat a [Monster]",
 	}
 }
 
 func NewGladiator() *Hero {
 	return &Hero{
-		Color:   Red,
-		Class:   Gladiator,
-		Name:    "Gladiator",
-		Ability: IntimidateAbility{},
+		Color:              Red,
+		Class:              Gladiator,
+		Name:               "Gladiator",
+		Ability:            IntimidateAbility{},
+		AbilityDescription: "Defeat a [Person]",
 	}
 }
 
 func NewDruid() *Hero {
 	return &Hero{
-		Color:   Black,
-		Class:   Druid,
-		Name:    "Druid",
-		Ability: ForestSpiritsAbility{},
+		Color:              Black,
+		Class:              Druid,
+		Name:               "Druid",
+		Ability:            ForestSpiritsAbility{},
+		AbilityDescription: "Move a [Curse] to the bottom of the [Dungeon Deck]",
 	}
 }
 
 func NewShaman() *Hero {
 	return &Hero{
-		Color:   Black,
-		Class:   Shaman,
-		Name:    "Shaman",
-		Ability: SpiritAnimalAbility{},
+		Color:              Black,
+		Class:              Shaman,
+		Name:               "Shaman",
+		Ability:            SpiritAnimalAbility{},
+		AbilityDescription: "Choose another player to draw 3 cards from the top of their [Discard Pile]",
 	}
 }
 

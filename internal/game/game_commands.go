@@ -321,7 +321,7 @@ func (g *Game) useHeroAbility(cmd UseHeroAbilityCmd) ([]Event, error) {
 		return nil, err
 	}
 
-	events = append(events, HeroAbilityUsedEvent{ByPlayerID: p.Id})
+	events = append(events, HeroAbilityUsedEvent{ByPlayer: PlayerToDTO(p)})
 	events = append(events, abilityEvents...)
 
 	cardDrawnEvents, err := g.RefillPlayerHand(p)
