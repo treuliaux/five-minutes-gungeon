@@ -38,8 +38,20 @@ var (
 )
 
 var (
+	setupHeaderStyle        = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Width(screenWidth).Margin(0, 0, 1, 0)
+	setupHeaderLastColStyle = lipgloss.NewStyle().Padding(0, 2).Width(42)
+	setupHeaderColStyle     = setupHeaderLastColStyle.Border(lipgloss.NormalBorder(), false, true, false, false)
+	setupRulesStyle         = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(1, 3).Width(screenWidth).Margin(0, 0, 1, 0)
+	setupSummaryStyle       = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(1, 3).Width(screenWidth)
+	easyDifficultyStyle     = lipgloss.NewStyle().Foreground(lipgloss.Cyan)
+	normalDifficultyStyle   = lipgloss.NewStyle().Foreground(lipgloss.Green)
+	hardDifficultyStyle     = lipgloss.NewStyle().Foreground(lipgloss.Red)
+	insaneDifficultyStyle   = hardDifficultyStyle.Bold(true).Blink(true)
+)
+
+var (
 	hudStyle        = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Width(screenWidth)
-	hudColStyle     = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, true, false, false).Padding(0, 2)
+	hudColStyle     = lipgloss.NewStyle().Border(lipgloss.NormalBorder(), false, true, false, false).Padding(0, 2).Height(2)
 	hudLastColStyle = lipgloss.NewStyle().Padding(0, 2)
 )
 
@@ -79,6 +91,18 @@ var (
 var (
 	doorStyle       = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width((screenWidth / 2) - 4).Height(3)
 	doorHeaderStyle = lipgloss.NewStyle().Bold(true)
+)
+
+var (
+	cursesStyle              = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(4)
+	cursesHeaderStyle        = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196"))
+	artifactsStyle           = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(4)
+	artifactsHeaderStyle     = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("220"))
+	pendingPromptStyle       = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(4)
+	pendingPromptHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("208"))
+	bannerBoxStyle           = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(1, 2).Width(screenWidth).Align(lipgloss.Center)
+	victoryTitleStyle        = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46"))
+	defeatTitleStyle         = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196"))
 )
 
 var (

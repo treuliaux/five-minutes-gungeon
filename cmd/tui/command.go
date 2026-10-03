@@ -30,6 +30,7 @@ func waitForEvent(events <-chan game.Event) tea.Cmd {
 	return func() tea.Msg {
 		ev, ok := <-events
 		if !ok {
+			// TODO: Handle session ended
 			return nil
 		}
 

@@ -72,19 +72,15 @@ func (m playModel) Update(msg tea.Msg) (playModel, tea.Cmd) {
 		return m, nil
 	}
 
-	m.currentPlayerHandRow = min(m.currentPlayerHandRow, ((len(m.currentPlayer().Hand)+4)/5)-1)
+	m.currentPlayerHandRow = max(0, min(m.currentPlayerHandRow, m.maxHandRows()-1))
 
 	var cmds []tea.Cmd
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		switch msg.String() {
 		case "up":
-			handSize := len(m.currentPlayer().Hand)
-			rowsIdx := (handSize + 4) / 5
-			m.currentPlayerHandRow = (m.currentPlayerHandRow - 1 + rowsIdx) % rowsIdx
+			m.currentPlayerHandRow = (m.currentPlayerHandRow - 1 + m.maxHandRows()) % m.maxHandRows()
 		case "down":
-			handSize := len(m.currentPlayer().Hand)
-			rowsIdx := (handSize + 4) / 5
-			m.currentPlayerHandRow = (m.currentPlayerHandRow + 1) % rowsIdx
+			m.currentPlayerHandRow = (m.currentPlayerHandRow + 1) % m.maxHandRows()
 		case "space":
 			cmd := m.playSelectedCards()
 			if cmd != nil {
@@ -96,21 +92,19 @@ func (m playModel) Update(msg tea.Msg) (playModel, tea.Cmd) {
 				cmds = append(cmds, cmd)
 			}
 		case "tab":
-			m.currentPlayerIdx = (m.currentPlayerIdx + 1) % len(m.snapshot.Players)
-			if m.currentPlayerIdx > len(m.snapshot.Players)-1 {
-				m.currentPlayerIdx = 0
+			if len(m.snapshot.Players) > 0 {
+				m.currentPlayerIdx = (m.currentPlayerIdx + 1) % len(m.snapshot.Players)
+				clear(m.selectedCards)
+				m.currentPlayerHandRow = 0
 			}
-			m.selectedCards = make(map[game.CardID]bool)
-			m.currentPlayerHandRow = 0
 		case "shift+tab":
-			m.currentPlayerIdx = (m.currentPlayerIdx - 1) % len(m.snapshot.Players)
-			if m.currentPlayerIdx < 0 {
-				m.currentPlayerIdx = len(m.snapshot.Players) - 1
+			if len(m.snapshot.Players) > 0 {
+				m.currentPlayerIdx = (m.currentPlayerIdx - 1 + len(m.snapshot.Players)) % len(m.snapshot.Players)
+				clear(m.selectedCards)
+				m.currentPlayerHandRow = 0
 			}
-			m.selectedCards = make(map[game.CardID]bool)
-			m.currentPlayerHandRow = 0
 		case "c":
-			m.selectedCards = make(map[game.CardID]bool)
+			clear(m.selectedCards)
 		case "1", "2", "3", "4", "5":
 			if idx, err := strconv.Atoi(msg.String()); err == nil {
 				m.toggleSelectCard(idx)
@@ -127,38 +121,131 @@ func (m playModel) View() string {
 	}
 
 	if m.snapshot.Status == game.Victory {
-		return "VICTORY!!"
+		return m.renderVictory()
 	}
 
 	if m.snapshot.Status == game.Defeat {
-		return "DEFEAT (noobs)"
+		return m.renderDefeat()
 	}
 
 	header := m.renderHeaderHUD()
 
-	doorsAndActionHistory := lipgloss.JoinHorizontal(
+	middleRow1 := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		m.renderOpenedDoors(),
-		lipgloss.JoinVertical(lipgloss.Left, m.renderPlayedHistory(), m.renderPlayfield()),
+		lipgloss.JoinVertical(lipgloss.Left, m.renderActiveCurses(), m.renderPlayedHistory(), m.renderPlayfield()),
 	)
 
-	//teamRow := lipgloss.JoinHorizontal(
-	//	lipgloss.Top,
-	//	m.renderArtifacts(),
-	//	m.renderPendingPrompt(),
-	//)
-	//
+	middleRow2 := lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		m.renderArtifacts(),
+		m.renderPendingPrompt(),
+	)
+
 	playerRow := m.renderPlayerDashboard()
 	footer := m.renderFooterKeybindings()
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		header,
-		doorsAndActionHistory,
-		//teamRow,
+		middleRow1,
+		middleRow2,
 		playerRow,
 		footer,
 	)
+}
+
+func (m playModel) renderVictory() string {
+	var s strings.Builder
+	s.WriteString(bannerBoxStyle.Render(victoryTitleStyle.Render("🏆 VICTORY ACHIEVED! The Gungeon has been conquered! 🏆\n\nAll dungeon doors cleared and boss defeated!")))
+	s.WriteString("\n\n" + footerStyle.Render("[ENTER] Return to Lobby  •  [Ctrl+C] Quit"))
+	return s.String()
+}
+
+func (m playModel) renderDefeat() string {
+	var s strings.Builder
+	s.WriteString(bannerBoxStyle.Render(defeatTitleStyle.Render("💀 DEFEAT - The Gungeon claimed your party! 💀\n\nTime expired or your team was overwhelmed.")))
+	s.WriteString("\n\n" + footerStyle.Render("[ENTER] Return to Lobby  •  [Ctrl+C] Quit"))
+	return s.String()
+}
+
+func (m playModel) renderActiveCurses() string {
+	var curses strings.Builder
+	if len(m.snapshot.ActiveCurses) == 0 {
+		curses.WriteString("(No active curses)\n")
+	} else {
+		for _, c := range m.snapshot.ActiveCurses {
+			curses.WriteString(fmt.Sprintf("☠ [%s]\n  %s\n", c.Name, c.Description))
+		}
+	}
+
+	var cursesBoxTitle strings.Builder
+	cursesBoxTitle.WriteString("┌── ACTIVE CURSES ")
+	cursesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(cursesBoxTitle.String()))) + "┐\n")
+
+	return cursesBoxTitle.String() + cursesStyle.Render(curses.String())
+}
+
+func (m playModel) renderArtifacts() string {
+	var artifacts strings.Builder
+	if len(m.snapshot.Artifacts) == 0 {
+		artifacts.WriteString("(No team artifacts)\n")
+	} else {
+		for _, a := range m.snapshot.Artifacts {
+			status := "[ READY ]"
+			if a.Used {
+				status = "[ USED  ]"
+			}
+			artifacts.WriteString(fmt.Sprintf("• [%s] %s  %s\n  \"%s\"\n", a.Color, a.Name, status, a.Description))
+		}
+	}
+
+	var artifactsBoxTitle strings.Builder
+	artifactsBoxTitle.WriteString("┌── TEAM ARTIFACTS ")
+	artifactsBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(artifactsBoxTitle.String()))) + "┐\n")
+
+	return artifactsBoxTitle.String() + artifactsStyle.Render(artifacts.String())
+}
+
+func (m playModel) renderPendingPrompt() string {
+	var prompt strings.Builder
+	if m.snapshot.PendingInteraction == nil {
+		prompt.WriteString("(No pending interaction / team prompt)\n")
+	} else {
+		pi := m.snapshot.PendingInteraction
+		prompt.WriteString(fmt.Sprintf("⚠ EVENT PROMPT: [%s]\n", interactionKindToString(pi.Kind)))
+		if len(pi.PendingPlayers) > 0 {
+			prompt.WriteString("Pending players: ")
+			for _, pID := range pi.PendingPlayers {
+				prompt.WriteString(fmt.Sprintf("[%s: WAITING] ", pID))
+			}
+			prompt.WriteString("\n")
+		}
+		prompt.WriteString("Action: Press [Space] to submit choice\n")
+	}
+
+	var promptBoxTitle strings.Builder
+	promptBoxTitle.WriteString("┌── PENDING TEAM PROMPTS / INTERACTIONS ")
+	promptBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(promptBoxTitle.String()))) + "┐\n")
+
+	return promptBoxTitle.String() + pendingPromptStyle.Render(prompt.String())
+}
+
+func interactionKindToString(kind game.InteractionKind) string {
+	switch kind {
+	case game.InteractionTeamChoicePlayer:
+		return "Team Choice: Select Player"
+	case game.InteractionTeamChoiceResource:
+		return "Team Choice: Select Resource"
+	case game.InteractionTeamChoiceArtifact:
+		return "Team Choice: Select Artifact"
+	case game.InteractionPlayerDiscardCards:
+		return "Player Action: Discard Cards"
+	case game.InteractionPlayerDonatesHand:
+		return "Player Action: Donate Hand"
+	default:
+		return "Team Prompt"
+	}
 }
 
 func (m playModel) renderHeaderHUD() string {
@@ -216,20 +303,20 @@ func (m playModel) renderPlayerDashboard() string {
 	var hudHeader strings.Builder
 	playerBoxTitle := fmt.Sprintf("┌── YOUR HERO: %s (%s) ", strings.ToUpper(player.HeroClass.String()), player.Name)
 	hudHeader.WriteString(playerHeaderStyle.Render(playerBoxTitle))
-	hudHeader.WriteString(strings.Repeat("─", 137-len(playerBoxTitle)) + "┐\n")
+	hudHeader.WriteString(strings.Repeat("─", max(0, 137-len(playerBoxTitle))) + "┐\n")
 
 	var hudCol1 strings.Builder
-	hudCol1.WriteString(fmt.Sprintf("Deck: [🂠 %d cards]", player.DeckCount))
+	hudCol1.WriteString(fmt.Sprintf("[Deck]\n 🂠 %d cards", player.DeckCount))
 
 	var hudCol2 strings.Builder
 	topDiscard := "None"
 	if len(player.Discard) > 0 {
 		topDiscard = player.Discard[len(player.Discard)-1].Name
 	}
-	hudCol2.WriteString(fmt.Sprintf("Discard: [🗑️ %d cards (Top: %s)]", len(player.Discard), topDiscard))
+	hudCol2.WriteString(fmt.Sprintf("[Discard]\n 🗑️ %d cards (Top: %s)", len(player.Discard), topDiscard))
 
 	var hudCol3 strings.Builder
-	hudCol3.WriteString(fmt.Sprintf("Ability: [%s] %s", player.AbilityName, player.AbilityDescription))
+	hudCol3.WriteString(fmt.Sprintf("[Ability] %s\n %s", player.AbilityName, player.AbilityDescription))
 
 	var hud strings.Builder
 	hud.WriteString(hudHeader.String())
@@ -242,8 +329,13 @@ func (m playModel) renderPlayerDashboard() string {
 	hud.WriteString("\n")
 
 	var playerHand strings.Builder
-	rowsCount := max((len(player.Hand)+4)/5, 1)
-	playerHand.WriteString(fmt.Sprintf("YOUR HAND (Row: %d/%d - Selected: %d - Total: %d):\n", m.currentPlayerHandRow+1, rowsCount, len(m.selectedCards), len(player.Hand)))
+	playerHand.WriteString(fmt.Sprintf(
+		"YOUR HAND (Row: %d/%d - Selected: %d - Total: %d):\n",
+		m.currentPlayerHandRow+1,
+		m.maxHandRows(),
+		len(m.selectedCards),
+		len(player.Hand),
+	))
 
 	start := m.currentPlayerHandRow * 5
 	end := min(start+5, len(player.Hand))
@@ -304,7 +396,7 @@ func (m playModel) renderOpenedDoors() string {
 
 	var openedDoorsBoxTitle strings.Builder
 	openedDoorsBoxTitle.WriteString("┌── ACTIVE OPENED DOORS ")
-	openedDoorsBoxTitle.WriteString(strings.Repeat("─", (screenWidth/2)+5-len(openedDoorsBoxTitle.String())) + "┐\n")
+	openedDoorsBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(openedDoorsBoxTitle.String()))) + "┐\n")
 
 	var openedDoorsBox strings.Builder
 	openedDoorsBox.WriteString(doors.String())
@@ -319,7 +411,7 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 	var doorHeader strings.Builder
 	doorBoxTitle := fmt.Sprintf("┌─ [DOOR %d] ", idx)
 	doorHeader.WriteString(doorHeaderStyle.Render(doorBoxTitle))
-	doorHeader.WriteString(strings.Repeat("─", (screenWidth/2)-1-len(doorBoxTitle)) + "┐\n")
+	doorHeader.WriteString(strings.Repeat("─", max(0, (screenWidth/2)-1-len(doorBoxTitle))) + "┐\n")
 
 	var doorBody strings.Builder
 	doorBody.WriteString(fmt.Sprintf("%s: %s\n", dungeonCardKindToString(door.Kind), door.Name))
@@ -357,6 +449,10 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 }
 
 func (m playModel) currentPlayer() game.PlayerDTO {
+	if len(m.snapshot.Players) == 0 || m.currentPlayerIdx >= len(m.snapshot.Players) {
+		return game.PlayerDTO{}
+	}
+
 	return m.snapshot.Players[m.currentPlayerIdx]
 }
 
@@ -411,7 +507,7 @@ func (m playModel) useHeroAbility() tea.Cmd {
 	}
 	cardIDs := make([]game.CardID, 3)
 	i := 0
-	for cID := range maps.Keys(m.selectedCards) {
+	for cID := range m.selectedCards {
 		cardIDs[i] = cID
 		i++
 	}
@@ -424,9 +520,7 @@ func (m playModel) useHeroAbility() tea.Cmd {
 	if err != nil {
 		return forwardError(err)
 	}
-	for cID := range maps.Keys(m.selectedCards) {
-		delete(m.selectedCards, cID)
-	}
+	clear(m.selectedCards)
 
 	return nil
 }
@@ -434,7 +528,7 @@ func (m playModel) useHeroAbility() tea.Cmd {
 func (m playModel) renderPlayedHistory() string {
 	var playedHistoryBoxTitle strings.Builder
 	playedHistoryBoxTitle.WriteString("┌── PLAYERS ACTIONS ")
-	playedHistoryBoxTitle.WriteString(strings.Repeat("─", (screenWidth/2)+5-len(playedHistoryBoxTitle.String())) + "┐\n")
+	playedHistoryBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(playedHistoryBoxTitle.String()))) + "┐\n")
 
 	var playedHistoryBox strings.Builder
 
@@ -481,7 +575,7 @@ func (m playModel) renderPlayedHistory() string {
 func (m playModel) renderPlayfield() string {
 	var playfieldBoxTitle strings.Builder
 	playfieldBoxTitle.WriteString("┌── PLAYFIELD ")
-	playfieldBoxTitle.WriteString(strings.Repeat("─", (screenWidth/2)+5-len(playfieldBoxTitle.String())) + "┐\n")
+	playfieldBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(playfieldBoxTitle.String()))) + "┐\n")
 
 	listResources := make(map[game.ResourceType]int)
 	listActions := make(map[string]int)
@@ -611,4 +705,12 @@ func (m playModel) renderFooterKeybindings() string {
 	footer.WriteString("[1-5] Select Card   •   [SPACE] Play Cards   •   [A] Hero Ability   •   [U] Use Artifact   •   [Ctrl+C] Quit")
 
 	return footerStyle.Render(footer.String())
+}
+
+func (m playModel) maxHandRows() int {
+	handLen := len(m.currentPlayer().Hand)
+	if handLen == 0 {
+		return 1
+	}
+	return (handLen + 4) / 5
 }

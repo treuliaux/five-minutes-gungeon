@@ -49,11 +49,13 @@ func (f changeHeroForm) Update(msg tea.Msg) (changeHeroForm, tea.Cmd) {
 			return f, nil
 
 		case "tab", "shift+tab":
-			if f.focusedField == focusedChangeHeroPlayer {
+			switch f.focusedField {
+			case focusedChangeHeroPlayer:
 				f.focusedField = focusedChangeHeroHero
-			} else {
-				f.focusedField = focusedChangeHeroHero
+			case focusedChangeHeroHero:
+				f.focusedField = focusedChangeHeroPlayer
 			}
+
 			return f, cmd
 
 		case "enter":

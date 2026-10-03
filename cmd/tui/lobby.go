@@ -53,13 +53,12 @@ type lobbyModel struct {
 }
 
 func newLobbyModel() lobbyModel {
-	lobbyActions := make([]LobbyAction, 3)
-	lobbyActions[0] = AddPlayerAction
-	lobbyActions[1] = StartGameAction
-	lobbyActions[2] = ChangeHeroAction
-
 	return lobbyModel{
-		lobbyActions:   lobbyActions,
+		lobbyActions: []LobbyAction{
+			AddPlayerAction,
+			StartGameAction,
+			ChangeHeroAction,
+		},
 		addPlayerForm:  newAddPlayerForm(),
 		changeHeroForm: newChangeHeroForm(nil),
 	}
@@ -193,7 +192,7 @@ func (m lobbyModel) View() string {
 			}
 			s.WriteString(fmt.Sprintf("%s %s\n", cursor, option))
 		}
-		s.WriteString("\n<Enter> Select Action  •  <q> Quit\n")
+		s.WriteString("\n[Enter] Select Action  •  [Ctrl+C] Quit\n")
 
 	case lobbyStateAddPlayer:
 		s.WriteString(m.addPlayerForm.View())

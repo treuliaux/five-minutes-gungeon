@@ -28,8 +28,6 @@ type Model struct {
 	lastReceivedSnapshots []timedEntry[game.GameSnapshot]
 	lastReceivedErrors    []timedEntry[error]
 	startTime             time.Time
-
-	error string
 }
 
 type timedEntry[T any] struct {
@@ -95,25 +93,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(askForSnapshot(m.controller), waitForEvent(m.controller.Events()))
 
 	case errMsg:
-		entry := timedEntry[error]{data: msg.err, receivedAt: time.Now().Sub(m.startTime), valid: true}
-		m.lastReceivedErrors = append(m.lastReceivedErrors[1:], entry)
+		// TODO: Display error to user
+		entry := timedEntry[error]{data: msg.err, receivedAt: time.Since(m.startTime), valid: true}
+		copy(m.lastReceivedErrors, m.lastReceivedErrors[1:])
+		m.lastReceivedErrors[len(m.lastReceivedErrors)-1] = entry
 
 		return m, nil
 
-	// Treat incoming event and wait for next one
+	// Treat incoming game event and wait for next one
 	case gameEventMsg:
 		if _, ok := msg.(game.TimerTickEvent); !ok {
-			entry := timedEntry[game.Event]{data: msg, receivedAt: time.Now().Sub(m.startTime), valid: true}
-			m.lastReceivedEvents = append(m.lastReceivedEvents[1:], entry)
+			entry := timedEntry[game.Event]{data: msg, receivedAt: time.Since(m.startTime), valid: true}
+			copy(m.lastReceivedEvents, m.lastReceivedEvents[1:])
+			m.lastReceivedEvents[len(m.lastReceivedEvents)-1] = entry
 		}
 		if _, ok := msg.(game.GameStartedEvent); ok {
 			m.step = Playing
 		}
 		if ev, ok := msg.(game.CardPlayedEvent); ok {
-			m.play.lastPlayerActions = append(m.play.lastPlayerActions[1:], PlayerActionEntry{CardPlayed: ev})
+			copy(m.play.lastPlayerActions, m.play.lastPlayerActions[1:])
+			m.play.lastPlayerActions[len(m.play.lastPlayerActions)-1] = PlayerActionEntry{CardPlayed: ev}
 		}
 		if ev, ok := msg.(game.HeroAbilityUsedEvent); ok {
-			m.play.lastPlayerActions = append(m.play.lastPlayerActions[1:], PlayerActionEntry{AbilityUsed: ev})
+			copy(m.play.lastPlayerActions, m.play.lastPlayerActions[1:])
+			m.play.lastPlayerActions[len(m.play.lastPlayerActions)-1] = PlayerActionEntry{AbilityUsed: ev}
 		}
 
 		cmds := []tea.Cmd{waitForEvent(m.controller.Events())}
@@ -140,8 +143,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(cmds...)
 
 	case snapshotMsg:
-		entry := timedEntry[game.GameSnapshot]{data: msg, receivedAt: time.Now().Sub(m.startTime), valid: true}
-		m.lastReceivedSnapshots = append(m.lastReceivedSnapshots[1:], entry)
+		entry := timedEntry[game.GameSnapshot]{data: msg, receivedAt: time.Since(m.startTime), valid: true}
+		copy(m.lastReceivedSnapshots, m.lastReceivedSnapshots[1:])
+		m.lastReceivedSnapshots[len(m.lastReceivedSnapshots)-1] = entry
 		switch m.step {
 		case Lobby:
 			snapshot, ok := msg.(game.GameSnapshotDTO)
@@ -196,5 +200,8 @@ func (m Model) View() tea.View {
 	var total strings.Builder
 	total.WriteString(lipgloss.JoinVertical(lipgloss.Left, debug.String(), screen.String()))
 
-	return tea.NewView(appStyle.Render(total.String()))
+	view := tea.NewView(appStyle.Render(total.String()))
+	view.AltScreen = true
+
+	return view
 }

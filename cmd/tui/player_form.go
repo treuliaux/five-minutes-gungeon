@@ -30,6 +30,9 @@ func (m selectPlayerModel) Update(msg tea.Msg) (selectPlayerModel, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "enter":
+			if len(m.choices) == 0 {
+				return m, nil
+			}
 			m.choice = m.choices[m.cursor]
 
 			return m, nil
