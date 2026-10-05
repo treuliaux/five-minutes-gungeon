@@ -361,7 +361,7 @@ func TestPlayCardUnfreezesTime(t *testing.T) {
 
 // --- Card Discarding & Player Healing Tests ---
 
-func TestDiscardCardSuccess(t *testing.T) {
+func TestDiscardCardFulfillsCurseDebt(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin, true)
 	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
 	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
@@ -372,6 +372,7 @@ func TestDiscardCardSuccess(t *testing.T) {
 		Players:    []*Player{paladin},
 		LevelState: newRoundState(Playing),
 	}
+	game.LevelState.CurseExpectingDiscards[paladin] = 1
 	registerCardsInTestGame(game)
 
 	events, err := game.Apply(DiscardCardsCmd{PlayerID: paladin.Id, CardIDs: []CardID{c1.ID()}})
@@ -396,23 +397,84 @@ func TestDiscardCardSuccess(t *testing.T) {
 	if discardEvt.ByPlayerID != paladin.Id || discardEvt.CardID != c1.ID() {
 		t.Errorf("mismatch in CardDiscardedEvent attributes")
 	}
+	if _, hasDebt := game.LevelState.CurseExpectingDiscards[paladin]; hasDebt {
+		t.Errorf("expected discard debt to be cleared")
+	}
 }
 
-func TestDiscardCardNotInHandRejected(t *testing.T) {
+func TestDiscardCardVoluntaryForbidden(t *testing.T) {
 	paladin, _ := NewPlayer("Paladin", Paladin, true)
-	cInHand := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
-	cNotInHand := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
-
-	paladin.Hand = []PlayerCard{cInHand}
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	paladin.Hand = []PlayerCard{c1}
 
 	game := &Game{
 		Players:    []*Player{paladin},
 		LevelState: newRoundState(Playing),
 	}
+	registerCardsInTestGame(game)
+
+	_, err := game.Apply(DiscardCardsCmd{PlayerID: paladin.Id, CardIDs: []CardID{c1.ID()}})
+	if !errors.Is(err, ErrVoluntaryDiscardForbidden) {
+		t.Fatalf("expected ErrVoluntaryDiscardForbidden, got %v", err)
+	}
+}
+
+func TestDiscardCardExcessiveDebtRejected(t *testing.T) {
+	paladin, _ := NewPlayer("Paladin", Paladin, true)
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	c2 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+	paladin.Hand = []PlayerCard{c1, c2}
+
+	game := &Game{
+		Players:    []*Player{paladin},
+		LevelState: newRoundState(Playing),
+	}
+	game.LevelState.CurseExpectingDiscards[paladin] = 1
+	registerCardsInTestGame(game)
+
+	_, err := game.Apply(DiscardCardsCmd{PlayerID: paladin.Id, CardIDs: []CardID{c1.ID(), c2.ID()}})
+	if !errors.Is(err, ErrExcessiveDiscard) {
+		t.Fatalf("expected ErrExcessiveDiscard, got %v", err)
+	}
+}
+
+func TestDiscardCardDuplicateCardsRejected(t *testing.T) {
+	paladin, _ := NewPlayer("Paladin", Paladin, true)
+	c1 := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	paladin.Hand = []PlayerCard{c1}
+
+	game := &Game{
+		Players:    []*Player{paladin},
+		LevelState: newRoundState(Playing),
+	}
+	game.LevelState.CurseExpectingDiscards[paladin] = 2
+	registerCardsInTestGame(game)
+
+	_, err := game.Apply(DiscardCardsCmd{PlayerID: paladin.Id, CardIDs: []CardID{c1.ID(), c1.ID()}})
+	if err == nil {
+		t.Fatal("expected error for duplicate cards in discard request, got nil")
+	}
+}
+
+func TestDiscardCardNotInHandRejected(t *testing.T) {
+	paladin, _ := NewPlayer("Paladin", Paladin, true)
+	ranger, _ := NewPlayer("Ranger", Ranger, true)
+	cInHand := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Sword}}
+	cNotInHand := &ResourceCard{Id: nextCardId(), Resources: []ResourceType{Shield}}
+
+	paladin.Hand = []PlayerCard{cInHand}
+	ranger.Hand = []PlayerCard{cNotInHand}
+
+	game := &Game{
+		Players:    []*Player{paladin, ranger},
+		LevelState: newRoundState(Playing),
+	}
+	game.LevelState.CurseExpectingDiscards[paladin] = 1
+	registerCardsInTestGame(game)
 
 	_, err := game.Apply(DiscardCardsCmd{PlayerID: paladin.Id, CardIDs: []CardID{cNotInHand.ID()}})
-	if err == nil {
-		t.Error("expected error when discarding card not in hand, got nil")
+	if !errors.Is(err, ErrCardNotInHand) {
+		t.Errorf("expected ErrCardNotInHand when discarding card not in hand, got %v", err)
 	}
 	if paladin.Discard.Length() != 0 {
 		t.Errorf("expected discard pile to be empty")
@@ -2367,9 +2429,10 @@ func TestPartialDiscardForcesCyclingAndAllowsRecovery(t *testing.T) {
 		HandSize:   5,
 		LevelState: newRoundState(Playing),
 	}
+	game.LevelState.CurseExpectingDiscards[p1] = 1
 	registerCardsInTestGame(game)
 
-	// Voluntary cycling via DiscardCardsCmd
+	// Discarding under active curse debt moves card to discard and refills hand
 	events, err := game.Apply(DiscardCardsCmd{
 		PlayerID: p1.Id,
 		CardIDs:  []CardID{swordCard.ID()},

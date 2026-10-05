@@ -621,7 +621,8 @@ func TestRunnerInvalidIDsErrorHandling(t *testing.T) {
 		t.Errorf("expected player not found error, got: %v", err)
 	}
 
-	// 2. Invalid card ID in DiscardCards
+	// 2. Invalid card ID in DiscardCards (under active discard debt)
+	game.LevelState.CurseExpectingDiscards[p1] = 1
 	err = runner.DiscardCards(ctx, p1.Id, []CardID{9999})
 	if !errors.Is(err, ErrCardNotFound) {
 		t.Errorf("expected card not found error, got: %v", err)

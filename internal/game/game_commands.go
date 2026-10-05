@@ -215,20 +215,40 @@ func (g *Game) discardCard(cmd DiscardCardsCmd) ([]Event, error) {
 	if g.LevelState.Status != Playing {
 		return nil, ErrGameNotPlaying
 	}
+	if g.LevelState.PendingInteraction != nil {
+		return nil, ErrPendingInteraction
+	}
 	p, err := g.PlayerByID(cmd.PlayerID)
 	if err != nil {
 		return nil, err
+	}
+	debt, ok := g.LevelState.CurseExpectingDiscards[p]
+	if !ok || debt <= 0 {
+		return nil, ErrVoluntaryDiscardForbidden
+	}
+	if len(cmd.CardIDs) == 0 {
+		return nil, fmt.Errorf("no cards provided to discard")
 	}
 	cards, err := g.PlayerCardsByIDs(cmd.CardIDs)
 	if err != nil {
 		return nil, err
 	}
-
-	if _, ok := g.LevelState.CurseExpectingDiscards[p]; ok {
-		g.LevelState.CurseExpectingDiscards[p] -= len(cards)
-		if g.LevelState.CurseExpectingDiscards[p] <= 0 {
-			delete(g.LevelState.CurseExpectingDiscards, p)
+	cards = uniqueCards(cards)
+	if len(cards) != len(cmd.CardIDs) {
+		return nil, fmt.Errorf("duplicate cards in discard request")
+	}
+	if len(cards) > debt {
+		return nil, ErrExcessiveDiscard
+	}
+	for _, card := range cards {
+		if !p.HasCardInHand(card) {
+			return nil, ErrCardNotInHand
 		}
+	}
+
+	g.LevelState.CurseExpectingDiscards[p] -= len(cards)
+	if g.LevelState.CurseExpectingDiscards[p] <= 0 {
+		delete(g.LevelState.CurseExpectingDiscards, p)
 	}
 
 	events, err := p.DiscardCards(cards)

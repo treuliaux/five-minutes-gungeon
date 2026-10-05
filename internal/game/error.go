@@ -21,6 +21,8 @@ var (
 	ErrClassAlreadyPicked        = errors.New("class already picked")
 	ErrPlayerAlreadyExists       = errors.New("player already exists")
 	ErrArtifactAlreadyUsed       = errors.New("artifact already used")
+	ErrVoluntaryDiscardForbidden = errors.New("voluntary discard is forbidden")
+	ErrExcessiveDiscard          = errors.New("cannot discard more cards than required")
 )
 
 type AmbiguousTargetError[T any] struct {
