@@ -8,7 +8,7 @@ import (
 	"github.com/treuliaux/five-minutes-gungeon/internal/game"
 )
 
-func startSession(cfg game.Config) tea.Cmd {
+func startSession(cfg game.Config, estimatedDifficulty uint8) tea.Cmd {
 	return func() tea.Msg {
 		ctx, cancel := context.WithCancel(context.Background())
 
@@ -19,9 +19,11 @@ func startSession(cfg game.Config) tea.Cmd {
 		}
 
 		return sessionStartedMsg{
-			controller: gameController,
-			ctx:        ctx,
-			cancel:     cancel,
+			controller:          gameController,
+			ctx:                 ctx,
+			cancel:              cancel,
+			config:              cfg,
+			estimatedDifficulty: estimatedDifficulty,
 		}
 	}
 }

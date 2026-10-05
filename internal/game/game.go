@@ -298,17 +298,25 @@ func (g *Game) resolveActiveEvents() ([]Event, error) {
 			}
 			return append(events, promptEvent), nil
 		}
-		// TODO: Ambush will fail as there's no room for the event + 2 doors
+		defeatDoorEvents, err := g.LevelState.Playfield.DefeatDoor(eventCard)
+		events = append(events, defeatDoorEvents...)
+		if err != nil {
+			return events, err
+		}
+
 		resolveEvents, err := g.LevelState.Playfield.ResolveEvent(ctx)
 		events = append(events, resolveEvents...)
 		if err != nil {
 			return events, err
 		}
 
-		defeatDoorEvents, err := g.DefeatDoor(eventCard)
-		events = append(events, defeatDoorEvents...)
-		if err != nil {
-			return events, err
+		if !g.LevelState.Playfield.HasDoorsOpened() {
+			events = append(events, g.clearField()...)
+			openDoorEvents, err := g.OpenDoor()
+			events = append(events, openDoorEvents...)
+			if err != nil {
+				return events, err
+			}
 		}
 	}
 

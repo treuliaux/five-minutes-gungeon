@@ -12,9 +12,11 @@ type errMsg struct{ err error }
 func (e errMsg) Error() string { return e.err.Error() }
 
 type sessionStartedMsg struct {
-	controller client.GameController
-	ctx        context.Context
-	cancel     context.CancelFunc
+	controller          client.GameController
+	ctx                 context.Context
+	cancel              context.CancelFunc
+	config              game.Config
+	estimatedDifficulty uint8
 }
 
 type gameEventMsg game.Event

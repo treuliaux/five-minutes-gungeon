@@ -84,8 +84,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.ctx = msg.ctx
 		m.cancel = msg.cancel
 		m.step = Lobby
+
 		m.lobby.controller = msg.controller
 		m.lobby.ctx = msg.ctx
+		m.lobby.config = msg.config
+		m.lobby.estimatedDifficulty = msg.estimatedDifficulty
+
 		m.play.controller = msg.controller
 		m.play.ctx = msg.ctx
 
@@ -102,23 +106,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Treat incoming game event and wait for next one
 	case gameEventMsg:
-		if _, ok := msg.(game.TimerTickEvent); !ok {
-			entry := timedEntry[game.Event]{data: msg, receivedAt: time.Since(m.startTime), valid: true}
-			copy(m.lastReceivedEvents, m.lastReceivedEvents[1:])
-			m.lastReceivedEvents[len(m.lastReceivedEvents)-1] = entry
-		}
+		m.handleDebugging(msg)
+
 		if _, ok := msg.(game.GameStartedEvent); ok {
 			m.step = Playing
+			m.play.Init()
 		}
-		if ev, ok := msg.(game.CardPlayedEvent); ok {
-			copy(m.play.lastPlayerActions, m.play.lastPlayerActions[1:])
-			m.play.lastPlayerActions[len(m.play.lastPlayerActions)-1] = PlayerActionEntry{CardPlayed: ev}
-		}
-		if ev, ok := msg.(game.HeroAbilityUsedEvent); ok {
-			copy(m.play.lastPlayerActions, m.play.lastPlayerActions[1:])
-			m.play.lastPlayerActions[len(m.play.lastPlayerActions)-1] = PlayerActionEntry{AbilityUsed: ev}
-		}
-
 		cmds := []tea.Cmd{waitForEvent(m.controller.Events())}
 
 		var cmd tea.Cmd
@@ -204,4 +197,20 @@ func (m Model) View() tea.View {
 	view.AltScreen = true
 
 	return view
+}
+
+func (m Model) handleDebugging(msg gameEventMsg) {
+	if _, ok := msg.(game.TimerTickEvent); !ok {
+		entry := timedEntry[game.Event]{data: msg, receivedAt: time.Since(m.startTime), valid: true}
+		copy(m.lastReceivedEvents, m.lastReceivedEvents[1:])
+		m.lastReceivedEvents[len(m.lastReceivedEvents)-1] = entry
+	}
+	if ev, ok := msg.(game.CardPlayedEvent); ok {
+		copy(m.play.lastPlayerActions, m.play.lastPlayerActions[1:])
+		m.play.lastPlayerActions[len(m.play.lastPlayerActions)-1] = PlayerActionEntry{CardPlayed: ev}
+	}
+	if ev, ok := msg.(game.HeroAbilityUsedEvent); ok {
+		copy(m.play.lastPlayerActions, m.play.lastPlayerActions[1:])
+		m.play.lastPlayerActions[len(m.play.lastPlayerActions)-1] = PlayerActionEntry{AbilityUsed: ev}
+	}
 }

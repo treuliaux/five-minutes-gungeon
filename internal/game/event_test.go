@@ -891,6 +891,69 @@ func TestEventResolutionCycle_ImmediateAutomaticEvent(t *testing.T) {
 	}
 }
 
+func TestEventResolutionCycle_AmbushEvent(t *testing.T) {
+	p1, _ := NewPlayer("P1", Paladin, true)
+	d1 := &DoorCard{Id: nextCardId(), Type: DoorMonster, Name: "Goblin", Resources: []ResourceType{Sword}}
+	d2 := &DoorCard{Id: nextCardId(), Type: DoorObstacle, Name: "Pit", Resources: []ResourceType{Jump}}
+
+	eventCard := &EventCard{Id: nextCardId(), Name: "Ambush!", Action: AmbushEvent{}}
+
+	round := newRoundState(Playing)
+	round.Dungeon = &Dungeon{
+		Boss:  &BossMat{Name: "Boss"},
+		Doors: []DungeonCard{d1, d2},
+	}
+	game := &Game{
+		Players:    []*Player{p1},
+		LevelState: round,
+		Config:     Config{EventReactionTime: 2},
+	}
+	_, _ = game.LevelState.Playfield.AddDungeonCard(eventCard, game)
+	registerCardsInTestGame(game)
+
+	// Ensure eventCard is currently occupying a door slot on playfield
+	if !game.LevelState.Playfield.HasActiveDoor(eventCard) {
+		t.Fatal("expected eventCard to be active on playfield before tick")
+	}
+
+	// Advance timer past reaction time to trigger resolution
+	game.LevelState.InGameTimer = 3 * time.Second
+	events, err := game.Tick(50 * time.Millisecond)
+	if err != nil {
+		t.Fatalf("tick after reaction time failed: %v", err)
+	}
+
+	// Ambush should be removed/defeated from playfield
+	if game.LevelState.Playfield.HasActiveDoor(eventCard) {
+		t.Error("expected Ambush! eventCard to be defeated and removed from playfield")
+	}
+
+	// Ambush opens 2 doors, so both d1 and d2 must now be active
+	if len(game.LevelState.Playfield.OpenedDoors) != 2 {
+		t.Fatalf("expected 2 opened doors on playfield, got %d", len(game.LevelState.Playfield.OpenedDoors))
+	}
+	if !game.LevelState.Playfield.HasActiveDoor(d1) || !game.LevelState.Playfield.HasActiveDoor(d2) {
+		t.Errorf("expected d1 and d2 to be active on playfield, got %v", game.LevelState.Playfield.OpenedDoors)
+	}
+
+	var doorDefeatedFound bool
+	var doorsOpenedCount int
+	for _, e := range events {
+		if de, ok := e.(DoorDefeatedEvent); ok && de.CardID == eventCard.Id {
+			doorDefeatedFound = true
+		}
+		if de, ok := e.(DoorOpenedEvent); ok && (de.CardID == d1.Id || de.CardID == d2.Id) {
+			doorsOpenedCount++
+		}
+	}
+	if !doorDefeatedFound {
+		t.Error("expected DoorDefeatedEvent for Ambush! event card")
+	}
+	if doorsOpenedCount != 2 {
+		t.Errorf("expected 2 DoorOpenedEvents for spawned doors, got %d", doorsOpenedCount)
+	}
+}
+
 func TestEventResolutionCycle_TeamChoicePlayerInteraction(t *testing.T) {
 	p1, _ := NewPlayer("P1", Paladin, true)
 	p2, _ := NewPlayer("P2", Ranger, true)

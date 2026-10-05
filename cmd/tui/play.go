@@ -67,6 +67,13 @@ func newPlayModel() playModel {
 	}
 }
 
+func (m playModel) Init() {
+	clear(m.lastPlayerActions)
+	clear(m.selectedCards)
+	m.currentPlayerIdx = 0
+	m.currentPlayerHandRow = 0
+}
+
 func (m playModel) Update(msg tea.Msg) (playModel, tea.Cmd) {
 	if m.snapshot.Status == game.Waiting {
 		return m, nil
@@ -181,7 +188,7 @@ func (m playModel) renderActiveCurses() string {
 
 	var cursesBoxTitle strings.Builder
 	cursesBoxTitle.WriteString("┌── ACTIVE CURSES ")
-	cursesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(cursesBoxTitle.String()))) + "┐\n")
+	cursesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len([]rune(cursesBoxTitle.String())))) + "┐\n")
 
 	return cursesBoxTitle.String() + cursesStyle.Render(curses.String())
 }
@@ -202,7 +209,7 @@ func (m playModel) renderArtifacts() string {
 
 	var artifactsBoxTitle strings.Builder
 	artifactsBoxTitle.WriteString("┌── TEAM ARTIFACTS ")
-	artifactsBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(artifactsBoxTitle.String()))) + "┐\n")
+	artifactsBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len([]rune(artifactsBoxTitle.String())))) + "┐\n")
 
 	return artifactsBoxTitle.String() + artifactsStyle.Render(artifacts.String())
 }
@@ -226,7 +233,7 @@ func (m playModel) renderPendingPrompt() string {
 
 	var promptBoxTitle strings.Builder
 	promptBoxTitle.WriteString("┌── PENDING TEAM PROMPTS / INTERACTIONS ")
-	promptBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(promptBoxTitle.String()))) + "┐\n")
+	promptBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len([]rune(promptBoxTitle.String())))) + "┐\n")
 
 	return promptBoxTitle.String() + pendingPromptStyle.Render(prompt.String())
 }
@@ -284,11 +291,11 @@ func (m playModel) renderHeaderHUD() string {
 	col3.WriteString(fmt.Sprintf("DOORS LEFT: [ %d ]\n", m.snapshot.RemainingDoorsCount))
 	col3.WriteString(fmt.Sprintf("TEAM CARDS IN PLAY: %d", len(m.snapshot.PlayedField)))
 
-	hud.WriteString(hudStyle.Render(lipgloss.JoinHorizontal(
+	hud.WriteString(playHudStyle.Render(lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		hudColStyle.Width(45).Render(col1.String()),
-		hudColStyle.Width(45).Render(col2.String()),
-		hudLastColStyle.Render(col3.String()),
+		playHudColStyle.Width(45).Render(col1.String()),
+		playHudColStyle.Width(45).Render(col2.String()),
+		playHudLastColStyle.Render(col3.String()),
 	)))
 
 	return hud.String()
@@ -303,7 +310,7 @@ func (m playModel) renderPlayerDashboard() string {
 	var hudHeader strings.Builder
 	playerBoxTitle := fmt.Sprintf("┌── YOUR HERO: %s (%s) ", strings.ToUpper(player.HeroClass.String()), player.Name)
 	hudHeader.WriteString(playerHeaderStyle.Render(playerBoxTitle))
-	hudHeader.WriteString(strings.Repeat("─", max(0, 137-len(playerBoxTitle))) + "┐\n")
+	hudHeader.WriteString(strings.Repeat("─", max(0, 137-len([]rune(playerBoxTitle)))) + "┐\n")
 
 	var hudCol1 strings.Builder
 	hudCol1.WriteString(fmt.Sprintf("[Deck]\n 🂠 %d cards", player.DeckCount))
@@ -322,9 +329,9 @@ func (m playModel) renderPlayerDashboard() string {
 	hud.WriteString(hudHeader.String())
 	hud.WriteString(playerHudStyle.Render(lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		hudColStyle.Width(23).Render(hudCol1.String()),
-		hudColStyle.Width(51).Render(hudCol2.String()),
-		hudLastColStyle.Render(hudCol3.String()),
+		playHudColStyle.Width(23).Render(hudCol1.String()),
+		playHudColStyle.Width(51).Render(hudCol2.String()),
+		playHudLastColStyle.Render(hudCol3.String()),
 	)))
 	hud.WriteString("\n")
 
@@ -411,7 +418,7 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 	var doorHeader strings.Builder
 	doorBoxTitle := fmt.Sprintf("┌─ [DOOR %d] ", idx)
 	doorHeader.WriteString(doorHeaderStyle.Render(doorBoxTitle))
-	doorHeader.WriteString(strings.Repeat("─", max(0, (screenWidth/2)-1-len(doorBoxTitle))) + "┐\n")
+	doorHeader.WriteString(strings.Repeat("─", max(0, (screenWidth/2)-1-len([]rune(doorBoxTitle)))) + "┐\n")
 
 	var doorBody strings.Builder
 	doorBody.WriteString(fmt.Sprintf("%s: %s\n", dungeonCardKindToString(door.Kind), door.Name))
@@ -528,7 +535,7 @@ func (m playModel) useHeroAbility() tea.Cmd {
 func (m playModel) renderPlayedHistory() string {
 	var playedHistoryBoxTitle strings.Builder
 	playedHistoryBoxTitle.WriteString("┌── PLAYERS ACTIONS ")
-	playedHistoryBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(playedHistoryBoxTitle.String()))) + "┐\n")
+	playedHistoryBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len([]rune(playedHistoryBoxTitle.String())))) + "┐\n")
 
 	var playedHistoryBox strings.Builder
 
@@ -575,7 +582,7 @@ func (m playModel) renderPlayedHistory() string {
 func (m playModel) renderPlayfield() string {
 	var playfieldBoxTitle strings.Builder
 	playfieldBoxTitle.WriteString("┌── PLAYFIELD ")
-	playfieldBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len(playfieldBoxTitle.String()))) + "┐\n")
+	playfieldBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)+5-len([]rune(playfieldBoxTitle.String())))) + "┐\n")
 
 	listResources := make(map[game.ResourceType]int)
 	listActions := make(map[string]int)
@@ -596,7 +603,7 @@ func (m playModel) renderPlayfield() string {
 	}
 
 	var box strings.Builder
-	box.WriteString(playfieldBoxTitle.String() + playfieldStyle.Render(playfieldBox.String()))
+	box.WriteString(playfieldBoxTitle.String() + playPlayfieldStyle.Render(playfieldBox.String()))
 
 	return box.String()
 }
@@ -620,35 +627,6 @@ func dungeonCardKindToString(kind game.DungeonCardKind) string {
 	}
 
 	return ""
-}
-
-func resourceTypeToIcon(rt game.ResourceType) string {
-	switch rt {
-	case game.Sword:
-		return "🗡️"
-	case game.Arrow:
-		return "🏹"
-	case game.Shield:
-		return "🛡️"
-	case game.Jump:
-		return "🦵"
-	case game.Scroll:
-		return "📜"
-	case game.WildCard:
-		return "⭐"
-	case game.InfiniteSword:
-		return "🗡️♾️"
-	case game.InfiniteArrow:
-		return "🏹♾️"
-	case game.InfiniteShield:
-		return "🛡️♾️"
-	case game.InfiniteJump:
-		return "🦵♾️"
-	case game.InfiniteScroll:
-		return "📜♾️"
-	default:
-		return ""
-	}
 }
 
 func (m playModel) dispatchResources() map[game.CardID][]game.ResourceType {

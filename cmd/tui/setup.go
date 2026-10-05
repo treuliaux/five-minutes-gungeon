@@ -18,10 +18,11 @@ const (
 )
 
 type setupModel struct {
-	cursorIdx       optionIdx
-	useExtension    bool
-	resetOnDefeat   bool
-	reactionTimeSec int
+	cursorIdx           optionIdx
+	useExtension        bool
+	resetOnDefeat       bool
+	reactionTimeSec     int
+	estimatedDifficulty uint8
 }
 
 func newSetupModel() setupModel {
@@ -36,6 +37,7 @@ func newSetupModel() setupModel {
 func (m setupModel) Update(msg tea.Msg) (setupModel, tea.Cmd) {
 	var cmds []tea.Cmd
 
+	m.estimatedDifficulty = m.estimateDifficulty()
 	if msg, ok := msg.(tea.KeyPressMsg); ok {
 		switch msg.String() {
 		case "up":
@@ -90,7 +92,7 @@ func (m setupModel) Update(msg tea.Msg) (setupModel, tea.Cmd) {
 			}
 
 		case "enter":
-			cmds = append(cmds, startSession(m.buildGameConfig()))
+			cmds = append(cmds, startSession(m.buildGameConfig(), m.estimatedDifficulty))
 		}
 	}
 
@@ -138,10 +140,9 @@ func (m setupModel) renderHeader() string {
 func (m setupModel) renderSetupRules() string {
 	var setupRulesBoxTitle strings.Builder
 	setupRulesBoxTitle.WriteString("┌── ⚙️ DUNGEON SESSION RULES ")
-	setupRulesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)+9-len(setupRulesBoxTitle.String()))) + "┐")
+	setupRulesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-len([]rune(setupRulesBoxTitle.String()))-1)) + "┐")
 
 	var setupRulesBox strings.Builder
-
 	setupRulesBox.WriteString("[1] Extension Cards, Classes, & Advanced Bosses\n")
 	pointer := "   "
 	enabledIcon := "✅"
@@ -188,32 +189,9 @@ func (m setupModel) renderSetupRules() string {
 func (m setupModel) renderSessionSummary() string {
 	var setupSummaryBoxTitle strings.Builder
 	setupSummaryBoxTitle.WriteString("┌── 🛠️ DUNGEON SUMMARY ")
-	setupSummaryBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)+10-len(setupSummaryBoxTitle.String()))) + "┐")
+	setupSummaryBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-len([]rune(setupSummaryBoxTitle.String()))-1)) + "┐")
 
-	estimatedDifficulty := 0
-	if m.resetOnDefeat {
-		estimatedDifficulty++
-	}
-	if m.useExtension {
-		estimatedDifficulty += 2
-	}
-	if m.reactionTimeSec <= 3 {
-		estimatedDifficulty += 2
-	} else if m.reactionTimeSec < 10 {
-		estimatedDifficulty++
-	}
-
-	difficultyText := ""
-	switch estimatedDifficulty {
-	case 0:
-		difficultyText = easyDifficultyStyle.Render("EASY")
-	case 1, 2:
-		difficultyText = normalDifficultyStyle.Render("NORMAL")
-	case 3, 4:
-		difficultyText = hardDifficultyStyle.Render("HARD")
-	case 5:
-		difficultyText = insaneDifficultyStyle.Render("INSANE")
-	}
+	difficultyText := styleDifficulty(m.estimateDifficulty())
 
 	maxNbPlayers := 5
 	if m.useExtension {
@@ -240,6 +218,23 @@ func (m setupModel) renderSessionSummary() string {
 		setupSummaryBoxTitle.String(),
 		setupSummaryStyle.Render(setupSummaryBox.String()),
 	)
+}
+
+func (m setupModel) estimateDifficulty() uint8 {
+	var estimatedDifficulty uint8
+	if m.resetOnDefeat {
+		estimatedDifficulty++
+	}
+	if m.useExtension {
+		estimatedDifficulty += 2
+	}
+	if m.reactionTimeSec <= 3 {
+		estimatedDifficulty += 2
+	} else if m.reactionTimeSec < 10 {
+		estimatedDifficulty++
+	}
+
+	return estimatedDifficulty
 }
 
 func (m setupModel) renderFooter() string {
