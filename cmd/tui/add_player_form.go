@@ -22,7 +22,7 @@ type addPlayerForm struct {
 	Canceled     bool
 }
 
-func newAddPlayerForm() addPlayerForm {
+func newAddPlayerForm(useExtension bool) addPlayerForm {
 	ti := textinput.New()
 	ti.Placeholder = "Player name"
 	ti.Focus()
@@ -31,7 +31,7 @@ func newAddPlayerForm() addPlayerForm {
 
 	return addPlayerForm{
 		nameInput:    ti,
-		heroInput:    newSelectHeroModel(),
+		heroInput:    newSelectHeroModel(useExtension),
 		focusedField: focusedAddPlayerName,
 	}
 }

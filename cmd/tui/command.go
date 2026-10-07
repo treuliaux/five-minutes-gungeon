@@ -56,3 +56,9 @@ func forwardError(err error) tea.Cmd {
 		return errMsg{err: err}
 	}
 }
+
+func backToLobby() tea.Cmd {
+	return func() tea.Msg {
+		return backToLobbyMsg{}
+	}
+}

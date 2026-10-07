@@ -92,9 +92,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.play.controller = msg.controller
 		m.play.ctx = msg.ctx
+		m.play.config = msg.config
 
 		// Wait for first event
 		return m, tea.Batch(askForSnapshot(m.controller), waitForEvent(m.controller.Events()))
+
+	case backToLobbyMsg:
+		m.step = Lobby
+		return m, askForSnapshot(m.controller)
 
 	case errMsg:
 		// TODO: Display error to user
@@ -110,7 +115,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if _, ok := msg.(game.GameStartedEvent); ok {
 			m.step = Playing
-			m.play.Init()
+			m.play = m.play.Init()
 		}
 		cmds := []tea.Cmd{waitForEvent(m.controller.Events())}
 

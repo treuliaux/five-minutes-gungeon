@@ -22,10 +22,10 @@ type changeHeroForm struct {
 	Canceled     bool
 }
 
-func newChangeHeroForm(players []game.PlayerID) changeHeroForm {
+func newChangeHeroForm(players []game.PlayerID, useExtension bool) changeHeroForm {
 	return changeHeroForm{
 		playerInput:  newSelectPlayerModel(players),
-		heroInput:    newSelectHeroModel(),
+		heroInput:    newSelectHeroModel(useExtension),
 		focusedField: focusedChangeHeroPlayer,
 	}
 }

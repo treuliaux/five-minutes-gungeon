@@ -46,7 +46,6 @@ type lobbyModel struct {
 	state               lobbyState
 	cursorIdx           LobbyAction
 	estimatedDifficulty uint8
-	config              game.Config
 
 	addPlayerForm  addPlayerForm
 	changeHeroForm changeHeroForm
@@ -54,12 +53,13 @@ type lobbyModel struct {
 	controller client.GameController
 	ctx        context.Context
 	snapshot   game.GameSnapshotDTO
+	config     game.Config
 }
 
 func newLobbyModel() lobbyModel {
 	return lobbyModel{
-		addPlayerForm:  newAddPlayerForm(),
-		changeHeroForm: newChangeHeroForm(nil),
+		addPlayerForm:  newAddPlayerForm(false),
+		changeHeroForm: newChangeHeroForm(nil, false),
 	}
 }
 
@@ -123,7 +123,7 @@ func (m lobbyModel) triggerCommand() (lobbyModel, tea.Cmd) {
 		}
 	case AddPlayerAction:
 		m.state = lobbyStateAddPlayer
-		m.addPlayerForm = newAddPlayerForm()
+		m.addPlayerForm = newAddPlayerForm(m.config.UseExtension)
 
 		return m, m.addPlayerForm.nameInput.Focus()
 	case ChangeHeroAction:
@@ -136,7 +136,7 @@ func (m lobbyModel) triggerCommand() (lobbyModel, tea.Cmd) {
 		}
 
 		m.state = lobbyStateChangeHero
-		m.changeHeroForm = newChangeHeroForm(playerIDs)
+		m.changeHeroForm = newChangeHeroForm(playerIDs, m.config.UseExtension)
 
 		return m, nil
 	}
@@ -150,7 +150,7 @@ func (m lobbyModel) updateAddPlayerForm(msg tea.Msg) (lobbyModel, tea.Cmd) {
 	m.addPlayerForm, cmd = m.addPlayerForm.Update(msg)
 	if m.addPlayerForm.Canceled {
 		m.state = lobbyStateMenu
-		m.addPlayerForm = newAddPlayerForm()
+		m.addPlayerForm = newAddPlayerForm(m.config.UseExtension)
 
 		return m, nil
 	}
@@ -160,7 +160,7 @@ func (m lobbyModel) updateAddPlayerForm(msg tea.Msg) (lobbyModel, tea.Cmd) {
 		if err := m.controller.Dispatch(m.ctx, addCmd); err != nil {
 			return m, forwardError(err)
 		}
-		m.addPlayerForm = newAddPlayerForm()
+		m.addPlayerForm = newAddPlayerForm(m.config.UseExtension)
 
 		return m, nil
 	}
@@ -292,7 +292,7 @@ func (m lobbyModel) renderPlayersTable() string {
 
 	var lobbyPlayersBoxTitle strings.Builder
 	lobbyPlayersBoxTitle.WriteString("┌── 🛡️ ADVENTURING PARTY ROSTER ")
-	lobbyPlayersBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-len([]rune(lobbyPlayersBoxTitle.String()))-1)) + "┐")
+	lobbyPlayersBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-lipgloss.Width(lobbyPlayersBoxTitle.String())-1)) + "┐")
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		lobbyPlayersBoxTitle.String(),
@@ -303,7 +303,7 @@ func (m lobbyModel) renderPlayersTable() string {
 func (m lobbyModel) renderCommands() string {
 	var lobbyCommandsBoxTitle strings.Builder
 	lobbyCommandsBoxTitle.WriteString("┌── LOBBY COMMAND CENTER ")
-	lobbyCommandsBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2-1)-len([]rune(lobbyCommandsBoxTitle.String()))-1)) + "┐")
+	lobbyCommandsBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2-1)-lipgloss.Width(lobbyCommandsBoxTitle.String())-1)) + "┐")
 
 	var lobbyCommandsBox strings.Builder
 	pointer := "  "
@@ -333,7 +333,7 @@ func (m lobbyModel) renderCommands() string {
 func (m lobbyModel) renderBriefing() string {
 	var lobbyBriefingBoxTitle strings.Builder
 	lobbyBriefingBoxTitle.WriteString("┌── EXPEDITION BRIEFING & HINTS ")
-	lobbyBriefingBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2-1)-len([]rune(lobbyBriefingBoxTitle.String()))-1)) + "┐")
+	lobbyBriefingBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2-1)-lipgloss.Width(lobbyBriefingBoxTitle.String())-1)) + "┐")
 
 	var lobbyBriefingBox strings.Builder
 	lobbyBriefingBox.WriteString("📌 Quick Rules:\n")

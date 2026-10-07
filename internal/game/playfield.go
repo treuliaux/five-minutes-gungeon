@@ -273,39 +273,39 @@ func (p *Playfield) SetupArtifacts(deckColors []DeckColor) {
 func Artifacts() []*ArtifactCard {
 	return []*ArtifactCard{
 		{
-			Id:     ArtifactID(1),
+			Id:     RainbowHerbsID,
 			Color:  Green,
 			Name:   "Rainbow Herbs",
 			Action: &RainbowHerbsArtifact{},
 		},
 		{
-			Id:     ArtifactID(2),
+			Id:     MJhoilnorID,
 			Color:  Yellow,
 			Name:   "M-jh'öilnør",
 			Action: &MJhoilnorArtifact{},
 		},
 		{
-			Id:     ArtifactID(3),
+			Id:     SundialWatchID,
 			Color:  Purple,
 			Name:   "Sundial Watch",
 			Action: &SundialWatchArtifact{},
 		},
 		{
-			Id:          ArtifactID(4),
+			Id:          BattleAxeID,
 			Color:       Red,
 			Name:        "Battle Axe",
 			Action:      &BattleAxeArtifact{},
 			MultiAction: true,
 		},
 		{
-			Id:          ArtifactID(5),
+			Id:          TheInfinityScrollID,
 			Color:       Blue,
 			Name:        "The Infinity Scroll",
 			Action:      &TheInfinityScrollArtifact{},
 			MultiAction: true,
 		},
 		{
-			Id:     ArtifactID(6),
+			Id:     CurseZapperID,
 			Color:  Black,
 			Name:   "Curse Zapper",
 			Action: &CurseZapperArtifact{},

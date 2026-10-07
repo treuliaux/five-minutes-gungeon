@@ -3,6 +3,16 @@ package game
 import "time"
 
 type ArtifactID uint64
+
+const (
+	RainbowHerbsID      ArtifactID = 1
+	MJhoilnorID         ArtifactID = 2
+	SundialWatchID      ArtifactID = 3
+	BattleAxeID         ArtifactID = 4
+	TheInfinityScrollID ArtifactID = 5
+	CurseZapperID       ArtifactID = 6
+)
+
 type CardID uint64
 type IdentifiableCard interface {
 	ID() CardID

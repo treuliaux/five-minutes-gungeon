@@ -22,3 +22,5 @@ type sessionStartedMsg struct {
 type gameEventMsg game.Event
 
 type snapshotMsg game.GameSnapshot
+
+type backToLobbyMsg struct{}

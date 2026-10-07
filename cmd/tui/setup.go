@@ -140,7 +140,7 @@ func (m setupModel) renderHeader() string {
 func (m setupModel) renderSetupRules() string {
 	var setupRulesBoxTitle strings.Builder
 	setupRulesBoxTitle.WriteString("┌── ⚙️ DUNGEON SESSION RULES ")
-	setupRulesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-len([]rune(setupRulesBoxTitle.String()))-1)) + "┐")
+	setupRulesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-lipgloss.Width(setupRulesBoxTitle.String())-1)) + "┐")
 
 	var setupRulesBox strings.Builder
 	setupRulesBox.WriteString("[1] Extension Cards, Classes, & Advanced Bosses\n")
@@ -189,7 +189,7 @@ func (m setupModel) renderSetupRules() string {
 func (m setupModel) renderSessionSummary() string {
 	var setupSummaryBoxTitle strings.Builder
 	setupSummaryBoxTitle.WriteString("┌── 🛠️ DUNGEON SUMMARY ")
-	setupSummaryBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-len([]rune(setupSummaryBoxTitle.String()))-1)) + "┐")
+	setupSummaryBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-lipgloss.Width(setupSummaryBoxTitle.String())-1)) + "┐")
 
 	difficultyText := styleDifficulty(m.estimateDifficulty())
 

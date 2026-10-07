@@ -67,9 +67,9 @@ var (
 
 	playPlayfieldStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(1)
 
-	openedDoorsStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(11)
-	doorHeaderStyle  = lipgloss.NewStyle().Bold(true)
-	doorStyle        = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width((screenWidth / 2) - 4).Height(3)
+	openedDoorsStyle  = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(11)
+	doorStyle         = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width((screenWidth / 2) - 4).Height(3)
+	selectedDoorStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width((screenWidth / 2) - 4).Height(3).BorderForeground(lipgloss.Cyan)
 
 	playedHistoryStyle = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(8)
 
@@ -100,8 +100,9 @@ var (
 	artifactsStyle       = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(4)
 	artifactsHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("220"))
 
-	pendingPromptStyle       = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(4)
+	pendingPromptStyle       = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderTop(false).Padding(0, 1).Width(screenWidth / 2).Height(7)
 	pendingPromptHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("208"))
+	promptModalStyle         = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).BorderForeground(lipgloss.Color("208")).Padding(1, 2).Width(70)
 
 	bannerBoxStyle    = lipgloss.NewStyle().Border(lipgloss.NormalBorder()).Padding(1, 2).Width(screenWidth).Align(lipgloss.Center)
 	victoryTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("46"))

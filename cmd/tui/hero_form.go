@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -13,10 +14,22 @@ type selectHeroModel struct {
 	choices []game.HeroClass
 }
 
-func newSelectHeroModel() selectHeroModel {
+func newSelectHeroModel(useExtension bool) selectHeroModel {
+	choices := game.HeroClassValues()
+	if !useExtension {
+		choices = slices.DeleteFunc(slices.Clone(choices), func(c game.HeroClass) bool {
+			return c == game.Druid || c == game.Shaman
+		})
+	}
+
+	var firstChoice game.HeroClass
+	if len(choices) > 0 {
+		firstChoice = choices[0]
+	}
+
 	return selectHeroModel{
-		choices: game.HeroClassValues(),
-		choice:  game.HeroClassValues()[0],
+		choices: choices,
+		choice:  firstChoice,
 	}
 }
 
