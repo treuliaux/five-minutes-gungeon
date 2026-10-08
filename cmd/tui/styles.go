@@ -2,7 +2,6 @@ package main
 
 import (
 	"charm.land/lipgloss/v2"
-	"github.com/treuliaux/five-minutes-gungeon/internal/game"
 )
 
 const screenWidth = 132
@@ -112,35 +111,6 @@ var (
 var (
 	footerStyle = helpStyle
 )
-
-func resourceTypeToIcon(rt game.ResourceType) string {
-	switch rt {
-	case game.Sword:
-		return "🗡️"
-	case game.Arrow:
-		return "🏹"
-	case game.Shield:
-		return "🛡️"
-	case game.Jump:
-		return "🦵"
-	case game.Scroll:
-		return "📜"
-	case game.WildCard:
-		return "⭐"
-	case game.InfiniteSword:
-		return "🗡️♾️"
-	case game.InfiniteArrow:
-		return "🏹♾️"
-	case game.InfiniteShield:
-		return "🛡️♾️"
-	case game.InfiniteJump:
-		return "🦵♾️"
-	case game.InfiniteScroll:
-		return "📜♾️"
-	default:
-		return ""
-	}
-}
 
 func styleDifficulty(estimatedDifficulty uint8) string {
 	difficultyText := ""

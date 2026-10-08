@@ -28,6 +28,7 @@ type Model struct {
 	lastReceivedSnapshots []timedEntry[game.GameSnapshot]
 	lastReceivedErrors    []timedEntry[error]
 	startTime             time.Time
+	showDebug             bool
 }
 
 type timedEntry[T any] struct {
@@ -44,7 +45,7 @@ const (
 	Playing
 )
 
-func NewModel() Model {
+func NewModel(showDebug bool) Model {
 	s := spinner.New()
 	s.Style = spinnerStyle
 
@@ -57,6 +58,7 @@ func NewModel() Model {
 		lastReceivedSnapshots: make([]timedEntry[game.GameSnapshot], 5),
 		lastReceivedErrors:    make([]timedEntry[error], 5),
 		startTime:             time.Now(),
+		showDebug:             showDebug,
 	}
 }
 
@@ -181,8 +183,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) View() tea.View {
-	debug := m.debugView()
-
 	var screen strings.Builder
 	switch m.step {
 	case Setup:
@@ -196,7 +196,12 @@ func (m Model) View() tea.View {
 	}
 
 	var total strings.Builder
-	total.WriteString(lipgloss.JoinVertical(lipgloss.Left, debug.String(), screen.String()))
+	if m.showDebug {
+		debug := m.debugView()
+		total.WriteString(lipgloss.JoinVertical(lipgloss.Left, debug.String(), screen.String()))
+	} else {
+		total.WriteString(screen.String())
+	}
 
 	view := tea.NewView(appStyle.Render(total.String()))
 	view.AltScreen = true

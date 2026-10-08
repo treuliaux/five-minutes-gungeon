@@ -258,7 +258,7 @@ func (m lobbyModel) renderPlayersTable() string {
 			continue
 		}
 		p := m.snapshot.Players[i]
-		rows = append(rows, []string{strconv.Itoa(i + 1), p.Name, p.HeroName, p.AbilityDescription, heroToDeckType(p.HeroClass), "READY ✅"})
+		rows = append(rows, []string{strconv.Itoa(i + 1), p.Name, p.HeroName, p.AbilityDescription, heroToDeckType(p.HeroClass), "READY " + icon(iconEnabled)})
 	}
 
 	t := table.New().
@@ -291,7 +291,7 @@ func (m lobbyModel) renderPlayersTable() string {
 		Width(screenWidth - 2)
 
 	var lobbyPlayersBoxTitle strings.Builder
-	lobbyPlayersBoxTitle.WriteString("┌── 🛡️ ADVENTURING PARTY ROSTER ")
+	lobbyPlayersBoxTitle.WriteString("┌── " + icon(iconRoster) + " ADVENTURING PARTY ROSTER ")
 	lobbyPlayersBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth)-lipgloss.Width(lobbyPlayersBoxTitle.String())-1)) + "┐")
 
 	return lipgloss.JoinVertical(lipgloss.Left,
@@ -336,12 +336,12 @@ func (m lobbyModel) renderBriefing() string {
 	lobbyBriefingBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2-1)-lipgloss.Width(lobbyBriefingBoxTitle.String())-1)) + "┐")
 
 	var lobbyBriefingBox strings.Builder
-	lobbyBriefingBox.WriteString("📌 Quick Rules:\n")
+	lobbyBriefingBox.WriteString(icon(iconPin) + " Quick Rules:\n")
 	lobbyBriefingBox.WriteString("• Work in real-time to match door requirements\n")
 	lobbyBriefingBox.WriteString("• Hero abilities cost 3 discarded cards to trigger\n")
 	lobbyBriefingBox.WriteString(fmt.Sprintf("• You have %ds to react to an event\n", m.config.EventReactionTime))
 	lobbyBriefingBox.WriteString("• Communicate to beat the boss before the time runs out!\n\n")
-	lobbyBriefingBox.WriteString("💡 Tip: Played card are permanently lost!")
+	lobbyBriefingBox.WriteString(icon(iconTip) + " Tip: Played card are permanently lost!")
 
 	return lipgloss.JoinVertical(lipgloss.Left,
 		lobbyBriefingBoxTitle.String(),

@@ -145,13 +145,13 @@ func (m setupModel) renderSetupRules() string {
 	var setupRulesBox strings.Builder
 	setupRulesBox.WriteString("[1] Extension Cards, Classes, & Advanced Bosses\n")
 	pointer := "   "
-	enabledIcon := "✅"
+	enabledIcon := icon(iconEnabled)
 	enabledText := "ENABLED "
 	if m.cursorIdx == UseExtension {
 		pointer = " ► "
 	}
 	if m.useExtension == false {
-		enabledIcon = "❌"
+		enabledIcon = icon(iconDisabled)
 		enabledText = "DISABLED"
 	}
 	setupRulesBox.WriteString(fmt.Sprintf("%s [ %s %s ]\n", pointer, enabledIcon, enabledText))
@@ -159,13 +159,13 @@ func (m setupModel) renderSetupRules() string {
 
 	setupRulesBox.WriteString("[2] Reset Level Progress on Defeat\n")
 	pointer = "   "
-	enabledIcon = "✅"
+	enabledIcon = icon(iconEnabled)
 	enabledText = "ENABLED "
 	if m.cursorIdx == ResetLevelOnDefeat {
 		pointer = " ► "
 	}
 	if m.resetOnDefeat == false {
-		enabledIcon = "❌"
+		enabledIcon = icon(iconDisabled)
 		enabledText = "DISABLED"
 	}
 	setupRulesBox.WriteString(fmt.Sprintf("%s [ %s %s ]\n", pointer, enabledIcon, enabledText))
@@ -197,10 +197,10 @@ func (m setupModel) renderSessionSummary() string {
 	if m.useExtension {
 		maxNbPlayers = 6
 	}
-	enabledIcon := "✅"
+	enabledIcon := icon(iconEnabled)
 	enabledText := "ENABLED"
 	if m.useExtension == false {
-		enabledIcon = "❌"
+		enabledIcon = icon(iconDisabled)
 		enabledText = "DISABLED"
 	}
 	enabled := fmt.Sprintf("[ %s %s ]", enabledIcon, enabledText)

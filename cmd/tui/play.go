@@ -66,8 +66,8 @@ type targetingState struct {
 type PlayerSwitch int8
 
 const (
-	NextPlayer     = 1
-	PreviousPlayer = -1
+	NextPlayer     PlayerSwitch = 1
+	PreviousPlayer PlayerSwitch = -1
 )
 
 type playModel struct {
@@ -102,8 +102,8 @@ func newPlayModel() playModel {
 }
 
 func (m playModel) Init() playModel {
-	clear(m.lastPlayerActions)
-	clear(m.selectedCards)
+	m.lastPlayerActions = make([]PlayerActionEntry, len(m.lastPlayerActions))
+	m.selectedCards = make(map[game.CardID]bool)
 	m.currentPlayerIdx = 0
 	m.currentPlayerHandRow = 0
 	m.targeting = targetingState{}
@@ -172,45 +172,13 @@ func (m playModel) updatePendingInteraction(key tea.KeyPressMsg) (playModel, tea
 	return m.updateActivePrompt(key)
 }
 
-func (m playModel) updateActivePrompt(key tea.KeyPressMsg) (playModel, tea.Cmd) {
-	switch key.String() {
-	case "esc":
-		m.dismissedPrompt = true
-
-		return m, nil
-
-	case "1", "2", "3", "4", "5":
-		idx, _ := strconv.Atoi(key.String())
-		if m.snapshot.PendingInteraction.Kind == game.InteractionPlayerDiscardCards {
-			return m.toggleSelectCard(idx), nil
-		}
-		m.promptChoiceIdx = idx - 1
-
-		return m, nil
-
-	case "space", "enter":
-		m.dismissedPrompt = true
-
-		return m.submitPromptChoice()
-	}
-
-	return m, nil
-}
-
-func (m playModel) updateDismissedPrompt(key tea.KeyPressMsg) (playModel, tea.Cmd) {
-	switch key.String() {
-	case "space", "a", "d", "u", "enter", "1", "2", "3", "4", "5":
-		m.dismissedPrompt = false
-
-		return m, nil
-
-	default:
-		return m.updatePlaying(key)
-	}
-}
-
 func (m playModel) updateDoorTargeting(key tea.KeyPressMsg) (playModel, tea.Cmd) {
 	targetList := m.snapshot.OpenedDoors
+	if len(targetList) == 0 {
+		m.targeting = targetingState{}
+
+		return m, nil
+	}
 
 	switch key.String() {
 	case "esc":
@@ -256,6 +224,11 @@ func (m playModel) updateDoorTargeting(key tea.KeyPressMsg) (playModel, tea.Cmd)
 
 func (m playModel) updatePlayerTargeting(key tea.KeyPressMsg) (playModel, tea.Cmd) {
 	targetList := m.snapshot.Players
+	if len(targetList) == 0 {
+		m.targeting = targetingState{}
+
+		return m, nil
+	}
 
 	switch key.String() {
 	case "esc":
@@ -444,7 +417,7 @@ func (m playModel) renderHeaderHUD() string {
 	timeRemainingString := fmt.Sprintf("%d:%02d:%02d", minutes, seconds, milliseconds/10)
 	switch {
 	case m.snapshot.IsTimeFrozen:
-		timer.WriteString(timerFrozenStyle.Render(fmt.Sprintf("[ %s ] ❄  FROZEN", timeRemainingString)))
+		timer.WriteString(timerFrozenStyle.Render(fmt.Sprintf("[ %s ] %s FROZEN", timeRemainingString, icon(iconFrozen))))
 	case int(m.timer.Seconds()) < 60:
 		timer.WriteString(timerLowStyle.Render(fmt.Sprintf("[ %s ]", timeRemainingString)))
 	default:
@@ -474,7 +447,7 @@ func (m playModel) renderOpenedDoors() string {
 	boxStyle := openedDoorsStyle
 
 	if m.targeting.kind == TargetKindDoor {
-		header = "┌── 🎯 SELECT TARGET DOOR "
+		header = "┌── " + icon(iconTarget) + " SELECT TARGET DOOR "
 		headerStyle = headerStyle.Foreground(lipgloss.Cyan)
 		boxStyle = openedDoorsStyle.BorderForeground(lipgloss.Cyan)
 	}
@@ -509,7 +482,7 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 	doorBoxStyle := doorStyle
 
 	if isTargeted {
-		doorBoxTitle = fmt.Sprintf("┌─ 🎯 [%d] [DOOR %d - TARGET] ", idx, idx)
+		doorBoxTitle = fmt.Sprintf("┌─ %s [%d] [DOOR %d - TARGET] ", icon(iconTarget), idx, idx)
 		headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Cyan)
 		doorBoxStyle = selectedDoorStyle
 	}
@@ -530,7 +503,7 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 		dispatchedResources := m.dispatchResources()[door.Id]
 		if len(dispatchedResources) > 0 {
 			for _, required := range dispatchedResources {
-				doorBody.WriteString(fmt.Sprintf("%s", resourceTypeToIcon(required)))
+				doorBody.WriteString(resourceTypeToIcon(required))
 			}
 		}
 	case game.CardEvent:
@@ -597,13 +570,9 @@ func (m playModel) renderPlayfield() string {
 	playfieldBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)-lipgloss.Width(playfieldBoxTitle.String())-1)) + "┐\n")
 
 	listResources := make(map[game.ResourceType]int)
-	listActions := make(map[string]int)
 	for _, c := range m.snapshot.PlayedField {
 		for _, r := range c.Resources {
 			listResources[r]++
-		}
-		if c.Kind != game.PlayerCardResource {
-			listActions[c.Name]++
 		}
 	}
 
@@ -629,7 +598,7 @@ func (m playModel) renderActivePlayers() string {
 	boxStyle := pendingPromptStyle
 
 	if isPlayerTargeting {
-		header = "┌── 🎯 SELECT TARGET PLAYERS "
+		header = "┌── " + icon(iconTarget) + " SELECT TARGET PLAYERS "
 		headerStyle = headerStyle.Foreground(lipgloss.Cyan)
 		boxStyle = pendingPromptStyle.BorderForeground(lipgloss.Cyan)
 	}
@@ -649,10 +618,10 @@ func (m playModel) renderActivePlayers() string {
 			pointer = "> "
 		}
 		if m.targeting.targetPlayerIDs[p.Id] {
-			targeted = "🎯"
+			targeted = icon(iconTarget)
 		}
 		columns[0] = append(columns[0], playerRowStyle.Render(fmt.Sprintf("%s%s%s (%s)", pointer, targeted, p.Name, p.HeroName)))
-		columns[1] = append(columns[1], fmt.Sprintf("    🖐️ %2d - 🂠 %2d - 🗑️ %2d", len(p.Hand), p.DeckCount, len(p.Discard)))
+		columns[1] = append(columns[1], fmt.Sprintf("    %s %2d - %s %2d - %s %2d", icon(iconHand), len(p.Hand), icon(iconDeck), p.DeckCount, icon(iconDiscard), len(p.Discard)))
 	}
 
 	players := lipgloss.JoinHorizontal(
@@ -665,43 +634,6 @@ func (m playModel) renderActivePlayers() string {
 	box.WriteString(activePlayersBoxTitle.String() + boxStyle.Render(players))
 
 	return box.String()
-}
-
-func (m playModel) renderPendingPrompt() string {
-	var promptBoxTitle strings.Builder
-	promptBoxTitle.WriteString("┌── PENDING TEAM PROMPTS / INTERACTIONS ")
-	promptBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)-lipgloss.Width(promptBoxTitle.String())-1)) + "┐\n")
-
-	var prompt strings.Builder
-	if m.snapshot.PendingInteraction == nil {
-		prompt.WriteString("(No pending interaction / team prompt)\n")
-
-		return promptBoxTitle.String() + pendingPromptStyle.Render(prompt.String())
-	}
-
-	pi := m.snapshot.PendingInteraction
-	prompt.WriteString(fmt.Sprintf("⚠  EVENT PROMPT: [%s]\n", interactionKindToString(pi.Kind)))
-	if len(pi.PendingPlayers) > 0 {
-		prompt.WriteString("Pending players: ")
-		for _, pID := range pi.PendingPlayers {
-			switch pi.Kind {
-			case game.InteractionPlayerDiscardCards:
-				count := pi.RequiredCounts[pID]
-				prompt.WriteString(fmt.Sprintf("[%s: WAITING (%d cards)] ", pID, count))
-			default:
-				prompt.WriteString(fmt.Sprintf("[%s: WAITING] ", pID))
-			}
-		}
-		prompt.WriteString("\n")
-	}
-	if m.dismissedPrompt {
-		prompt.WriteString("Action: Modal dismissed • Press [ENTER] / [SPACE] to re-open decision modal\n")
-
-		return promptBoxTitle.String() + pendingPromptStyle.Render(prompt.String())
-	}
-	prompt.WriteString("Action: Decision modal active • Press [ESC] to dismiss and view playfield\n")
-
-	return promptBoxTitle.String() + pendingPromptStyle.Render(prompt.String())
 }
 
 func (m playModel) renderArtifacts() string {
@@ -740,7 +672,7 @@ func (m playModel) renderActiveCurses() string {
 		return cursesBoxTitle.String() + cursesStyle.Render(curses.String())
 	}
 	for _, c := range m.snapshot.ActiveCurses {
-		curses.WriteString(fmt.Sprintf("☠ [%s]\n  %s\n", c.Name, c.Description))
+		curses.WriteString(fmt.Sprintf("%s [%s]\n  %s\n", icon(iconCurse), c.Name, c.Description))
 	}
 
 	return cursesBoxTitle.String() + cursesStyle.Render(curses.String())
@@ -758,14 +690,14 @@ func (m playModel) renderPlayerDashboard() string {
 	hudHeader.WriteString(strings.Repeat("─", max(0, screenWidth-lipgloss.Width(playerBoxTitle)-1)) + "┐\n")
 
 	var hudCol1 strings.Builder
-	hudCol1.WriteString(fmt.Sprintf("[Deck]\n 🂠 %d cards", player.DeckCount))
+	hudCol1.WriteString(fmt.Sprintf("[Deck]\n %s %d cards", icon(iconDeck), player.DeckCount))
 
 	var hudCol2 strings.Builder
 	topDiscard := "None"
 	if len(player.Discard) > 0 {
 		topDiscard = player.Discard[len(player.Discard)-1].Name
 	}
-	hudCol2.WriteString(fmt.Sprintf("[Discard]\n 🗑️ %d cards (Top: %s)", len(player.Discard), topDiscard))
+	hudCol2.WriteString(fmt.Sprintf("[Discard]\n %s %d cards (Top: %s)", icon(iconDiscard), len(player.Discard), topDiscard))
 
 	var hudCol3 strings.Builder
 	hudCol3.WriteString(fmt.Sprintf("[Ability] %s\n %s", player.AbilityName, player.AbilityDescription))
@@ -820,7 +752,7 @@ func (m playModel) renderPlayerCard(card game.PlayerCardDTO, idx int) string {
 		}
 	case game.PlayerCardAction:
 		cardBody.WriteString("[Action]\n\n")
-		cardBody.WriteString(fmt.Sprintf("%s", card.Description))
+		cardBody.WriteString(card.Description)
 	}
 
 	style := cardStyle
@@ -836,135 +768,9 @@ func (m playModel) renderPlayerCard(card game.PlayerCardDTO, idx int) string {
 	return box.String()
 }
 
-func (m playModel) renderPromptOverlay(baseView string) string {
-	if m.snapshot.PendingInteraction == nil || m.dismissedPrompt {
-		return baseView
-	}
-
-	pi := m.snapshot.PendingInteraction
-	var content strings.Builder
-	content.WriteString(pendingPromptHeaderStyle.Render(fmt.Sprintf("⚡ TEAM DECISION: %s\n\n", strings.ToUpper(interactionKindToString(pi.Kind)))))
-
-	if len(pi.PendingPlayers) > 0 {
-		content.WriteString(lipgloss.NewStyle().Bold(true).Render("Pending party members:\n"))
-		for _, pID := range pi.PendingPlayers {
-			if pi.Kind == game.InteractionPlayerDiscardCards {
-				req := pi.RequiredCounts[pID]
-				content.WriteString(fmt.Sprintf(" • ⏳ [%s] (Must discard %d card(s))\n", pID, req))
-			} else {
-				content.WriteString(fmt.Sprintf(" • ⏳ [%s: WAITING]\n", pID))
-			}
-		}
-		content.WriteString("\n")
-	}
-
-	player := m.currentPlayer()
-	content.WriteString(fmt.Sprintf("Active Acting Hero: %s (%s)\n", strings.ToUpper(player.HeroClass.String()), player.Name))
-	content.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("(Press [TAB] / [Shift+TAB] to switch active player)\n\n"))
-
-	switch pi.Kind {
-	case game.InteractionTeamChoicePlayer:
-		content.WriteString("Choose target party member:\n")
-		for i, p := range m.snapshot.Players {
-			prefix := fmt.Sprintf(" [%d] %s (%s)", i+1, p.Name, p.HeroClass.String())
-			if i == m.promptChoiceIdx {
-				content.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true).Render("👉 "+prefix+"  (SELECTED)") + "\n")
-			} else {
-				content.WriteString("   " + prefix + "\n")
-			}
-		}
-
-	case game.InteractionTeamChoiceResource:
-		content.WriteString("Choose resource type:\n")
-		resources := []struct {
-			rt   game.ResourceType
-			name string
-		}{
-			{game.Sword, "Sword"},
-			{game.Arrow, "Arrow"},
-			{game.Shield, "Shield"},
-			{game.Jump, "Jump"},
-			{game.Scroll, "Scroll"},
-		}
-		for i, r := range resources {
-			prefix := fmt.Sprintf(" [%d] %s %s", i+1, resourceTypeToIcon(r.rt), r.name)
-			if i == m.promptChoiceIdx {
-				content.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true).Render("👉 "+prefix+"  (SELECTED)") + "\n")
-			} else {
-				content.WriteString("   " + prefix + "\n")
-			}
-		}
-
-	case game.InteractionTeamChoiceArtifact:
-		content.WriteString("Choose team artifact:\n")
-		for i, a := range m.snapshot.Artifacts {
-			prefix := fmt.Sprintf(" [%d] [%s] %s: \"%s\"", i+1, a.Color, a.Name, a.Description)
-			if i == m.promptChoiceIdx {
-				content.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true).Render("👉 "+prefix+"  (SELECTED)") + "\n")
-			} else {
-				content.WriteString("   " + prefix + "\n")
-			}
-		}
-
-	case game.InteractionPlayerDiscardCards:
-		expected := pi.RequiredCounts[player.Id]
-		switch {
-		case expected == 0:
-			expected = 1
-		}
-		expected = min(expected, len(player.Hand))
-		content.WriteString(fmt.Sprintf("Select %d card(s) from hand to discard:\n", expected))
-		for i, c := range player.Hand {
-			prefix := fmt.Sprintf(" [%d] %s", i+1, c.Name)
-			switch m.selectedCards[c.Id] {
-			case true:
-				content.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true).Render("👉 "+prefix+"  [SELECTED FOR DISCARD]") + "\n")
-			default:
-				content.WriteString("   " + prefix + "\n")
-			}
-		}
-		content.WriteString(fmt.Sprintf("\nSelected: %d / %d cards\n", len(m.selectedCards), expected))
-
-	case game.InteractionPlayerDonatesHand:
-		content.WriteString("Choose teammate to receive your hand:\n")
-		candidates := make([]game.PlayerDTO, 0, len(m.snapshot.Players))
-		for _, pl := range m.snapshot.Players {
-			if pl.Id != player.Id {
-				candidates = append(candidates, pl)
-			}
-		}
-		for i, p := range candidates {
-			prefix := fmt.Sprintf(" [%d] %s (%s)", i+1, p.Name, p.HeroClass.String())
-			if i == m.promptChoiceIdx {
-				content.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true).Render("👉 "+prefix+"  (SELECTED)") + "\n")
-			} else {
-				content.WriteString("   " + prefix + "\n")
-			}
-		}
-	case game.InteractionNoInteraction:
-		return ""
-	}
-
-	content.WriteString("\n" + lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Render("[1-5] Choose Option • [ENTER]/[SPACE] Submit • [ESC] Dismiss & View Playfield"))
-
-	modalBox := promptModalStyle.Render(content.String())
-
-	height := max(28, lipgloss.Height(baseView))
-
-	return lipgloss.Place(
-		screenWidth,
-		height,
-		lipgloss.Center,
-		lipgloss.Center,
-		modalBox,
-		lipgloss.WithWhitespaceChars(" "),
-		lipgloss.WithWhitespaceStyle(lipgloss.NewStyle().Background(lipgloss.Color("#11111b"))),
-	)
-}
-
 func (m playModel) renderVictory() string {
 	var s strings.Builder
-	s.WriteString(bannerBoxStyle.Render(victoryTitleStyle.Render("🏆 VICTORY ACHIEVED! The Gungeon has been conquered! 🏆\n\nAll dungeon doors cleared and boss defeated!")))
+	s.WriteString(bannerBoxStyle.Render(victoryTitleStyle.Render(icon(iconVictory) + " VICTORY ACHIEVED! The Gungeon has been conquered! " + icon(iconVictory) + "\n\nAll dungeon doors cleared and boss defeated!")))
 	s.WriteString("\n\n" + footerStyle.Render("[ENTER] Return to Lobby  •  [R] Start Next Floor  •  [Ctrl+C] Quit"))
 
 	return s.String()
@@ -972,7 +778,7 @@ func (m playModel) renderVictory() string {
 
 func (m playModel) renderDefeat() string {
 	var s strings.Builder
-	s.WriteString(bannerBoxStyle.Render(defeatTitleStyle.Render("💀 DEFEAT - The Gungeon claimed your party! 💀\n\nTime expired or your team was overwhelmed.")))
+	s.WriteString(bannerBoxStyle.Render(defeatTitleStyle.Render(icon(iconDefeat) + " DEFEAT - The Gungeon claimed your party! " + icon(iconDefeat) + "\n\nTime expired or your team was overwhelmed.")))
 	s.WriteString("\n\n" + footerStyle.Render("[ENTER] Return to Lobby  •  [Ctrl+C] Quit"))
 
 	return s.String()
@@ -980,12 +786,18 @@ func (m playModel) renderDefeat() string {
 
 func (m playModel) renderFooter() string {
 	var footer strings.Builder
-	if m.targeting.kind == TargetKindDoor || m.targeting.kind == TargetKindPlayer {
+	switch m.targeting.kind {
+	case TargetKindDoor:
 		footer.WriteString("[↑/↓] / [1-2] Select Target Door • [ENTER] / [SPACE] Confirm Target • [ESC] Cancel Targeting • [Ctrl+C] Quit")
 
 		return footerStyle.Render(footer.String())
+	case TargetKindPlayer, TargetKindTwoPlayers:
+		footer.WriteString("[↑/↓] / [1-6] Select Target Player • [ENTER] / [SPACE] Confirm Target • [ESC] Cancel Targeting • [Ctrl+C] Quit")
+
+		return footerStyle.Render(footer.String())
+	case TargetKindNone:
 	}
-	if m.snapshot.PendingInteraction != nil && !m.dismissedPrompt {
+	if m.promptIsActive() && !m.dismissedPrompt {
 		footer.WriteString("[1-5] Choose Option • [TAB] Switch Hero • [ENTER] / [SPACE] Submit Choice • [ESC] Dismiss Modal • [Ctrl+C] Quit")
 
 		return footerStyle.Render(footer.String())
@@ -1053,6 +865,9 @@ func (m playModel) playSelectedCards() (playModel, tea.Cmd) {
 
 				return m, nil
 			}
+			if len(m.snapshot.OpenedDoors) == 0 {
+				return m, nil
+			}
 			err := m.controller.Dispatch(m.ctx, game.PlayCardCmd{
 				PlayerID:     m.currentPlayer().Id,
 				CardID:       cID,
@@ -1118,6 +933,9 @@ func (m playModel) useHeroAbility() (playModel, tea.Cmd) {
 	player := m.currentPlayer()
 	switch heroAbilityTargetKind(player.HeroClass) {
 	case TargetKindDoor:
+		if len(m.snapshot.OpenedDoors) == 0 {
+			return m, nil
+		}
 		if len(m.snapshot.OpenedDoors) == 2 {
 			m.targeting = targetingState{
 				kind:         TargetKindDoor,
@@ -1206,6 +1024,9 @@ func (m playModel) useArtifact() (playModel, tea.Cmd) {
 	art := readyArtifacts[0]
 	switch art.Id {
 	case game.BattleAxeID, game.TheInfinityScrollID:
+		if len(m.snapshot.OpenedDoors) == 0 {
+			return m, nil
+		}
 		if len(m.snapshot.OpenedDoors) == 2 {
 			m.targeting = targetingState{
 				kind:         TargetKindDoor,
@@ -1263,6 +1084,10 @@ func (m playModel) dispatchTargetedAction() (playModel, tea.Cmd) {
 	switch {
 	case m.targeting.isAbility:
 		if len(m.selectedCards) == 3 {
+			var targetPlayerID game.PlayerID
+			if len(targetPlayerIDs) > 0 {
+				targetPlayerID = targetPlayerIDs[0]
+			}
 			cardIDs := make([]game.CardID, 3)
 			i := 0
 			for cID := range m.selectedCards {
@@ -1273,7 +1098,7 @@ func (m playModel) dispatchTargetedAction() (playModel, tea.Cmd) {
 				PlayerID:       m.currentPlayer().Id,
 				DiscardCardIDs: cardIDs,
 				TargetCardID:   targetCardID,
-				TargetPlayerID: targetPlayerIDs[0],
+				TargetPlayerID: targetPlayerID,
 			})
 			if err != nil {
 				cmd = forwardError(err)
@@ -1368,19 +1193,15 @@ func (m playModel) submitPromptChoice() (playModel, tea.Cmd) {
 		}
 
 	case game.InteractionPlayerDiscardCards:
-		expected := pi.RequiredCounts[p.Id]
-		switch {
-		case expected == 0:
-			expected = 1
+		expected := discardExpected(pi, p)
+		cardIDs := make([]game.CardID, 0, expected)
+		for _, c := range p.Hand {
+			if m.selectedCards[c.Id] {
+				cardIDs = append(cardIDs, c.Id)
+			}
 		}
-		expected = min(expected, len(p.Hand))
-		if len(m.selectedCards) != expected {
+		if len(cardIDs) != expected {
 			return m, nil
-		}
-
-		cardIDs := make([]game.CardID, 0, len(m.selectedCards))
-		for cID := range m.selectedCards {
-			cardIDs = append(cardIDs, cID)
 		}
 
 		err := m.controller.Dispatch(m.ctx, game.SubmitPromptChoiceCmd{
@@ -1394,12 +1215,7 @@ func (m playModel) submitPromptChoice() (playModel, tea.Cmd) {
 		clear(m.selectedCards)
 
 	case game.InteractionPlayerDonatesHand:
-		candidates := make([]game.PlayerDTO, 0, len(m.snapshot.Players))
-		for _, pl := range m.snapshot.Players {
-			if pl.Id != p.Id {
-				candidates = append(candidates, pl)
-			}
-		}
+		candidates := m.donationCandidates(p)
 		if len(candidates) == 0 || m.promptChoiceIdx < 0 || m.promptChoiceIdx >= len(candidates) {
 			return m, nil
 		}
@@ -1414,6 +1230,10 @@ func (m playModel) submitPromptChoice() (playModel, tea.Cmd) {
 		}
 	case game.InteractionNoInteraction:
 	}
+
+	// Only reached when the choice was dispatched (invalid choices return early), so the prompt stays open
+	// until the player really answered it.
+	m.promptChoiceIdx = 0
 
 	return m, nil
 }
