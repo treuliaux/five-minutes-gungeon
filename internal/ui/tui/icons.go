@@ -1,4 +1,4 @@
-package main
+package tui
 
 import "github.com/treuliaux/five-minutes-gungeon/internal/game"
 

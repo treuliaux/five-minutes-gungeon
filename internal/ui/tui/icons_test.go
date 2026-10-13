@@ -1,4 +1,4 @@
-package main
+package tui
 
 import (
 	"strings"
@@ -44,8 +44,8 @@ func TestResolveIconTier(t *testing.T) {
 		goos  string
 		wants iconTier
 	}{
-		{"flag wins over env", "ascii", map[string]string{iconsEnvVar: "emoji"}, "linux", iconTierASCII},
-		{"env wins over detection", "auto", map[string]string{iconsEnvVar: "symbols", "LANG": "en_US.UTF-8", "KITTY_WINDOW_ID": "1"}, "linux", iconTierSymbols},
+		{"flag wins over env", "ascii", map[string]string{IconsEnvVar: "emoji"}, "linux", iconTierASCII},
+		{"env wins over detection", "auto", map[string]string{IconsEnvVar: "symbols", "LANG": "en_US.UTF-8", "KITTY_WINDOW_ID": "1"}, "linux", iconTierSymbols},
 		{"non utf8 locale", "", map[string]string{"LANG": "C"}, "linux", iconTierASCII},
 		{"empty locale on linux", "", map[string]string{}, "linux", iconTierASCII},
 		{"raw console", "", map[string]string{"LANG": "en_US.UTF-8", "TERM": "linux"}, "linux", iconTierASCII},
@@ -59,8 +59,9 @@ func TestResolveIconTier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := resolveIconTier(tt.flag, envFrom(tt.env), tt.goos); got != tt.wants {
-				t.Errorf("got %s, want %s", got, tt.wants)
+			ResolveIconTier(tt.flag, envFrom(tt.env), tt.goos)
+			if activeIconTier != tt.wants {
+				t.Errorf("got %s, want %s", activeIconTier, tt.wants)
 			}
 		})
 	}

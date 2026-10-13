@@ -1,11 +1,11 @@
-package main
+package tui
 
 import (
 	"strconv"
 	"strings"
 )
 
-const iconsEnvVar = "FMG_ICONS"
+const IconsEnvVar = "FMG_ICONS"
 
 // minEmojiVTEVersion is the first VTE release (0.54) from which wide emoji are laid out reliably.
 const minEmojiVTEVersion = 5400
@@ -25,18 +25,18 @@ func parseIconTier(value string) (iconTier, bool) {
 	return iconTierEmoji, false
 }
 
-// resolveIconTier picks the tier from, in order: the --icons flag, the FMG_ICONS env var, auto-detection.
+// ResolveIconTier picks the tier from, in order: the --icons flag, the FMG_ICONS env var, auto-detection.
 // "auto" (or an unknown value) falls through to the next source.
-func resolveIconTier(flagValue string, getenv envLookup, goos string) iconTier {
+func ResolveIconTier(flagValue string, getenv envLookup, goos string) {
 	if tier, ok := parseIconTier(flagValue); ok {
-		return tier
+		activeIconTier = tier
 	}
 
-	if tier, ok := parseIconTier(getenv(iconsEnvVar)); ok {
-		return tier
+	if tier, ok := parseIconTier(getenv(IconsEnvVar)); ok {
+		activeIconTier = tier
 	}
 
-	return detectIconTier(getenv, goos)
+	activeIconTier = detectIconTier(getenv, goos)
 }
 
 // detectIconTier guesses the richest tier the terminal can draw without breaking the layout. When unsure it picks
