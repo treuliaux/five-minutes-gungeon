@@ -160,8 +160,8 @@ func NewGreenDeck() *Deck {
 	}
 	cards = append(cards,
 		&ActionCard{Id: nextCardId(), Name: "Snipe", Description: "Defeat a [Person]", Action: SnipeAction{}, TargetType: TargetCard},
-		&ActionCard{Id: nextCardId(), Name: "Healing Herbs", Description: "Choose a player - They draw 4 cards from their [Discard Pile]", Action: HealingHerbsAction{}, TargetType: TargetPlayer},
-		&ActionCard{Id: nextCardId(), Name: "Healing Herbs", Description: "Choose a player - They draw 4 cards from their [Discard Pile]", Action: HealingHerbsAction{}, TargetType: TargetPlayer},
+		&ActionCard{Id: nextCardId(), Name: "Healing Herbs", Description: "Chosen player draw 4 cards from their [Discard Pile]", Action: HealingHerbsAction{}, TargetType: TargetPlayer},
+		&ActionCard{Id: nextCardId(), Name: "Healing Herbs", Description: "Chosen player draw 4 cards from their [Discard Pile]", Action: HealingHerbsAction{}, TargetType: TargetPlayer},
 		&ActionCard{Id: nextCardId(), Name: "Wild Card", Description: "Counts as any [Resource]", Action: WildCardAction{}, TargetType: TargetNone},
 		&ActionCard{Id: nextCardId(), Name: "Wild Card", Description: "Counts as any [Resource]", Action: WildCardAction{}, TargetType: TargetNone},
 		&ActionCard{Id: nextCardId(), Name: "Wild Card", Description: "Counts as any [Resource]", Action: WildCardAction{}, TargetType: TargetNone},
@@ -200,7 +200,7 @@ func NewBlueDeck() *Deck {
 		cards = append(cards, &ResourceCard{Id: nextCardId(), Name: "Blink", Resources: []ResourceType{Jump}})
 	}
 	cards = append(cards,
-		&ActionCard{Id: nextCardId(), Name: "Cancel", Description: "Cancel an Event", Action: CancelAction{}},
+		&ActionCard{Id: nextCardId(), Name: "Cancel", Description: "Cancel an [Event]", Action: CancelAction{}},
 		&ActionCard{Id: nextCardId(), Name: "Fireball", Description: "Defeat a [Monster]", Action: FireballAction{}, TargetType: TargetCard},
 		&ActionCard{Id: nextCardId(), Name: "Fireball", Description: "Defeat a [Monster]", Action: FireballAction{}, TargetType: TargetCard},
 		&ActionCard{Id: nextCardId(), Name: "Fireball", Description: "Defeat a [Monster]", Action: FireballAction{}, TargetType: TargetCard},
@@ -294,8 +294,8 @@ func NewBlackDeck() *Deck {
 		&ActionCard{Id: nextCardId(), Name: "Living Vines", Description: "Defeat an [Person]", Action: LivingVinesAction{}, TargetType: TargetCard},
 		&ActionCard{Id: nextCardId(), Name: "Cleanse", Description: "Cure a [Curse]", Action: CleanseAction{}, TargetType: TargetCurse},
 		&ActionCard{Id: nextCardId(), Name: "Cleanse", Description: "Cure a [Curse]", Action: CleanseAction{}, TargetType: TargetCurse},
-		&ActionCard{Id: nextCardId(), Name: "Ancient Healing", Description: "Every player draw 2 cards from their [Discard Pile]", Action: AncientHealingAction{}, TargetType: TargetNone},
-		&ActionCard{Id: nextCardId(), Name: "Ancient Healing", Description: "Every player draw 2 cards from their [Discard Pile]", Action: AncientHealingAction{}, TargetType: TargetNone},
+		&ActionCard{Id: nextCardId(), Name: "Ancient Healing", Description: "Every player draw 2 cards from their [Discard Pile]", Action: AncientHealingAction{}, TargetType: TargetTwoPlayers},
+		&ActionCard{Id: nextCardId(), Name: "Ancient Healing", Description: "Every player draw 2 cards from their [Discard Pile]", Action: AncientHealingAction{}, TargetType: TargetTwoPlayers},
 	)
 	d := &Deck{
 		Color: Black,

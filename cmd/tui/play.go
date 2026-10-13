@@ -476,22 +476,25 @@ func (m playModel) renderOpenedDoors() string {
 func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 	isTargeted := m.targeting.kind == TargetKindDoor && m.targeting.targetCardID == door.Id
 
+	kindStyle := styleOfCardKind(door.Kind)
+	kindTag := icon(kindStyle.icon) + " " + kindStyle.label
+
 	var doorHeader strings.Builder
-	doorBoxTitle := fmt.Sprintf("┌─ [DOOR %d] ", idx)
-	headerStyle := lipgloss.NewStyle().Margin(0).Padding(0)
-	doorBoxStyle := doorStyle
+	doorBoxTitle := fmt.Sprintf("%s%s [DOOR %d] %s ", kindStyle.border.TopLeft, kindStyle.border.Top, idx, kindTag)
+	headerStyle := kindStyle.text()
+	doorBoxStyle := doorStyle.BorderStyle(kindStyle.border).BorderForeground(kindStyle.color)
 
 	if isTargeted {
-		doorBoxTitle = fmt.Sprintf("┌─ %s [%d] [DOOR %d - TARGET] ", icon(iconTarget), idx, idx)
-		headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Cyan)
-		doorBoxStyle = selectedDoorStyle
+		doorBoxTitle = fmt.Sprintf("%s%s %s [DOOR %d - TARGET] %s ", kindStyle.border.TopLeft, kindStyle.border.Top, icon(iconTarget), idx, kindTag)
+		headerStyle = lipgloss.NewStyle().Foreground(lipgloss.Cyan).Bold(true)
+		doorBoxStyle = doorBoxStyle.BorderForeground(lipgloss.Cyan)
 	}
 
 	doorHeader.WriteString(doorBoxTitle)
-	doorHeader.WriteString(strings.Repeat("─", max(0, (screenWidth/2)-lipgloss.Width(doorBoxTitle))-5) + "┐")
+	doorHeader.WriteString(strings.Repeat(kindStyle.border.Top, max(0, (screenWidth/2)-lipgloss.Width(doorBoxTitle))-5) + kindStyle.border.TopRight)
 
 	var doorBody strings.Builder
-	doorBody.WriteString(fmt.Sprintf("%s: %s\n", dungeonCardKindToString(door.Kind), door.Name))
+	doorBody.WriteString(fmt.Sprintf("%s: %s\n", kindStyle.text().Render(dungeonCardKindToString(door.Kind)), door.Name))
 	doorBody.WriteString("Required: ")
 	switch door.Kind {
 	case game.CardMonster, game.CardObstacle, game.CardPerson, game.CardMiniBoss, game.CardBoss:
@@ -506,9 +509,8 @@ func (m playModel) renderDoor(door game.DungeonCardDTO, idx int) string {
 				doorBody.WriteString(resourceTypeToIcon(required))
 			}
 		}
-	case game.CardEvent:
-		doorBody.WriteString(door.Description)
-	case game.CardCurse:
+	case game.CardEvent, game.CardCurse:
+		doorBody.WriteString(colorizeDescription(door.Description))
 	}
 
 	var box strings.Builder
@@ -621,7 +623,7 @@ func (m playModel) renderActivePlayers() string {
 			targeted = icon(iconTarget)
 		}
 		columns[0] = append(columns[0], playerRowStyle.Render(fmt.Sprintf("%s%s%s (%s)", pointer, targeted, p.Name, p.HeroName)))
-		columns[1] = append(columns[1], fmt.Sprintf("    %s %2d - %s %2d - %s %2d", icon(iconHand), len(p.Hand), icon(iconDeck), p.DeckCount, icon(iconDiscard), len(p.Discard)))
+		columns[1] = append(columns[1], fmt.Sprintf("    %s %2d - %s %2d - %s %2d", icon(iconHand), len(p.Hand), icon(iconDiscard), len(p.Discard), icon(iconDeck), p.DeckCount))
 	}
 
 	players := lipgloss.JoinHorizontal(
@@ -654,28 +656,32 @@ func (m playModel) renderArtifacts() string {
 		case true:
 			status = "[ USED  ]"
 		}
-		artifacts.WriteString(fmt.Sprintf("• [%s] %s  %s\n  \"%s\"\n", a.Color, a.Name, status, a.Description))
+		artifacts.WriteString(fmt.Sprintf("• %s  %s\n  %s\n", a.Name, status, colorizeDescription(a.Description)))
 	}
 
 	return artifactsBoxTitle.String() + artifactsStyle.Render(artifacts.String())
 }
 
 func (m playModel) renderActiveCurses() string {
+	curseStyle := styleOfCardKind(game.CardCurse)
+
 	var cursesBoxTitle strings.Builder
-	cursesBoxTitle.WriteString("┌── ACTIVE CURSES ")
-	cursesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)-lipgloss.Width(cursesBoxTitle.String())-1)) + "┐\n")
+	cursesBoxTitle.WriteString("┌── " + icon(curseStyle.icon) + " ACTIVE CURSES ")
+	cursesBoxTitle.WriteString(strings.Repeat("─", max(0, (screenWidth/2)-lipgloss.Width(cursesBoxTitle.String())-1)) + "┐")
 
 	var curses strings.Builder
 	if len(m.snapshot.ActiveCurses) == 0 {
 		curses.WriteString("(No active curses)\n")
 
-		return cursesBoxTitle.String() + cursesStyle.Render(curses.String())
+		return cursesBoxTitle.String() + "\n" + cursesStyle.Render(curses.String())
 	}
 	for _, c := range m.snapshot.ActiveCurses {
-		curses.WriteString(fmt.Sprintf("%s [%s]\n  %s\n", icon(iconCurse), c.Name, c.Description))
+		curses.WriteString(fmt.Sprintf("%s %s\n  %s\n", icon(curseStyle.icon), curseStyle.text().Render("["+c.Name+"]"), colorizeDescription(c.Description)))
 	}
 
-	return cursesBoxTitle.String() + cursesStyle.Render(curses.String())
+	cursesBoxStyle := cursesStyle.BorderStyle(curseStyle.border).BorderForeground(curseStyle.color)
+
+	return curseStyle.text().Render(cursesBoxTitle.String()) + "\n" + cursesBoxStyle.Render(curses.String())
 }
 
 func (m playModel) renderPlayerDashboard() string {
@@ -700,7 +706,7 @@ func (m playModel) renderPlayerDashboard() string {
 	hudCol2.WriteString(fmt.Sprintf("[Discard]\n %s %d cards (Top: %s)", icon(iconDiscard), len(player.Discard), topDiscard))
 
 	var hudCol3 strings.Builder
-	hudCol3.WriteString(fmt.Sprintf("[Ability] %s\n %s", player.AbilityName, player.AbilityDescription))
+	hudCol3.WriteString(fmt.Sprintf("[Ability] %s\n %s", player.AbilityName, colorizeDescription(player.AbilityDescription)))
 
 	var hud strings.Builder
 	hud.WriteString(hudHeader.String())
@@ -752,7 +758,7 @@ func (m playModel) renderPlayerCard(card game.PlayerCardDTO, idx int) string {
 		}
 	case game.PlayerCardAction:
 		cardBody.WriteString("[Action]\n\n")
-		cardBody.WriteString(card.Description)
+		cardBody.WriteString(colorizeDescription(card.Description))
 	}
 
 	style := cardStyle
@@ -866,7 +872,7 @@ func (m playModel) playSelectedCards() (playModel, tea.Cmd) {
 				return m, nil
 			}
 			if len(m.snapshot.OpenedDoors) == 0 {
-				return m, nil
+				return m, localError("No opened door to target")
 			}
 			err := m.controller.Dispatch(m.ctx, game.PlayCardCmd{
 				PlayerID:     m.currentPlayer().Id,
@@ -920,7 +926,7 @@ func (m playModel) playSelectedCards() (playModel, tea.Cmd) {
 
 func (m playModel) useHeroAbility() (playModel, tea.Cmd) {
 	if len(m.selectedCards) != 3 {
-		return m, nil
+		return m, localError("Select exactly 3 cards to use your hero ability")
 	}
 
 	cardIDs := make([]game.CardID, 3)
@@ -934,7 +940,7 @@ func (m playModel) useHeroAbility() (playModel, tea.Cmd) {
 	switch heroAbilityTargetKind(player.HeroClass) {
 	case TargetKindDoor:
 		if len(m.snapshot.OpenedDoors) == 0 {
-			return m, nil
+			return m, localError("No opened door to target")
 		}
 		if len(m.snapshot.OpenedDoors) == 2 {
 			m.targeting = targetingState{
@@ -1008,7 +1014,7 @@ func (m playModel) discardCards() (playModel, tea.Cmd) {
 
 func (m playModel) useArtifact() (playModel, tea.Cmd) {
 	if !m.config.UseExtension {
-		return m, nil
+		return m, localError("Artifacts are only available with the extension")
 	}
 
 	var readyArtifacts []game.ArtifactDTO
@@ -1018,14 +1024,14 @@ func (m playModel) useArtifact() (playModel, tea.Cmd) {
 		}
 	}
 	if len(readyArtifacts) == 0 {
-		return m, nil
+		return m, localError("No ready artifact to use")
 	}
 
 	art := readyArtifacts[0]
 	switch art.Id {
 	case game.BattleAxeID, game.TheInfinityScrollID:
 		if len(m.snapshot.OpenedDoors) == 0 {
-			return m, nil
+			return m, localError("No opened door to target")
 		}
 		if len(m.snapshot.OpenedDoors) == 2 {
 			m.targeting = targetingState{

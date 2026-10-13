@@ -29,6 +29,7 @@ type Model struct {
 	lastReceivedErrors    []timedEntry[error]
 	startTime             time.Time
 	showDebug             bool
+	toast                 toast
 }
 
 type timedEntry[T any] struct {
@@ -104,10 +105,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, askForSnapshot(m.controller)
 
 	case errMsg:
-		// TODO: Display error to user
+		m.toast = toast{id: m.toast.id + 1, text: msg.err.Error()}
 		entry := timedEntry[error]{data: msg.err, receivedAt: time.Since(m.startTime), valid: true}
 		copy(m.lastReceivedErrors, m.lastReceivedErrors[1:])
 		m.lastReceivedErrors[len(m.lastReceivedErrors)-1] = entry
+
+		return m, expireToast(m.toast.id)
+
+	case toastExpiredMsg:
+		if msg.id == m.toast.id {
+			m.toast = toast{id: m.toast.id}
+		}
 
 		return m, nil
 
@@ -195,12 +203,17 @@ func (m Model) View() tea.View {
 		screen.WriteString(fmt.Sprintf("Model '%v' not implemented", m.step))
 	}
 
+	base := screen.String()
+	if m.toast.visible() {
+		base = overlayAt(base, m.toast.render(), toastTop)
+	}
+
 	var total strings.Builder
 	if m.showDebug {
 		debug := m.debugView()
-		total.WriteString(lipgloss.JoinVertical(lipgloss.Left, debug.String(), screen.String()))
+		total.WriteString(lipgloss.JoinVertical(lipgloss.Left, debug.String(), base))
 	} else {
-		total.WriteString(screen.String())
+		total.WriteString(base)
 	}
 
 	view := tea.NewView(appStyle.Render(total.String()))

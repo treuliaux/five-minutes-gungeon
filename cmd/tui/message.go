@@ -11,6 +11,8 @@ type errMsg struct{ err error }
 
 func (e errMsg) Error() string { return e.err.Error() }
 
+type toastExpiredMsg struct{ id int }
+
 type sessionStartedMsg struct {
 	controller          client.GameController
 	ctx                 context.Context
